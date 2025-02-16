@@ -2,7 +2,7 @@
 #include "../inc/board.h"
 #include <stdio.h>
 
-void test_dynamic_arr(void){
+bool test_dynamic_arr(void){
 	bool passed = true;
 	dynamic_arr_info tmp;
 	printf("Testing initialization (n = [0,50])\n");
@@ -46,6 +46,7 @@ void test_dynamic_arr(void){
 	if(passed){
 		printf("No errors reported.\n");
 	}
+	return passed;
 }
 
 void test_generation(){
@@ -62,9 +63,13 @@ void test_generation(){
 void test_potential_dupe(){
 	
 }
-int main(){
+
+bool test(){
+	bool passed = true;
 	generate_lut(true);
-	test_dynamic_arr();
+	if(!test_dynamic_arr())
+		passed = false;
 	test_potential_dupe();
 	test_generation();
+	return passed;
 }
