@@ -1,8 +1,11 @@
 #include "../inc/generate.h"
+#include "../inc/main.h"
 #include "../inc/board.h"
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 #define PREPRUNE 1
 int init_errorcheck_mutex(pthread_mutex_t *mutex)
 {
@@ -41,19 +44,29 @@ struct {
 	pthread_mutex_t done;
 }typedef core_data;
 
+static void write_boards(const static_arr_info n, const char* fmt, const int layer){
+	size_t filename_size = strlen(fmt) + 10; // if there are more than 10 digits of layers i'll eat my shoe
+	char* filename = malloc(sizeof(char) * filename_size);
+	snprintf(filename, filename_size, fmt, layer);
+	printf("Writing %lu boards to %s (%lu bytes)\n", n.size, filename, sizeof(uint64_t) * n.size); 
+	FILE *file = fopen(filename, "wb");
+	fwrite(n.bp, n.size, sizeof(uint64_t), file);
+	fclose(file);
+}
+
 void* generation_thread_move(void* data){
 	arguments *args = data;
 	uint64_t tmp;
+	bool (*move)(uint64_t*, dir) = flat_movement ? flat_move : movedir;
 	int res = pthread_mutex_trylock(args->done);
 	if (res != 0){ // the caller has been naughty
-		printf("Worker thread mutex couldn't be locked, check caller logic!\n");
-		exit(res);
+		printf("Worker thread mutex (%lu) couldn't be locked, check caller logic!(%d)\n", (unsigned long)args->done, res);
 	}
 	for(size_t i = args->start; i < args->end; i++){
 		tmp = args->n.bp[i];
 		for(dir d = left; d < down; d++){
-			if(movedir(&tmp, d)){
-				canonicalize(&tmp);
+			if(move(&tmp, d)){
+				//canonicalize(&tmp);
 				push_back(args->nret, tmp);
 			}
 		}
@@ -66,20 +79,19 @@ void* generation_thread_spawn(void* data){
 	int res = pthread_mutex_trylock(args->done);
 	uint64_t tmp;
 	if (res != 0){ // the caller has been naughty
-		printf("Worker thread mutex couldn't be locked, check caller logic!\n");
-		exit(res);
+		printf("Worker thread mutex (%lu) couldn't be locked, check caller logic!(%d)\n", (unsigned long)args->done, res);
 	}
 	for(size_t i = args->start; i < args->end; i++){
 		for(int tile = 0; tile < 16; tile++){
 			if(GET_TILE((args->n).bp[i], tile) == 0){
 				tmp = args->n.bp[i];
 				SET_TILE(tmp, tile, 1);
-				canonicalize(&tmp);
+				//canonicalize(&tmp);
 				push_back(args->n2, tmp);
 				tmp = args->n.bp[i];
 				bool dupe = spawn_duplicate(tmp); // we have to check here; also only checking four spawn because two spawn can't be a dupe
 				SET_TILE(tmp, tile, 2);
-				canonicalize(&tmp);
+				//canonicalize(&tmp);
 				if(!dupe)
 					push_back(args->n4, tmp);
 				else
@@ -135,21 +147,18 @@ void wait_all(core_data *cores, size_t core_count){
 			done_arr.bp[i] = pthread_mutex_trylock(&cores[i].done);
 			if (done_arr.bp[i] != 0)
 				done = false;
-		}
-		for(uint i = 0; i < core_count; i++){
-			if(done_arr.bp[i] == 0)
-				pthread_mutex_unlock(&cores[i].done); // we own this mutex so we have to unlock it before we try to lock it
+			else
+				pthread_mutex_unlock(&cores[i].done); // we own this mutex so we have to unlock it before we try to lock it again
 		}
 	}
 	// if we're here, all the cores are done
 	for(uint i = 0; i < core_count; i++){
-		pthread_mutex_unlock(&cores[i].done); // i don't even care anymore man
 		pthread_join(cores[i].core, NULL); // idc abt the return
 	}
 }
 
-void generate_layer(const char* file, dynamic_arr_info * restrict n, dynamic_arr_info * restrict n2, 
-		dynamic_arr_info * restrict n4, dynamic_arr_info * restrict potential_duplicate, const uint core_count){ // this is completely nonsensical if any of the pointers are the same, hence restrict
+void generate_layer(dynamic_arr_info * restrict n, dynamic_arr_info * restrict n2, dynamic_arr_info * restrict n4, 
+		dynamic_arr_info * restrict potential_duplicate, const uint core_count, const char *fmt_dir, const int layer){ // this is completely nonsensical if any of the pointers are the same, hence restrict
 	// make an initial estimate for the amount of spawns per tile: TODO test efficacy of different values
 	size_t approx_len = 24 * n->size; // 6 open spaces and 4 directions: definitely an overestimate
 	size_t arr_size_per_thread = approx_len / core_count;
@@ -188,6 +197,8 @@ void generate_layer(const char* file, dynamic_arr_info * restrict n, dynamic_arr
 	// deal with the potential dupes, very slowly
 	*n = concat_unique(n, potential_duplicate);
 	init_threads(cores, args, *n, potential_duplicate, core_count, arr_size_per_thread, true, generation_thread_spawn);
+	// write while we're waiting for the spawning threads
+	write_boards((static_arr_info){n->bp, n->sp - n->bp}, fmt_dir, layer);
 	wait_all(cores, core_count);
 	for(uint i = 0; i < core_count; i++){ 
 		*n2 = concat(n2, &cores[i].n2);
@@ -195,21 +206,60 @@ void generate_layer(const char* file, dynamic_arr_info * restrict n, dynamic_arr
 	}
 	*n4 = concat_unique(n4, potential_duplicate); // only n4 will have the dupes
 }
-void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, const uint core_count){
-	char buf[256];
-	buf[255] = '\0';
+void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, const uint core_count, bool prespawn){
 	dynamic_arr_info n, n2, n4, potential_duplicate;
 	n.bp = initial;
-	n.sp = n.bp;
+	n.sp = n.bp + initial_len;
 	n.size = initial_len;
 	// initialize arrays
 	n2 = init_darr(false, 0);
 	n4 = init_darr(false, 0);
 	potential_duplicate = init_darr(false, 0);
-	for(int i = start; i < end; i++){
-		memset(buf,0,strlen(buf)); // reset the buffer
-		buf[255] = '\0';
-		snprintf(buf, strlen(buf), fmt, i); // make the file name
-		generate_layer(buf, &n, &n2, &n4, &potential_duplicate, core_count);
+	if(prespawn){ // spawn once before moving
+		printf("Prespawning...\n");
+		for(uint64_t *curr = n.bp; curr < n.sp; curr++){
+			for(int i = 0; i < 16; i++){
+				if(GET_TILE((*curr), i) == 0){
+					SET_TILE((*curr), i, 1);
+					push_back(&n2, (*curr));
+					SET_TILE((*curr), i, 2);
+					push_back(&n4, (*curr));
+					SET_TILE((*curr), i, 0);
+				}
+			}
+		}
 	}
+	printf("Generating...\n");
+	printf("Starting boards(%d): \n", start);
+	for(int i = 0; i < initial_len; i++)
+		printf("0x%016lx\n",n.bp[i]);
+	printf("Starting boards(%d): \n", start+2);
+	for(int i = 0; i < n2.sp - n2.bp; i++)
+		printf("0x%016lx\n",n2.bp[i]);
+	printf("Starting boards(%d): \n", start+4);
+	for(int i = 0; i < n4.sp - n4.bp; i++)
+		printf("0x%016lx\n",n4.bp[i]);
+	for(int i = start; i < end; i += 2){
+		generate_layer(&n, &n2, &n4, &potential_duplicate, core_count, fmt, i);
+		free(n.bp);
+		n = n2;
+		n2 = n4;
+		n4 = init_darr(false, 0);
+	}
+}
+
+static_arr_info read_table(const char *dir){
+	FILE *fp = fopen(dir, "rb");
+	fseek(fp, 0L, SEEK_END);
+	size_t sz = ftell(fp);
+	rewind(fp);
+	if(sz % 8 != 0)
+		printf("sz %%8 != 0, this is probably not a real table!\n");
+	uint64_t* data = malloc(sz);
+	if(data == NULL)
+		printf("Could not allocate space to read table!\n");
+	fread(data, 1, sz, fp);
+	printf("Read %ld bytes (%ld boards) from %s\n", sz, sz / 8, dir);
+	fclose(fp);
+	return (static_arr_info){data, sz / 8}; 
 }

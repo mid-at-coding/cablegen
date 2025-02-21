@@ -21,9 +21,11 @@ void generate_lut(bool free_formation);
 void rotate_clockwise(uint64_t*);
 void rotate_counterclockwise(uint64_t*);
 bool movedir(uint64_t*, dir);
+bool flat_move(uint64_t*, dir);
 bool spawn_duplicate(uint64_t);
 bool move_duplicate(uint64_t, dir);
 void canonicalize(uint64_t*);
 void normalize(uint64_t*, dir); // make every direction left
+int get_sum(uint64_t);
 
 #endif

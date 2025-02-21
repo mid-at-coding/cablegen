@@ -2,10 +2,15 @@
 #include "../inc/generate.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 //#define DBG
 
 uint16_t _move_lut[2][UINT16_MAX];
 bool _move_dupe_lut[UINT16_MAX];
+
+bool flat_move(uint64_t *board, dir d){ // unimplemented
+	return false;
+};
 
 static bool move(uint64_t *board, const static_arr_info positions, bool free_formation){ // this should not be used directly
 	// [ board[pos[0]], board[pos[1]] board[pos[2]] ... board[pos[n]] ] -(left)>
@@ -48,7 +53,7 @@ static bool move(uint64_t *board, const static_arr_info positions, bool free_for
 #ifdef DBG
 			printf("Merging: (i: %lu, mc: %u) 0x%016lx\n", i, merge_candidate, *board);
 #endif
-			if(merge_candidate != 0xF){
+			if(merge_candidate != 0xF && GET_TILE((*board), positions.bp[i]) != 0xF){
 				moved = true;
 				if(merge_candidate != 0)
 					SET_TILE((*board), positions.bp[i-1], (merge_candidate + 1));
@@ -159,6 +164,7 @@ bool movedir(uint64_t* board, dir d){
 }
 
 bool move_duplicate(uint64_t board, dir d){
+	return false;
 	uint16_t lookup;
 	const short BITS_PER_ROW = 16;
 	if(d == up || d == down)
@@ -182,24 +188,25 @@ static bool spawn_duplicate_hori(uint64_t board){
 	return false;
 }
 bool spawn_duplicate(uint64_t board){
+	return false;
 	return spawn_duplicate_hori(board) || spawn_duplicate_hori((rotate_counterclockwise(&board), board));
 }
 void rotate_clockwise(uint64_t* b){ // there's probably some trick to do this faster but lut lookup is probably not a bottleneck
 	uint64_t tmp = *b;
 	for(int i = 0; i < 4; i++){
-		SET_TILE((*b),(i + 0),(GET_TILE(tmp,(i + 12))));
-		SET_TILE((*b),(i + 1),(GET_TILE(tmp,(i + 8))));
-		SET_TILE((*b),(i + 2),(GET_TILE(tmp,(i + 4))));
-		SET_TILE((*b),(i + 3),(GET_TILE(tmp,(i + 0))));
+		SET_TILE((*b),(4 * i + 0),(GET_TILE(tmp,(i + 12))));
+		SET_TILE((*b),(4 * i + 1),(GET_TILE(tmp,(i + 8))));
+		SET_TILE((*b),(4 * i + 2),(GET_TILE(tmp,(i + 4))));
+		SET_TILE((*b),(4 * i + 3),(GET_TILE(tmp,(i + 0))));
 	}
 }
 void rotate_counterclockwise(uint64_t* b){
 	uint64_t tmp = *b;
 	for(int i = 0; i < 4; i++){
-		SET_TILE((*b),(i + 0),(GET_TILE(tmp,(15 - i))));
-		SET_TILE((*b),(i + 1),(GET_TILE(tmp,(11 - i))));
-		SET_TILE((*b),(i + 2),(GET_TILE(tmp,(7  - i))));
-		SET_TILE((*b),(i + 3),(GET_TILE(tmp,(3  - i))));
+		SET_TILE((*b),(4 * i + 0),(GET_TILE(tmp,(3  - i))));
+		SET_TILE((*b),(4 * i + 1),(GET_TILE(tmp,(7  - i))));
+		SET_TILE((*b),(4 * i + 2),(GET_TILE(tmp,(11 - i))));
+		SET_TILE((*b),(4 * i + 3),(GET_TILE(tmp,(15 - i))));
 	}
 }
 
@@ -219,4 +226,13 @@ void canonicalize(uint64_t* board){ // turn a board into it's canonical version
 	rotate_clockwise(&two);
 	rotate_counterclockwise(&three);
 	(*board) = max(nonrot, max(one, max(two, three)));
+}
+
+int get_sum(uint64_t b){
+	int res = 0;
+	for(int i = 0; i < 16; i++){
+		int curr = GET_TILE(b,i);
+		res += (curr == 0 || curr == 0xf) ? 0 : pow(2,curr);
+	}
+	return res;
 }

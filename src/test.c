@@ -56,7 +56,7 @@ void test_generation(){
 	dynamic_arr_info n2 = init_darr(false, 0);
 	dynamic_arr_info n4 = init_darr(false, 0);
 	dynamic_arr_info pd = init_darr(false, 0);
-	generate_layer("/dev/null", &n, &n2, &n4, &pd, 1);
+	generate_layer(&n, &n2, &n4, &pd, 1, "/dev/null/%d", 6);
 	printf("Done testing generation.\n");
 }
 

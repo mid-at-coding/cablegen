@@ -11,7 +11,8 @@ struct{
 
 spawn_ret spawnarr(const static_arr_info, dynamic_arr_info*);
 uint64_t* movearr(const static_arr_info, dynamic_arr_info*);
-void generate_layer(const char* file, dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, dynamic_arr_info* potential_duplicate, const uint);
-void generate(const int, const int, const char*, uint64_t*, const size_t, const uint);
+void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, dynamic_arr_info* potential_duplicate, const uint, const char *fmt_dir, const int layer);
+void generate(const int, const int, const char*, uint64_t*, const size_t, const uint, bool prespawn);
+static_arr_info read_table(const char *dir);
 
 #endif
