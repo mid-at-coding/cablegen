@@ -50,6 +50,10 @@ static void write_boards(const static_arr_info n, const char* fmt, const int lay
 	snprintf(filename, filename_size, fmt, layer);
 	printf("Writing %lu boards to %s (%lu bytes)\n", n.size, filename, sizeof(uint64_t) * n.size); 
 	FILE *file = fopen(filename, "wb");
+	if(file == NULL){
+		printf("Couldn't write to %s!\n", filename);
+		return;
+	}
 	fwrite(n.bp, n.size, sizeof(uint64_t), file);
 	fclose(file);
 }
@@ -195,7 +199,10 @@ void generate_layer(dynamic_arr_info * restrict n, dynamic_arr_info * restrict n
 		*n = concat(n, &cores[i].nret);
 	}
 	// deal with the potential dupes, very slowly
-	*n = concat_unique(n, potential_duplicate);
+	if(potential_duplicate->size > 0){
+		*n = concat_unique(n, potential_duplicate);
+		*potential_duplicate = init_darr(0,1);
+	}
 	init_threads(cores, args, *n, potential_duplicate, core_count, arr_size_per_thread, true, generation_thread_spawn);
 	// write while we're waiting for the spawning threads
 	write_boards((static_arr_info){n->bp, n->sp - n->bp}, fmt_dir, layer);
@@ -205,6 +212,7 @@ void generate_layer(dynamic_arr_info * restrict n, dynamic_arr_info * restrict n
 		*n4 = concat(n4, &cores[i].n4);
 	}
 	*n4 = concat_unique(n4, potential_duplicate); // only n4 will have the dupes
+	*potential_duplicate = init_darr(0,1);
 }
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, const uint core_count, bool prespawn){
 	dynamic_arr_info n, n2, n4, potential_duplicate;

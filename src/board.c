@@ -1,5 +1,5 @@
 #include "../inc/board.h"
-#include "../inc/generate.h"
+#include "../inc/array.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -16,6 +16,16 @@ static bool move(uint64_t *board, const static_arr_info positions, bool free_for
 	// [ board[pos[0]], board[pos[1]] board[pos[2]] ... board[pos[n]] ] -(left)>
 	// starting from the left, greedily merge everything and pull everything along
 	// TODO: this is O(n^2); may cause perf issues
+	// weird scenario: this does [ f, f, f, f ] -(left)> [ 0, 0, 0, 0 ], idc enough to track it down manually
+	{	
+		bool all32ks = true;
+		for(int i = 0; i < positions.size; i++){
+			if(GET_TILE((*board), positions.bp[i]) != 0xf)
+				all32ks = false;
+		}
+		if(all32ks)
+			return false;
+	}
 	uint64_t premove = *board;
 	#define SHIFT for(size_t j = i; j < positions.size - 1; j++) { \
 				SET_TILE((*board), positions.bp[j], GET_TILE((*board), positions.bp[j + 1])); \
@@ -64,8 +74,8 @@ static bool move(uint64_t *board, const static_arr_info positions, bool free_for
 		printf("After merge: (i: %lu) 0x%016lx\n", i, *board);
 #endif
 	}
-	// if this is a free formation check if the move is valid
-	if(free_formation){
+	// if this isn't a free formation check if the move is valid
+	if(!free_formation){
 		for(int i = 0; i < 16; i++){
 			if(GET_TILE(premove, i) == 0xf && GET_TILE((*board), i) != 0xf){ // shifted
 				*board = premove;
@@ -79,11 +89,17 @@ static bool move(uint64_t *board, const static_arr_info positions, bool free_for
 void generate_lut(bool free_formation){
 	bool dupe = false;
 	static_arr_info a; // the tile positions to move; here they are hardcoded to 0,1,2,3 which is moves toward 0(left)
+	static_arr_info b; // the tile positions to move; here they are hardcoded to 3,2,1,0 which is moves toward 3(right)
 	a = init_sarr(false, 4);
 	a.bp[0] = 0;
 	a.bp[1] = 1;
 	a.bp[2] = 2;
 	a.bp[3] = 3;
+	b = init_sarr(false, 4);
+	b.bp[0] = 3;
+	b.bp[1] = 2;
+	b.bp[2] = 1;
+	b.bp[3] = 0;
 	for(uint16_t i = 0; i < UINT16_MAX; i++){
 		uint64_t tmp_board = 0;
 		SET_TILE(tmp_board, 0, ((i & 0xF000) >> 12));
@@ -104,6 +120,10 @@ void generate_lut(bool free_formation){
 		dupe |= (GET_TILE(tmp_board, 0) == GET_TILE(tmp_board, 1)) && (GET_TILE(tmp_board,2) == 0); // [x,x,0,y]
 		dupe |= (GET_TILE(tmp_board, 0) == GET_TILE(tmp_board, 2)) && (GET_TILE(tmp_board,1) == 0); // [x,0,x,y]
 		dupe |= (GET_TILE(tmp_board, 1) == GET_TILE(tmp_board, 2)) && (GET_TILE(tmp_board,0) == 0); // [0,x,x,y]
+																									
+		dupe |= (GET_TILE(tmp_board, 1) == GET_TILE(tmp_board, 2)) && (GET_TILE(tmp_board,3) == 0); // [y,x,x,0]
+		dupe |= (GET_TILE(tmp_board, 1) == GET_TILE(tmp_board, 3)) && (GET_TILE(tmp_board,2) == 0); // [y,x,0,x]
+		dupe |= (GET_TILE(tmp_board, 2) == GET_TILE(tmp_board, 3)) && (GET_TILE(tmp_board,1) == 0); // [y,0,x,x]
 		move(&tmp_board, a, free_formation);
 #ifdef DBG
 		printf("Res: %016lx\n", tmp_board);
@@ -113,12 +133,12 @@ void generate_lut(bool free_formation){
 #ifdef DBG
 		printf("Res: %04x\n", _move_lut[left][i]);
 #endif
-		uint64_t flipped = 0;
-		SET_TILE(flipped, 0, (GET_TILE(tmp_board,3)));
-		SET_TILE(flipped, 1, (GET_TILE(tmp_board,2)));
-		SET_TILE(flipped, 2, (GET_TILE(tmp_board,1)));
-		SET_TILE(flipped, 3, (GET_TILE(tmp_board,0)));
-		_move_lut[right][i] = flipped >> 12 * 4;
+		SET_TILE(tmp_board, 0, ((i & 0xF000) >> 12));
+		SET_TILE(tmp_board, 1, ((i & 0x0F00) >> 8));
+		SET_TILE(tmp_board, 2, ((i & 0x00F0) >> 4));
+		SET_TILE(tmp_board, 3, (i & 0x000F));
+		move(&tmp_board, b, free_formation);
+		_move_lut[right][i] = tmp_board >> 12 * 4;
 	}
 	free(a.bp);
 }
@@ -164,7 +184,6 @@ bool movedir(uint64_t* board, dir d){
 }
 
 bool move_duplicate(uint64_t board, dir d){
-	return false;
 	uint16_t lookup;
 	const short BITS_PER_ROW = 16;
 	if(d == up || d == down)
@@ -188,7 +207,6 @@ static bool spawn_duplicate_hori(uint64_t board){
 	return false;
 }
 bool spawn_duplicate(uint64_t board){
-	return false;
 	return spawn_duplicate_hori(board) || spawn_duplicate_hori((rotate_counterclockwise(&board), board));
 }
 void rotate_clockwise(uint64_t* b){ // there's probably some trick to do this faster but lut lookup is probably not a bottleneck

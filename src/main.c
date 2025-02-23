@@ -235,6 +235,9 @@ static void editableTileCallback(Clay_ElementId id, Clay_PointerData mouse, intp
 	if(mouse.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME){
 		SET_TILE((*(d->board)), (d->offset), (GET_TILE((*(d->board)), (d->offset)) + 1));
 	}
+	if(IsKeyDown(KEY_F)){
+		SET_TILE((*(d->board)), (d->offset), (0xF));
+	}
 	free(d);
 }
 
@@ -526,6 +529,7 @@ static void explorePage(){
 		struct stat buf;
 		if (stat(tableFile, &buf) == 0) // file exists
 			table = read_table(tableFile);
+
 		tableSumAsStr = itocs(tableSum);
 	};
 	CLAY(
