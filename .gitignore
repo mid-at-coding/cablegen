@@ -1,3 +1,4 @@
 .histzsh
-*.o
+build/*.o
 tables/*
+cablegen
