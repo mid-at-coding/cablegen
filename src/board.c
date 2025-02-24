@@ -3,10 +3,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-//#define DBG
+#define DBG
+//#define TRACE
 
 uint16_t _move_lut[2][UINT16_MAX];
 bool _move_dupe_lut[UINT16_MAX];
+bool   _locked_lut[2][UINT16_MAX];
 
 bool flat_move(uint64_t *board, dir d){ // unimplemented
 	return false;
@@ -17,15 +19,19 @@ static bool move(uint64_t *board, const static_arr_info positions, bool free_for
 	// starting from the left, greedily merge everything and pull everything along
 	// TODO: this is O(n^2); may cause perf issues
 	// weird scenario: this does [ f, f, f, f ] -(left)> [ 0, 0, 0, 0 ], idc enough to track it down manually
-	{	
+/*	{	
 		bool all32ks = true;
 		for(int i = 0; i < positions.size; i++){
 			if(GET_TILE((*board), positions.bp[i]) != 0xf)
 				all32ks = false;
 		}
-		if(all32ks)
+		if(all32ks){
+#ifdef DBG
+			printf("all 32ks!\n");
+#endif
 			return false;
-	}
+		}
+	} */
 	uint64_t premove = *board;
 	#define SHIFT for(size_t j = i; j < positions.size - 1; j++) { \
 				SET_TILE((*board), positions.bp[j], GET_TILE((*board), positions.bp[j + 1])); \
@@ -33,7 +39,7 @@ static bool move(uint64_t *board, const static_arr_info positions, bool free_for
 			}
 	char merge_candidate = 0;
 	bool moved = false;
-#ifdef DBG
+#ifdef TRACE
 	for(size_t i = 0; i < positions.size; i++){
 		printf("pos[%lu]: %lu : %u\n", i, positions.bp[i], GET_TILE((*board), positions.bp[i]));
 	}
@@ -46,7 +52,7 @@ static bool move(uint64_t *board, const static_arr_info positions, bool free_for
 		char tile = 0;
 		for(size_t j = i+1; j < positions.size; j++){
 			tile |= GET_TILE((*board), positions.bp[j]);
-#ifdef DBG
+#ifdef TRACE
 			printf("Checking shift, i: %lu, j: %lu\n", i, j);
 			printf("Considering: 0x%x\n", GET_TILE((*board), positions.bp[j]));
 #endif
@@ -55,12 +61,12 @@ static bool move(uint64_t *board, const static_arr_info positions, bool free_for
 			moved = true;
 			SHIFT
 		}
-#ifdef DBG
+#ifdef TRACE
 		printf("After shift: (i: %lu) 0x%016lx\n", i, *board);
 #endif
 		if(GET_TILE((*board), positions.bp[i]) == merge_candidate){
 			// merge
-#ifdef DBG
+#ifdef TRACE
 			printf("Merging: (i: %lu, mc: %u) 0x%016lx\n", i, merge_candidate, *board);
 #endif
 			if(merge_candidate != 0xF && GET_TILE((*board), positions.bp[i]) != 0xF){
@@ -70,7 +76,7 @@ static bool move(uint64_t *board, const static_arr_info positions, bool free_for
 				SHIFT
 			}
 		}
-#ifdef DBG
+#ifdef TRACE
 		printf("After merge: (i: %lu) 0x%016lx\n", i, *board);
 #endif
 	}
@@ -100,8 +106,9 @@ void generate_lut(bool free_formation){
 	b.bp[1] = 2;
 	b.bp[2] = 1;
 	b.bp[3] = 0;
-	for(uint16_t i = 0; i < UINT16_MAX; i++){
+	for(uint16_t i = 0; i <= UINT16_MAX; i++){
 		uint64_t tmp_board = 0;
+		uint64_t premove = 0;
 		SET_TILE(tmp_board, 0, ((i & 0xF000) >> 12));
 		SET_TILE(tmp_board, 1, ((i & 0x0F00) >> 8));
 		SET_TILE(tmp_board, 2, ((i & 0x00F0) >> 4));
@@ -124,7 +131,20 @@ void generate_lut(bool free_formation){
 		dupe |= (GET_TILE(tmp_board, 1) == GET_TILE(tmp_board, 2)) && (GET_TILE(tmp_board,3) == 0); // [y,x,x,0]
 		dupe |= (GET_TILE(tmp_board, 1) == GET_TILE(tmp_board, 3)) && (GET_TILE(tmp_board,2) == 0); // [y,x,0,x]
 		dupe |= (GET_TILE(tmp_board, 2) == GET_TILE(tmp_board, 3)) && (GET_TILE(tmp_board,1) == 0); // [y,0,x,x]
+		premove = tmp_board;
 		move(&tmp_board, a, free_formation);
+
+		// if this isn't a free formation check if the move is valid TODO: move these two into a function + clean this up
+		if(!free_formation){
+			for(int i = 0; i < 4; i++){
+				if(GET_TILE(premove, i) == 0xf && GET_TILE((tmp_board), i) != 0xf){ // shifted
+					tmp_board = premove;
+					_locked_lut[left][i] = false;
+				}
+			}
+		}
+		else
+			_locked_lut[left][i] = true;
 #ifdef DBG
 		printf("Res: %016lx\n", tmp_board);
 #endif
@@ -137,22 +157,55 @@ void generate_lut(bool free_formation){
 		SET_TILE(tmp_board, 1, ((i & 0x0F00) >> 8));
 		SET_TILE(tmp_board, 2, ((i & 0x00F0) >> 4));
 		SET_TILE(tmp_board, 3, (i & 0x000F));
+		premove = tmp_board;
 		move(&tmp_board, b, free_formation);
+
+		// if this isn't a free formation check if the move is valid TODO: ^^ 
+		if(!free_formation){
+			for(int i = 0; i < 4; i++){
+				if(GET_TILE(premove, i) == 0xf && GET_TILE((tmp_board), i) != 0xf){ // shifted
+					tmp_board = premove;
+					_locked_lut[right][i] = false;
+				}
+			}
+		}
+		else
+			_locked_lut[right][i] = true;
+
 		_move_lut[right][i] = tmp_board >> 12 * 4;
+		if(i == UINT16_MAX)
+			break;
 	}
+	// i have No clue why _move_lut[left/right][0x0000] == 0xffff
+	_move_lut[left][0x0000] = 0x0000;
+	_move_lut[right][0x0000] = 0x0000;
 	free(a.bp);
 }
 
 bool movedir_hori(uint64_t* board, dir direction){
+	uint64_t premove = *board;
 	uint16_t lookup;
 	bool changed = false;
 	const short BITS_PER_ROW = 16;
 	for(int i = 0; i < 4; i++){ // 4 rows
 		lookup = ((*board) >> BITS_PER_ROW * i) & 0xFFFF; // get a row
+#ifdef DBG
+		printf("Lookup: %04x\n", lookup);
+#endif
 		if(_move_lut[direction][lookup] != lookup){
 			changed = true;
 			(*board) &= ~((uint64_t)0x000000000000FFFF << BITS_PER_ROW * i); // set the bits we want to set to zero
 			(*board) |= ((uint64_t)_move_lut[direction][lookup]) << BITS_PER_ROW * i ; // set them
+#ifdef DBG
+			printf("Res: %04x\n", _move_lut[direction][lookup]);
+#endif
+		}
+		if(_locked_lut[direction][lookup]){ // not allowed!!
+#ifdef DBG
+			printf("Lookup: %04x, %b not allowed!\n", lookup, direction);
+#endif
+			*board = premove;
+			return false;
 		}
 	}
 	return changed;

@@ -2,3 +2,4 @@
 build/*.o
 tables/*
 cablegen
+out.txt
