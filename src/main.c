@@ -11,7 +11,7 @@
 #include "../inc/generate.h"
 #include "../inc/board.h"
 
-bool PD_arr = true;
+bool PD_ARR = true;
 bool preview = false;
 bool flat_movement = false;
 static char *table_fmt_dir = "tables/%d.tables\0";
@@ -413,7 +413,6 @@ static bool scrollable(Clay_String desc, Clay_String num, Clay_String on, Clay_S
 			.fontSize = 16,
 			.textColor = { 0, 0, 0, 255 }
 		}));
-		CLAY(CLAY_LAYOUT({.sizing = {CLAY_SIZING_GROW(), CLAY_SIZING_GROW()}})){CLAY_RECTANGLE();}; // TODO: why doesn't this work
 		CLAY(
 		CLAY_LAYOUT({
 			.layoutDirection = CLAY_TOP_TO_BOTTOM,
@@ -447,7 +446,7 @@ static void settingsPage(){
 		})
 	){
 		truefalsesetting(CLAY_STRING("Use Potential Duplicate Array: Use a new experimental method to check for duplicate boards instead of sorting, may increase performance in generation"), 
-				CLAY_STRING("Use PD Arr: True"), CLAY_STRING("Use PD Arr: False"), &PD_arr);
+				CLAY_STRING("Use PD Arr: True"), CLAY_STRING("Use PD Arr: False"), &PD_ARR);
 		truefalsesetting(CLAY_STRING("Show a random board from each layer during generation, may *slightly* impact performance"),
 				CLAY_STRING("Preview: True"), CLAY_STRING("Preview: False"), &preview);
 		truefalsesetting(CLAY_STRING("Use flat movement: instead of using a look up table, calculate moves directly. Might be slightly faster on CPUs with small L1 cache, or not"),

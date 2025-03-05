@@ -6,7 +6,6 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
-#define PREPRUNE 1
 int init_errorcheck_mutex(pthread_mutex_t *mutex)
 {
     pthread_mutexattr_t attr;
@@ -58,9 +57,21 @@ static void write_boards(const static_arr_info n, const char* fmt, const int lay
 	fclose(file);
 }
 
+bool shifted(uint64_t a, uint64_t b){
+    for(int i = 0; i < 16; i++){
+    	if(GET_TILE(a, i) == 0xF && GET_TILE(b, i) != 0xF){
+		    return true;      		
+    	}
+    	if(GET_TILE(b, i) == 0xF && GET_TILE(a, i) != 0xF){
+		    return true;      		
+    	}
+    }
+	return false;
+}
+
 void* generation_thread_move(void* data){
 	arguments *args = data;
-	uint64_t tmp;
+	uint64_t tmp, tmp2;
 	bool (*move)(uint64_t*, dir) = flat_movement ? flat_move : movedir;
 	int res = pthread_mutex_trylock(args->done);
 	if (res != 0){ // the caller has been naughty
@@ -68,9 +79,12 @@ void* generation_thread_move(void* data){
 	}
 	for(size_t i = args->start; i < args->end; i++){
 		tmp = args->n.bp[i];
+		tmp2 = args->n.bp[i];
 		for(dir d = left; d < down; d++){
 			if(move(&tmp, d)){
-				//canonicalize(&tmp);
+				if(shifted(tmp2, tmp))
+				    continue;
+				canonicalize(&tmp);
 				push_back(args->nret, tmp);
 			}
 		}
@@ -90,16 +104,12 @@ void* generation_thread_spawn(void* data){
 			if(GET_TILE((args->n).bp[i], tile) == 0){
 				tmp = args->n.bp[i];
 				SET_TILE(tmp, tile, 1);
-				//canonicalize(&tmp);
+				canonicalize(&tmp);
 				push_back(args->n2, tmp);
 				tmp = args->n.bp[i];
-				bool dupe = spawn_duplicate(tmp); // we have to check here; also only checking four spawn because two spawn can't be a dupe
 				SET_TILE(tmp, tile, 2);
-				//canonicalize(&tmp);
-				if(!dupe)
-					push_back(args->n4, tmp);
-				else
-					push_back(args->potential_duplicate, tmp);
+				canonicalize(&tmp);
+				push_back(args->n4, tmp);
 			}
 		}
 	}
@@ -198,11 +208,14 @@ void generate_layer(dynamic_arr_info * restrict n, dynamic_arr_info * restrict n
 	for(uint i = 0; i < core_count; i++){ 
 		*n = concat(n, &cores[i].nret);
 	}
-	// deal with the potential dupes, very slowly
-	if(potential_duplicate->size > 0){
-		*n = concat_unique(n, potential_duplicate);
-		*potential_duplicate = init_darr(0,1);
-	}
+//	if(PD_ARR && potential_duplicate->size > 0){
+		// deal with the potential dupes, very slowly
+//		*n = concat_unique(n, potential_duplicate);
+//		*potential_duplicate = init_darr(0,1);
+//	}
+//	else
+		deduplicate(n);
+
 	init_threads(cores, args, *n, potential_duplicate, core_count, arr_size_per_thread, true, generation_thread_spawn);
 	// write while we're waiting for the spawning threads
 	write_boards((static_arr_info){n->bp, n->sp - n->bp}, fmt_dir, layer);
@@ -211,8 +224,14 @@ void generate_layer(dynamic_arr_info * restrict n, dynamic_arr_info * restrict n
 		*n2 = concat(n2, &cores[i].n2);
 		*n4 = concat(n4, &cores[i].n4);
 	}
-	*n4 = concat_unique(n4, potential_duplicate); // only n4 will have the dupes
-	*potential_duplicate = init_darr(0,1);
+//	if(PD_ARR && potential_duplicate->size > 0){
+//		*n4 = concat_unique(n4, potential_duplicate); // only n4 will have the dupes (hopefully?)
+//		*potential_duplicate = init_darr(0,1);
+//	}
+//	else
+		deduplicate(n);
+		deduplicate(n4);
+	deduplicate(n2);
 }
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, const uint core_count, bool prespawn){
 	dynamic_arr_info n, n2, n4, potential_duplicate;

@@ -1,5 +1,6 @@
 #include "../inc/array.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <pthread.h>
 
 bool push_back(dynamic_arr_info *info, uint64_t v){
@@ -107,4 +108,27 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	}
 	free(arr2_shrink.bp);
 	return arr1_dynamic;
+}
+
+static int compare(const void *a, const void *b){
+    return (((*(uint64_t*)a) > (*(uint64_t*)b))) - (((*(uint64_t*)a) < (*(uint64_t*)b)));
+}
+
+void deduplicate(dynamic_arr_info *s){
+    if(s->sp == s->bp || s-> sp == s->bp + 1){
+		printf("Can't sort one value!\n");
+		return;
+	}
+    dynamic_arr_info res = init_darr(0, 0.7 * (s->sp - s->bp)); // assume it's around 30% dupes
+	qsort(s->bp, s->sp - s->bp, sizeof(uint64_t), compare);
+	printf("Sorting: size: %lu\n", s->sp - s->bp);
+	push_back(&res, *s->bp);
+	for(uint64_t *curr = s->bp + 1; curr < s->sp; curr++){
+		if(*curr != *(curr - 1)){
+			push_back(&res, *curr);
+		}
+	}
+	free(s->bp);
+	*s = res;
+	return;
 }

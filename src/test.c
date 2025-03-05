@@ -1,5 +1,6 @@
 #include "../inc/generate.h"
 #include "../inc/board.h"
+#include "../inc/main.h"
 #include <stdio.h>
 
 bool test_dynamic_arr(void){
@@ -27,15 +28,29 @@ bool test_dynamic_arr(void){
 			dynamic_arr_info tmpn = init_darr(false, n);
 			dynamic_arr_info tmpm = init_darr(false, m);
 			for(size_t i = 0; i < n; i++){
-				push_back(&tmpn, 0);
+				push_back(&tmpn, i);
 			}
 			for(size_t i = 0; i < m; i++){
-				push_back(&tmpm, 0);
+				push_back(&tmpm, i);
 			}
 			dynamic_arr_info nm = concat(&tmpn, &tmpm);
 			if(nm.sp - nm.bp != n + m){
 				printf("Concatenation test failed! n: %zu, m: %zu\n", n, m);
 				passed = false;
+			}
+			for(int i = 0; i < n + m; i++){
+				if(i < n){
+				    if(nm.bp[i] != i){
+						printf("Concatenation test failed!\n");
+						passed = false;
+					}
+				}
+				else{
+				    if(nm.bp[i] != i - n){
+						printf("Concatenation test failed!\n");
+						passed = false;
+					}
+				}
 			}
 			free(nm.bp);
 			nm.bp = NULL;
@@ -60,8 +75,51 @@ void test_generation(){
 	printf("Done testing generation.\n");
 }
 
-void test_potential_dupe(){
-	
+bool test_dedupe(){
+    printf("Testing deduplication with artificial data.\n");
+	dynamic_arr_info d = init_darr(false, 0);
+	push_back(&d, 2);
+	push_back(&d, 5);
+	push_back(&d, 6);
+	push_back(&d, 5);
+	push_back(&d, 4);
+	push_back(&d, 5);
+	deduplicate(&d);
+	for(uint64_t *a = d.bp; a < d.sp; a++){
+		for(uint64_t *b = d.bp; b < d.sp; b++){
+			if(*a == *b && a != b){
+			    printf("Failed!(%lu, %lu)\n", a, b);
+				return false;
+			}
+		}
+	}
+	printf("Testing deduplication in generation.\n");
+	dynamic_arr_info n = init_darr(false, 0);
+	push_back(&n, 0x1000002000000000); // board with a 2 and a 4 in a kinda arbitrary position
+	dynamic_arr_info n2 = init_darr(false, 0);
+	dynamic_arr_info n4 = init_darr(false, 0);
+	dynamic_arr_info pd = init_darr(false, 0);
+	printf("Testing sorting deduplication.\n");
+	PD_ARR = false;
+	for(int i = 6; i < 12; i+=2){
+		generate_layer(&n, &n2, &n4, &pd, 1, "/dev/null/%d", i);
+		// check if n is dupe free
+		deduplicate(&n);
+		for(uint64_t *a = n.bp; a < n.sp; a++){
+			for(uint64_t *b = n.bp; b < n.sp; b++){
+				if(*a == *b && a != b){
+				    printf("Failed!(%lu, %lu)\n", a, b);
+					return false;
+				}
+			}
+		}
+		free(n.bp);
+		n = n2;
+		n2 = n4;
+		n4 = init_darr(false, 0);
+	}
+	printf("No errors reported.\n");
+	return true;
 }
 
 bool test(){
@@ -69,7 +127,8 @@ bool test(){
 	generate_lut(true);
 	if(!test_dynamic_arr())
 		passed = false;
-	test_potential_dupe();
+	if(!test_dedupe())
+		passed = false;
 	test_generation();
 	return passed;
 }
