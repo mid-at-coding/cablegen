@@ -6,6 +6,7 @@
 #define REALLOC_MULT 2
 
 struct{
+	bool valid;
 	uint64_t* bp;
 	uint64_t* sp;
 	size_t size;
@@ -13,6 +14,7 @@ struct{
 } typedef dynamic_arr_info;
 
 struct{
+	bool valid;
 	uint64_t* bp;
 	size_t size;
 } typedef static_arr_info;
@@ -28,6 +30,8 @@ struct _bst_node{
 [[nodiscard]] static_arr_info shrink_darr(dynamic_arr_info* info); // passed dynamic array becomes invalid
 [[nodiscard]] dynamic_arr_info concat(dynamic_arr_info* arr1, dynamic_arr_info* arr2); // both arrays become invalid
 [[nodiscard]] dynamic_arr_info concat_unique(dynamic_arr_info* arr1, dynamic_arr_info* arr2); // both arrays become invalid, returned array has exactly one instance of each value in arr2
+void destroy_darr(dynamic_arr_info* arr); // frees and invalidates array
+void destroy_sarr(static_arr_info* arr); // frees and invalidates array
 bool push_back(dynamic_arr_info*, uint64_t); // returns whether a resize happened
 void deduplicate(dynamic_arr_info*);
 #endif

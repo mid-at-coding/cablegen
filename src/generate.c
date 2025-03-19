@@ -125,7 +125,7 @@ void init_threads(core_data* cores, dynamic_arr_info n, dynamic_arr_info *potent
 			*cores[i].args.nret = init_darr(false, arr_size_per_thread);
 		}
 
-		cores[i].args.n = (static_arr_info){n.bp, n.sp - n.bp};
+		cores[i].args.n = (static_arr_info){n.valid, n.bp, n.sp - n.bp};
 		cores[i].args.potential_duplicate = potential_duplicate;
 		// divide up [0,n.size)
 		// cores work in [start,end)
@@ -218,7 +218,7 @@ void generate_layer(dynamic_arr_info * restrict n, dynamic_arr_info * restrict n
 
 	init_threads(cores, *n, potential_duplicate, core_count, arr_size_per_thread, true, generation_thread_spawn);
 	// write while we're waiting for the spawning threads
-	write_boards((static_arr_info){n->bp, n->sp - n->bp}, fmt_dir, layer);
+	write_boards((static_arr_info){n->valid, n->bp, n->sp - n->bp}, fmt_dir, layer);
 	wait_all(cores, core_count);
 	for(uint i = 0; i < core_count; i++){ 
 		*n2 = concat(n2, cores[i].args.n2);
@@ -263,7 +263,7 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 		printf("0x%016lx\n",n4.bp[i]);
 	for(int i = start; i < end; i += 2){
 		generate_layer(&n, &n2, &n4, &potential_duplicate, core_count, fmt, i);
-		free(n.bp);
+		destroy_darr(n.bp);
 		n = n2;
 		n2 = n4;
 		n4 = init_darr(false, 0);
@@ -283,5 +283,14 @@ static_arr_info read_table(const char *dir){
 	fread(data, 1, sz, fp);
 	printf("Read %ld bytes (%ld boards) from %s\n", sz, sz / 8, dir);
 	fclose(fp);
-	return (static_arr_info){data, sz / 8}; 
+	return (static_arr_info){true, data, sz / 8}; 
+}
+
+void destroy_darr(dynamic_arr_info* arr){
+	free(arr->bp);
+	arr->valid = false;
+}
+void destroy_sarr(static_arr_info* arr){
+	free(arr->bp);
+	arr->valid = false;
 }
