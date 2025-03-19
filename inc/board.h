@@ -16,15 +16,12 @@ enum {
 
 extern uint16_t _move_lut[2][UINT16_MAX]; // store every possible row move
 extern bool   _locked_lut[2][UINT16_MAX]; // true for all rows that shift: could be 4 bits per lookup but that's probably slower
-extern bool   _move_dupe_lut[UINT16_MAX];
 
 void generate_lut(bool free_formation);
 void rotate_clockwise(uint64_t*);
 void rotate_counterclockwise(uint64_t*);
 bool movedir(uint64_t*, dir);
 bool flat_move(uint64_t*, dir);
-bool spawn_duplicate(uint64_t);
-bool move_duplicate(uint64_t, dir);
 void canonicalize(uint64_t*);
 void normalize(uint64_t*, dir); // make every direction left
 int get_sum(uint64_t);

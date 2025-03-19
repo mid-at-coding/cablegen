@@ -1,5 +1,6 @@
 .histzsh
 build/*.o
 tables/*
+tables
 cablegen
 out.txt

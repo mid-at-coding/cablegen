@@ -37,10 +37,7 @@ struct {
 
 struct {
 	pthread_t core;
-	dynamic_arr_info nret;
-	dynamic_arr_info n2;
-	dynamic_arr_info n4;
-	pthread_mutex_t done;
+	arguments args;
 }typedef core_data;
 
 static void write_boards(const static_arr_info n, const char* fmt, const int layer){
@@ -117,34 +114,30 @@ void* generation_thread_spawn(void* data){
 	return NULL;
 }
 
-void init_threads(core_data* cores, arguments* args, dynamic_arr_info n, dynamic_arr_info *potential_duplicate,
+void init_threads(core_data* cores, dynamic_arr_info n, dynamic_arr_info *potential_duplicate,
 		size_t core_count, size_t arr_size_per_thread, bool spawn, void* (worker_thread)(void*)){
 	for(uint i = 0; i < core_count; i++){ // initialize worker threads
 		if(spawn){
-			cores[i].n2 = init_darr(false, arr_size_per_thread / 2);
-			cores[i].n4 = init_darr(false, arr_size_per_thread / 2);
+			*cores[i].args.n2 = init_darr(false, arr_size_per_thread / 2);
+			*cores[i].args.n4 = init_darr(false, arr_size_per_thread / 2);
 		}
 		else{
-			cores[i].nret = init_darr(false, arr_size_per_thread);
+			*cores[i].args.nret = init_darr(false, arr_size_per_thread);
 		}
 
-		args[i].n = (static_arr_info){n.bp, n.sp - n.bp};
-		args[i].nret = &cores[i].nret;
-		args[i].n2 = &cores[i].n2;
-		args[i].n4 = &cores[i].n4;
-		args[i].done = &cores[i].done;
-		args[i].potential_duplicate = potential_duplicate;
+		cores[i].args.n = (static_arr_info){n.bp, n.sp - n.bp};
+		cores[i].args.potential_duplicate = potential_duplicate;
 		// divide up [0,n.size)
 		// cores work in [start,end)
 		int block_size = n.size / core_count;
-		args[i].start = i * block_size;
-		args[i].end = (i + 1) * block_size;
+		cores[i].args.start = i * block_size;
+		cores[i].args.end = (i + 1) * block_size;
 		// core_count * n.size / core_count = n.size
 		// make sure that the last thread covers all of the array
 		if(i + 1 == core_count){
-			args[i].end = args[i].n.size;
+			cores[i].args.end = n.sp - n.bp;
 		}
-		int res = pthread_create(&cores[i].core, NULL, worker_thread, (void*)(args + i));
+		int res = pthread_create(&cores[i].core, NULL, worker_thread, (void*)(&cores[i].args));
 		if(res != 0){
 			printf("Core initialization failed: Error %d, Core %d", res, i);
 			exit(res);
@@ -158,11 +151,11 @@ void wait_all(core_data *cores, size_t core_count){
 	while(done == false){
 		done = true;
 		for(uint i = 0; i < core_count; i++){
-			done_arr.bp[i] = pthread_mutex_trylock(&cores[i].done);
+			done_arr.bp[i] = pthread_mutex_trylock(cores[i].args.done);
 			if (done_arr.bp[i] != 0)
 				done = false;
 			else
-				pthread_mutex_unlock(&cores[i].done); // we own this mutex so we have to unlock it before we try to lock it again
+				pthread_mutex_unlock(cores[i].args.done); // we own this mutex so we have to unlock it before we try to lock it again
 		}
 	}
 	// if we're here, all the cores are done
@@ -178,59 +171,61 @@ void generate_layer(dynamic_arr_info * restrict n, dynamic_arr_info * restrict n
 	size_t arr_size_per_thread = approx_len / core_count;
 	static bool core_init = false;
 	static core_data* cores;
-	static arguments* args;
 
 	if(!core_init){
 		cores = malloc(sizeof(core_data) * core_count); // make an array of core data
 		if(cores == NULL){
 			printf("Alloc failed!\n");
-			exit(1);
 		}
 		for(size_t i = 0; i < core_count; i++){
-			int res = init_errorcheck_mutex(&cores[i].done);
+			cores[i].args.done = malloc(sizeof(pthread_mutex_t));
+			if(cores[i].args.done == NULL){
+				printf("Alloc failed!\n");
+			}
+			cores[i].args.nret = malloc(sizeof(dynamic_arr_info));
+			if(cores[i].args.nret == NULL){
+				printf("Alloc failed!\n");
+			}
+			cores[i].args.n2 = malloc(sizeof(dynamic_arr_info));
+			if(cores[i].args.n2 == NULL){
+				printf("Alloc failed!\n");
+			}
+			cores[i].args.n4 = malloc(sizeof(dynamic_arr_info));
+			if(cores[i].args.n4 == NULL){
+				printf("Alloc failed!\n");
+			}
+			cores[i].args.potential_duplicate = malloc(sizeof(dynamic_arr_info));
+			if(cores[i].args.potential_duplicate == NULL){
+				printf("Alloc failed!\n");
+			}
+			int res = init_errorcheck_mutex(cores[i].args.done);
 			if(res != 0){
 				printf("Failed to init core mutex: errcode %d", res);
 				exit(res);
 			}
 		}
-		args = malloc(sizeof(arguments) * core_count); // args
-		if(args == NULL){
-			printf("Alloc failed!\n");
-			exit(1);
-		}
 		core_init = true;
 	}
-	init_threads(cores, args, *n, potential_duplicate, core_count, arr_size_per_thread, false, generation_thread_move);
+	init_threads(cores, *n, potential_duplicate, core_count, arr_size_per_thread, false, generation_thread_move);
 	// twiddle our thumbs
 	// TODO: there's some work we can do by concating all the results as they're coming in instead of waiting for all of them
 	wait_all(cores, core_count);
 	// concatenate all the data TODO: maybe there is some clever way to do this?
 	for(uint i = 0; i < core_count; i++){ 
-		*n = concat(n, &cores[i].nret);
+		*n = concat(n, cores[i].args.nret);
 	}
-//	if(PD_ARR && potential_duplicate->size > 0){
-		// deal with the potential dupes, very slowly
-//		*n = concat_unique(n, potential_duplicate);
-//		*potential_duplicate = init_darr(0,1);
-//	}
-//	else
-		deduplicate(n);
+	deduplicate(n);
 
-	init_threads(cores, args, *n, potential_duplicate, core_count, arr_size_per_thread, true, generation_thread_spawn);
+	init_threads(cores, *n, potential_duplicate, core_count, arr_size_per_thread, true, generation_thread_spawn);
 	// write while we're waiting for the spawning threads
 	write_boards((static_arr_info){n->bp, n->sp - n->bp}, fmt_dir, layer);
 	wait_all(cores, core_count);
 	for(uint i = 0; i < core_count; i++){ 
-		*n2 = concat(n2, &cores[i].n2);
-		*n4 = concat(n4, &cores[i].n4);
+		*n2 = concat(n2, cores[i].args.n2);
+		*n4 = concat(n4, cores[i].args.n4);
 	}
-//	if(PD_ARR && potential_duplicate->size > 0){
-//		*n4 = concat_unique(n4, potential_duplicate); // only n4 will have the dupes (hopefully?)
-//		*potential_duplicate = init_darr(0,1);
-//	}
-//	else
-		deduplicate(n);
-		deduplicate(n4);
+	deduplicate(n);
+	deduplicate(n4);
 	deduplicate(n2);
 }
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, const uint core_count, bool prespawn){
