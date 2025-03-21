@@ -8,6 +8,7 @@
 #include "../inc/external/clay.h"
 #include "external/clay_renderer_raylib.c"
 #include "../inc/test.h"
+#include "../inc/logging.h"
 #include "../inc/generate.h"
 #include "../inc/board.h"
 
@@ -498,6 +499,7 @@ static void generatePage(){
 			push_back(&n, initialBoard);
 			generate_lut(free_formation);
 			generate(get_sum(initialBoard), end, "tables/%d", n.bp, 1, core_count, prespawn);
+			is_generating = true;
 		}
 		gen_started = true;
 	}
@@ -667,6 +669,11 @@ void ui(){
 }
 
 int main(){
+#ifdef DBG
+	set_log_level(LOG_DBG);
+#else
+	set_log_level(LOG_INFO);
+#endif
 	ui();
 	test();
 	return 0;

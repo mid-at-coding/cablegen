@@ -1,5 +1,7 @@
 #include "../inc/array.h"
+#include "../inc/logging.h"
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <pthread.h>
 
@@ -7,15 +9,15 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	pthread_mutex_lock(&info->mut);
 	bool res = false;
 	if(info->valid == false){
-		printf("Invalid array, refusing to push\n");
-		return false;;
+		log_out("Invalid array, refusing to push\n", LOG_WARN_);
+		return false;
 	}
 	if(info->sp == info->bp + info->size){
 		// reallocate
 		uint64_t *tmp = info->bp;
 		info->bp = realloc(info->bp, info->size ? (info->size * REALLOC_MULT * sizeof(uint64_t)) : sizeof(uint64_t));
 		if (info->bp == NULL){
-			printf("Alloc failed! Download more ram!\n");
+			log_out("Alloc failed! Download more ram!\n", LOG_ERROR_);
 			info->valid = false;
 		}
 		if(info->size)
@@ -38,12 +40,12 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	else	
 		d.bp = malloc(sizeof(uint64_t) * size);
 	if (d.bp == NULL){
-		printf("Alloc failed! Download more ram!\n");
+		log_out("Alloc failed! Download more ram!\n", LOG_ERROR_);
 		d.valid = false;
 	}
 	int res = pthread_mutex_init(&d.mut, NULL);
 	if (res != 0){
-		printf("Dynamic arr mutex initialization failed, errcode: %d", res);
+		log_out("Dynamic arr mutex initialization failed", LOG_WARN_);
 		d.valid = false;
 	}
 	d.sp = d.bp;
@@ -59,7 +61,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	else	
 		s.bp = malloc(sizeof(uint64_t) * size);
 	if (s.bp == NULL){
-		printf("Alloc failed! Download more ram!\n");
+		log_out("Alloc failed! Download more ram!\n", LOG_ERROR_);
 		s.valid = false;
 	}
 	s.size = size;
@@ -69,7 +71,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 [[nodiscard]] static_arr_info shrink_darr(dynamic_arr_info* info){
 	int new_size = info->sp - info->bp;
 	if(info->valid == false){
-		printf("Invalid array, refusing to shrink\n");
+		log_out("Invalid array, refusing to shrink\n", LOG_WARN_);
 		return (static_arr_info){.valid = false, .bp = info->bp, .size = info->sp - info->bp};
 	}
 	info->valid = false; 
@@ -81,7 +83,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	}
 	uint64_t *new_bp = realloc(info->bp, sizeof(uint64_t) * new_size);
 	if(new_bp == NULL){
-		printf("Shrink failed!\n");
+		log_out("Shrink failed!\n", LOG_ERROR_);
 		return (static_arr_info){.valid = false, .bp = info->bp, .size = info->sp - info->bp};
 	}
 	return (static_arr_info){.valid = true, .bp = new_bp, .size = new_size};
@@ -98,7 +100,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	};
 	int res = pthread_mutex_init(&arr1_dynamic.mut, NULL);
 	if(res != 0){
-		printf("Mutex initialization failed in concat(...)\n");
+		log_out("Mutex initialization failed in concat(...)\n", LOG_ERROR_);
 		arr1_dynamic.valid = false;
 	}
 	for(size_t i = 0; i < arr2_shrink.size; i++)
@@ -118,7 +120,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	};
 	int res = pthread_mutex_init(&arr1_dynamic.mut, NULL);
 	if(res != 0){
-		printf("Mutex initialization failed in concat(...)\n");
+		log_out("Mutex initialization failed in concat(...)\n", LOG_ERROR_);
 		arr1_dynamic.valid = false;
 	}
 	for(size_t i = 0; i < arr2_shrink.size; i++){
@@ -139,12 +141,11 @@ static int compare(const void *a, const void *b){
 
 void deduplicate(dynamic_arr_info *s){
     if(s->sp == s->bp || s-> sp == s->bp + 1){
-		printf("Can't sort one value!\n");
+		log_out("Can't sort one value!\n", LOG_WARN_);
 		return;
 	}
     dynamic_arr_info res = init_darr(0, 0.7 * (s->sp - s->bp)); // assume it's around 30% dupes
 	qsort(s->bp, s->sp - s->bp, sizeof(uint64_t), compare);
-	printf("Sorting: size: %lu\n", s->sp - s->bp);
 	push_back(&res, *s->bp);
 	for(uint64_t *curr = s->bp + 1; curr < s->sp; curr++){
 		if(*curr != *(curr - 1)){
@@ -154,4 +155,22 @@ void deduplicate(dynamic_arr_info *s){
 	free(s->bp);
 	*s = res;
 	return;
+}
+
+[[nodiscard]] void* malloc_errcheck(size_t size){ // guaranteed to be non-null
+	void* res = malloc(size);
+	if(res == NULL){
+		log_out("Alloc failed!", LOG_ERROR_);
+		exit(ENOMEM);
+	}
+	return res;
+}
+dynamic_arr_info sarrtodarr(static_arr_info *s){
+	dynamic_arr_info tmp = init_darr(0,1);
+	free(tmp.bp); // hacky
+	tmp.bp = s->bp;
+	tmp.sp = s->bp + s->size;
+	tmp.valid = s->valid && tmp.valid;
+	tmp.size = s->size;
+	return tmp;
 }

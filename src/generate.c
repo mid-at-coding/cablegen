@@ -1,4 +1,5 @@
 #include "../inc/generate.h"
+#include "../inc/logging.h"
 #include "../inc/main.h"
 #include "../inc/board.h"
 #include <stdio.h>
@@ -42,12 +43,15 @@ struct {
 
 static void write_boards(const static_arr_info n, const char* fmt, const int layer){
 	size_t filename_size = strlen(fmt) + 10; // if there are more than 10 digits of layers i'll eat my shoe
-	char* filename = malloc(sizeof(char) * filename_size);
+	char* filename = malloc_errcheck(sizeof(char) * filename_size);
 	snprintf(filename, filename_size, fmt, layer);
-	printf("Writing %lu boards to %s (%lu bytes)\n", n.size, filename, sizeof(uint64_t) * n.size); 
+	printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", n.size, filename, sizeof(uint64_t) * n.size);  // lol
 	FILE *file = fopen(filename, "wb");
 	if(file == NULL){
-		printf("Couldn't write to %s!\n", filename);
+		char *buf = malloc_errcheck(100);
+		snprintf(buf, 100, "Couldn't write to %s!\n", filename);
+		log_out(buf, LOG_WARN_);
+		free(buf);
 		return;
 	}
 	fwrite(n.bp, n.size, sizeof(uint64_t), file);
@@ -72,7 +76,10 @@ void* generation_thread_move(void* data){
 	bool (*move)(uint64_t*, dir) = flat_movement ? flat_move : movedir;
 	int res = pthread_mutex_trylock(args->done);
 	if (res != 0){ // the caller has been naughty
-		printf("Worker thread mutex (%lu) couldn't be locked, check caller logic!(%d)\n", (unsigned long)args->done, res);
+		char *buf = malloc_errcheck(100);
+		snprintf(buf, 100, "Worker thread mutex (%lu) couldn't be locked, check caller logic!(%d)\n", (unsigned long)args->done, res);
+		log_out(buf, LOG_ERROR_);
+		free(buf);
 	}
 	for(size_t i = args->start; i < args->end; i++){
 		tmp = args->n.bp[i];
@@ -94,7 +101,10 @@ void* generation_thread_spawn(void* data){
 	int res = pthread_mutex_trylock(args->done);
 	uint64_t tmp;
 	if (res != 0){ // the caller has been naughty
-		printf("Worker thread mutex (%lu) couldn't be locked, check caller logic!(%d)\n", (unsigned long)args->done, res);
+		char *buf = malloc_errcheck(100);
+		snprintf(buf, 100, "Worker thread mutex (%lu) couldn't be locked, check caller logic!(%d)\n", (unsigned long)args->done, res);
+		log_out(buf, LOG_ERROR_);
+		free(buf);
 	}
 	for(size_t i = args->start; i < args->end; i++){
 		for(int tile = 0; tile < 16; tile++){
@@ -139,8 +149,10 @@ void init_threads(core_data* cores, dynamic_arr_info n, dynamic_arr_info *potent
 		}
 		int res = pthread_create(&cores[i].core, NULL, worker_thread, (void*)(&cores[i].args));
 		if(res != 0){
-			printf("Core initialization failed: Error %d, Core %d", res, i);
-			exit(res);
+			char *buf = malloc_errcheck(100);
+			snprintf(buf, 100, "Core initialization failed: Error %d, Core %d", res, i);
+			log_out(buf, LOG_ERROR_);
+			free(buf);
 		}
 	}
 }
@@ -173,31 +185,13 @@ void generate_layer(dynamic_arr_info * restrict n, dynamic_arr_info * restrict n
 	static core_data* cores;
 
 	if(!core_init){
-		cores = malloc(sizeof(core_data) * core_count); // make an array of core data
-		if(cores == NULL){
-			printf("Alloc failed!\n");
-		}
+		cores = malloc_errcheck(sizeof(core_data) * core_count); // make an array of core data
 		for(size_t i = 0; i < core_count; i++){
-			cores[i].args.done = malloc(sizeof(pthread_mutex_t));
-			if(cores[i].args.done == NULL){
-				printf("Alloc failed!\n");
-			}
-			cores[i].args.nret = malloc(sizeof(dynamic_arr_info));
-			if(cores[i].args.nret == NULL){
-				printf("Alloc failed!\n");
-			}
-			cores[i].args.n2 = malloc(sizeof(dynamic_arr_info));
-			if(cores[i].args.n2 == NULL){
-				printf("Alloc failed!\n");
-			}
-			cores[i].args.n4 = malloc(sizeof(dynamic_arr_info));
-			if(cores[i].args.n4 == NULL){
-				printf("Alloc failed!\n");
-			}
-			cores[i].args.potential_duplicate = malloc(sizeof(dynamic_arr_info));
-			if(cores[i].args.potential_duplicate == NULL){
-				printf("Alloc failed!\n");
-			}
+			cores[i].args.done = malloc_errcheck(sizeof(pthread_mutex_t));
+			cores[i].args.nret = malloc_errcheck(sizeof(dynamic_arr_info));
+			cores[i].args.n2 = malloc_errcheck(sizeof(dynamic_arr_info));
+			cores[i].args.n4 = malloc_errcheck(sizeof(dynamic_arr_info));
+			cores[i].args.potential_duplicate = malloc_errcheck(sizeof(dynamic_arr_info));
 			int res = init_errorcheck_mutex(cores[i].args.done);
 			if(res != 0){
 				printf("Failed to init core mutex: errcode %d", res);
@@ -238,7 +232,7 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 	n4 = init_darr(false, 0);
 	potential_duplicate = init_darr(false, 0);
 	if(prespawn){ // spawn once before moving
-		printf("Prespawning...\n");
+		log_out("Prespawning...\n", LOG_DBG_);
 		for(uint64_t *curr = n.bp; curr < n.sp; curr++){
 			for(int i = 0; i < 16; i++){
 				if(GET_TILE((*curr), i) == 0){
@@ -251,19 +245,17 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 			}
 		}
 	}
-	printf("Generating...\n");
-	printf("Starting boards(%d): \n", start);
+	log_out("Generating...\n", LOG_DBG_);
+	log_out("Starting boards: \n", LOG_DBG_);
 	for(int i = 0; i < initial_len; i++)
 		printf("0x%016lx\n",n.bp[i]);
-	printf("Starting boards(%d): \n", start+2);
 	for(int i = 0; i < n2.sp - n2.bp; i++)
 		printf("0x%016lx\n",n2.bp[i]);
-	printf("Starting boards(%d): \n", start+4);
 	for(int i = 0; i < n4.sp - n4.bp; i++)
 		printf("0x%016lx\n",n4.bp[i]);
 	for(int i = start; i < end; i += 2){
 		generate_layer(&n, &n2, &n4, &potential_duplicate, core_count, fmt, i);
-		destroy_darr(n.bp);
+		destroy_darr(&n);
 		n = n2;
 		n2 = n4;
 		n4 = init_darr(false, 0);
@@ -276,12 +268,13 @@ static_arr_info read_table(const char *dir){
 	size_t sz = ftell(fp);
 	rewind(fp);
 	if(sz % 8 != 0)
-		printf("sz %%8 != 0, this is probably not a real table!\n");
-	uint64_t* data = malloc(sz);
-	if(data == NULL)
-		printf("Could not allocate space to read table!\n");
+		log_out("sz %%8 != 0, this is probably not a real table!\n", LOG_WARN_);
+	uint64_t* data = malloc_errcheck(sz);
 	fread(data, 1, sz, fp);
-	printf("Read %ld bytes (%ld boards) from %s\n", sz, sz / 8, dir);
+	char *buf = malloc_errcheck(100);
+	snprintf(buf, 100, "Read %ld bytes (%ld boards) from %s\n", sz, sz / 8, dir);
+	log_out(buf, LOG_DBG_);
+	free(buf);
 	fclose(fp);
 	return (static_arr_info){true, data, sz / 8}; 
 }
