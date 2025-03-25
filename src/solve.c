@@ -5,12 +5,50 @@
 #include <math.h>
 #include <stdio.h>
 
-void write_table_solved(table *t, char *filename){
-	
+void write_table_solved(const table *t, const char *filename){
+	printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", t->key.size, filename, 2 * sizeof(uint64_t) * t->key.size);  // lol
+	FILE *file = fopen(filename, "wb");
+	if(file == NULL){
+		char *buf = malloc_errcheck(100);
+		snprintf(buf, 100, "Couldn't write to %s!\n", filename);
+		log_out(buf, LOG_WARN_);
+		free(buf);
+		return;
+	}
+	if(t->key.size != t->value.size){
+		log_out("Key and value size inequal, refusing to write!", LOG_WARN_);
+		return;
+	}
+	fwrite(t->key.bp,   t->key.size,   sizeof(uint64_t), file);
+	fwrite(t->value.bp, t->value.size, sizeof(uint64_t), file);
+	fclose(file);
 }
 
-void read_table_solved(table *t, char *filename){
-
+void read_table_solved(table *t, const char *filename){
+	FILE *fp = fopen(filename, "rb");
+	if(fp == NULL){
+		char *buf = malloc_errcheck(100);
+		snprintf(buf, 100, "Couldn't read %s!\n", filename);
+		t->key = init_darr(0,0);
+		t->value = init_darr(0,0);
+		log_out(buf, LOG_WARN_);
+		free(buf);
+		return;
+	}
+	fseek(fp, 0L, SEEK_END);
+	size_t sz = ftell(fp);
+	rewind(fp);
+	if(sz % 16 != 0) // 16 is 2 * 8 bytes 
+		log_out("sz %%16 != 0, this is probably not a real table!\n", LOG_WARN_);
+	t->key = init_darr(0, sz / 2);
+	t->value = init_darr(0, sz / 2);
+	fread(t->key.bp,   1, sz / 2, fp);
+	fread(t->value.bp, 1, sz / 2, fp);
+	char *buf = malloc_errcheck(100);
+	snprintf(buf, 100, "Read %ld bytes (%ld boards) from %s\n", sz, sz / 16, filename);
+	log_out(buf, LOG_DBG_);
+	free(buf);
+	fclose(fp);
 }
 
 double lookup(uint64_t key, table *t){

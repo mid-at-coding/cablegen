@@ -72,6 +72,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	int new_size = info->sp - info->bp;
 	if(info->valid == false){
 		log_out("Invalid array, refusing to shrink\n", LOG_WARN_);
+		exit(1);
 		return (static_arr_info){.valid = false, .bp = info->bp, .size = info->sp - info->bp};
 	}
 	info->valid = false; 

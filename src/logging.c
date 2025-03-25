@@ -39,7 +39,7 @@ static char* get_postfix(enum LOG_LEVEL level){
 }
 
 void log_out(const char* strin, enum LOG_LEVEL level){
-	char* str = malloc(strlen(strin));
+	char* str = malloc(strlen(strin) + 1);
 	strcpy(str, strin);
 	if(level >= sensitivity){
 		if(str[strlen(str) - 1] == '\n'){

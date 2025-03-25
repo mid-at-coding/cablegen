@@ -6,8 +6,8 @@
 //#define DBG
 //#define TRACE
 
-uint16_t _move_lut[2][UINT16_MAX];
-bool   _locked_lut[2][UINT16_MAX];
+uint16_t _move_lut[2][UINT16_MAX + 1];
+bool   _locked_lut[2][UINT16_MAX + 1];
 
 static bool shifted(uint64_t board, uint64_t board2, bool free_formation){
 	if(!free_formation){
@@ -112,9 +112,11 @@ void generate_lut(bool free_formation){
 		if(i == UINT16_MAX)
 			break;
 	}
-	// i have No clue why _move_lut[left/right][0x0000] == 0xffff
+	// i have No clue why _move_lut[left/right][0x0000] == 0xffff and vice versa
 	_move_lut[left][0x0000] = 0x0000;
 	_move_lut[right][0x0000] = 0x0000;
+	_move_lut[left][0xFFFF] = 0xFFFF;
+	_move_lut[right][0xFFFF] = 0xFFFF;
 	free(a.bp);
 }
 

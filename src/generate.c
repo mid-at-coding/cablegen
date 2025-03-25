@@ -1,7 +1,7 @@
 #include "../inc/generate.h"
 #include "../inc/logging.h"
-#include "../inc/main.h"
 #include "../inc/board.h"
+#include "../inc/main.h"
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
@@ -142,6 +142,8 @@ void init_threads(core_data* cores, dynamic_arr_info n, dynamic_arr_info *potent
 		int block_size = n.size / core_count;
 		cores[i].args.start = i * block_size;
 		cores[i].args.end = (i + 1) * block_size;
+		log_out("Core end:", LOG_DBG_);
+//		log_out(itocs(cores[i].args.end).chars, LOG_DBG_);
 		// core_count * n.size / core_count = n.size
 		// make sure that the last thread covers all of the array
 		if(i + 1 == core_count){
@@ -224,6 +226,7 @@ void generate_layer(dynamic_arr_info * restrict n, dynamic_arr_info * restrict n
 }
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, const uint core_count, bool prespawn){
 	dynamic_arr_info n, n2, n4, potential_duplicate;
+	n.valid = true;
 	n.bp = initial;
 	n.sp = n.bp + initial_len;
 	n.size = initial_len;

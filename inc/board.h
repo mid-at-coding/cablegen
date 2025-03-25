@@ -14,8 +14,8 @@ enum {
 	down
 } typedef dir;
 
-extern uint16_t _move_lut[2][UINT16_MAX]; // store every possible row move
-extern bool   _locked_lut[2][UINT16_MAX]; // true for all rows that shift: could be 4 bits per lookup but that's probably slower
+extern uint16_t _move_lut[2][UINT16_MAX + 1]; // store every possible row move
+extern bool   _locked_lut[2][UINT16_MAX + 1]; // true for all rows that shift: could be 4 bits per lookup but that's probably slower
 
 void generate_lut(bool free_formation);
 void rotate_clockwise(uint64_t*);
