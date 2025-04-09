@@ -208,7 +208,7 @@ void canonicalize(uint64_t* board){ // turn a board into it's canonical version
 	rotate_clockwise(&two);
 	rotate_clockwise(&two);
 	rotate_counterclockwise(&three);
-	(*board) = max(nonrot, max(one, max(two, three)));
+	*board = max(nonrot, max(one, max(two, three)));
 }
 
 int get_sum(uint64_t b){

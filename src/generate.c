@@ -7,39 +7,18 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
-int init_errorcheck_mutex(pthread_mutex_t *mutex)
-{
-    pthread_mutexattr_t attr;
-    int r;
-
-    r = pthread_mutexattr_init(&attr);
-    if (r != 0)
-        return r;
-
-    r = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
-
-    if (r == 0)
-        r = pthread_mutex_init(mutex, &attr);
-
-    pthread_mutexattr_destroy(&attr);
-
-    return r;
-}
 struct {
+	pthread_t core;
 	static_arr_info n; 
 	dynamic_arr_info* nret;
 	dynamic_arr_info* n2; 
 	dynamic_arr_info* n4;
-	pthread_mutex_t* done; 
 	size_t start; 
 	size_t end; 
 	dynamic_arr_info *potential_duplicate;
 } typedef arguments;
 
-struct {
-	pthread_t core;
-	arguments args;
-}typedef core_data;
+void wait_all(core_data*, size_t);
 
 static void write_boards(const static_arr_info n, const char* fmt, const int layer){
 	size_t filename_size = strlen(fmt) + 10; // if there are more than 10 digits of layers i'll eat my shoe
@@ -70,17 +49,10 @@ bool shifted(uint64_t a, uint64_t b){
 	return false;
 }
 
-void* generation_thread_move(void* data){
+void* generation_thread_move_noshift(void* data){
 	arguments *args = data;
 	uint64_t tmp, tmp2;
 	bool (*move)(uint64_t*, dir) = flat_movement ? flat_move : movedir;
-	int res = pthread_mutex_trylock(args->done);
-	if (res != 0){ // the caller has been naughty
-		char *buf = malloc_errcheck(100);
-		snprintf(buf, 100, "Worker thread mutex (%lu) couldn't be locked, check caller logic!(%d)\n", (unsigned long)args->done, res);
-		log_out(buf, LOG_ERROR_);
-		free(buf);
-	}
 	for(size_t i = args->start; i < args->end; i++){
 		tmp = args->n.bp[i];
 		tmp2 = args->n.bp[i];
@@ -93,19 +65,28 @@ void* generation_thread_move(void* data){
 			}
 		}
 	}
-	pthread_mutex_unlock(args->done);
+	return NULL;
+}
+
+void* generation_thread_move(void* data){
+	arguments *args = data;
+	uint64_t tmp, tmp2;
+	bool (*move)(uint64_t*, dir) = flat_movement ? flat_move : movedir;
+	for(size_t i = args->start; i < args->end; i++){
+		tmp = args->n.bp[i];
+		tmp2 = args->n.bp[i];
+		for(dir d = left; d < down; d++){
+			if(move(&tmp, d)){
+				canonicalize(&tmp);
+				push_back(args->nret, tmp);
+			}
+		}
+	}
 	return NULL;
 }
 void* generation_thread_spawn(void* data){
 	arguments *args = data;
-	int res = pthread_mutex_trylock(args->done);
 	uint64_t tmp;
-	if (res != 0){ // the caller has been naughty
-		char *buf = malloc_errcheck(100);
-		snprintf(buf, 100, "Worker thread mutex (%lu) couldn't be locked, check caller logic!(%d)\n", (unsigned long)args->done, res);
-		log_out(buf, LOG_ERROR_);
-		free(buf);
-	}
 	for(size_t i = args->start; i < args->end; i++){
 		for(int tile = 0; tile < 16; tile++){
 			if(GET_TILE((args->n).bp[i], tile) == 0){
@@ -120,7 +101,6 @@ void* generation_thread_spawn(void* data){
 			}
 		}
 	}
-	pthread_mutex_unlock(args->done);
 	return NULL;
 }
 
@@ -149,7 +129,7 @@ void init_threads(core_data* cores, dynamic_arr_info n, dynamic_arr_info *potent
 		if(i + 1 == core_count){
 			cores[i].args.end = n.sp - n.bp;
 		}
-		int res = pthread_create(&cores[i].core, NULL, worker_thread, (void*)(&cores[i].args));
+		int res = pthread_create(&cores[i].core, NULL, worker_thread, (void*)(&(cores[i].args)));
 		if(res != 0){
 			char *buf = malloc_errcheck(100);
 			snprintf(buf, 100, "Core initialization failed: Error %d, Core %d", res, i);
@@ -160,19 +140,6 @@ void init_threads(core_data* cores, dynamic_arr_info n, dynamic_arr_info *potent
 }
 
 void wait_all(core_data *cores, size_t core_count){
-	static_arr_info done_arr = init_sarr(false, core_count);
-	bool done = false;
-	while(done == false){
-		done = true;
-		for(uint i = 0; i < core_count; i++){
-			done_arr.bp[i] = pthread_mutex_trylock(cores[i].args.done);
-			if (done_arr.bp[i] != 0)
-				done = false;
-			else
-				pthread_mutex_unlock(cores[i].args.done); // we own this mutex so we have to unlock it before we try to lock it again
-		}
-	}
-	// if we're here, all the cores are done
 	for(uint i = 0; i < core_count; i++){
 		pthread_join(cores[i].core, NULL); // idc abt the return
 	}
@@ -189,16 +156,10 @@ void generate_layer(dynamic_arr_info * restrict n, dynamic_arr_info * restrict n
 	if(!core_init){
 		cores = malloc_errcheck(sizeof(core_data) * core_count); // make an array of core data
 		for(size_t i = 0; i < core_count; i++){
-			cores[i].args.done = malloc_errcheck(sizeof(pthread_mutex_t));
 			cores[i].args.nret = malloc_errcheck(sizeof(dynamic_arr_info));
 			cores[i].args.n2 = malloc_errcheck(sizeof(dynamic_arr_info));
 			cores[i].args.n4 = malloc_errcheck(sizeof(dynamic_arr_info));
 			cores[i].args.potential_duplicate = malloc_errcheck(sizeof(dynamic_arr_info));
-			int res = init_errorcheck_mutex(cores[i].args.done);
-			if(res != 0){
-				printf("Failed to init core mutex: errcode %d", res);
-				exit(res);
-			}
 		}
 		core_init = true;
 	}
@@ -265,7 +226,7 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 	}
 }
 
-static_arr_info read_table(const char *dir){
+static_arr_info read_boards(const char *dir){
 	FILE *fp = fopen(dir, "rb");
 	fseek(fp, 0L, SEEK_END);
 	size_t sz = ftell(fp);
@@ -282,11 +243,3 @@ static_arr_info read_table(const char *dir){
 	return (static_arr_info){true, data, sz / 8}; 
 }
 
-void destroy_darr(dynamic_arr_info* arr){
-	free(arr->bp);
-	arr->valid = false;
-}
-void destroy_sarr(static_arr_info* arr){
-	free(arr->bp);
-	arr->valid = false;
-}

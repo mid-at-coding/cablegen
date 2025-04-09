@@ -36,4 +36,6 @@ void destroy_sarr(static_arr_info* arr); // frees and invalidates array
 bool push_back(dynamic_arr_info*, uint64_t); // returns whether a resize happened
 void deduplicate(dynamic_arr_info*);
 dynamic_arr_info sarrtodarr(static_arr_info*);
+void destroy_darr(dynamic_arr_info* arr);
+void destroy_sarr(static_arr_info* arr);
 #endif

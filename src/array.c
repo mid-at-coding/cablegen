@@ -175,3 +175,11 @@ dynamic_arr_info sarrtodarr(static_arr_info *s){
 	tmp.size = s->size;
 	return tmp;
 }
+void destroy_darr(dynamic_arr_info* arr){
+	free(arr->bp);
+	arr->valid = false;
+}
+void destroy_sarr(static_arr_info* arr){
+	free(arr->bp);
+	arr->valid = false;
+}

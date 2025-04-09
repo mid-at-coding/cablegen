@@ -5,7 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 
-void write_table_solved(const table *t, const char *filename){
+void write_table(const table *t, const char *filename){
 	printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", t->key.size, filename, 2 * sizeof(uint64_t) * t->key.size);  // lol
 	FILE *file = fopen(filename, "wb");
 	if(file == NULL){
@@ -24,7 +24,7 @@ void write_table_solved(const table *t, const char *filename){
 	fclose(file);
 }
 
-void read_table_solved(table *t, const char *filename){
+void read_table(table *t, const char *filename){
 	FILE *fp = fopen(filename, "rb");
 	if(fp == NULL){
 		char *buf = malloc_errcheck(100);
@@ -80,15 +80,15 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt){
 	char *filename = malloc_errcheck(100);
 	for(unsigned int i = start; i >= end; i -= 2){
 		snprintf(filename, 100, posfmt, i);
-		static_arr_info tmp = read_table(filename);
+		static_arr_info tmp = read_boards(filename);
 		n->key = sarrtodarr(&tmp);
 		snprintf(filename, 100, tablefmt, i + 2);
-		read_table_solved(n2, filename);
+		read_table(n2, filename);
 		snprintf(filename, 100, tablefmt, i + 4);
-		read_table_solved(n4, filename);
+		read_table(n4, filename);
 		solve_layer(n4, n2, n);
 		snprintf(filename, 100, tablefmt, i);
-		write_table_solved(n, filename);
+		write_table(n, filename);
 	}
 }
 
