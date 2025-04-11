@@ -97,14 +97,13 @@ bool test_dedupe(){
 			}
 		}
 	}
-	printf("Testing deduplication in generation.\n");
+	log_out("Testing deduplication in generation.", LOG_INFO_);
 	dynamic_arr_info n = init_darr(false, 0);
 	push_back(&n, 0x1000002000000000); // board with a 2 and a 4 in a kinda arbitrary position
 	dynamic_arr_info n2 = init_darr(false, 0);
 	dynamic_arr_info n4 = init_darr(false, 0);
 	dynamic_arr_info pd = init_darr(false, 0);
-	printf("Testing sorting deduplication.\n");
-	PD_ARR = false;
+	log_out("Testing sorting deduplication.\n", LOG_INFO_);
 	for(int i = 6; i < 12; i+=2){
 		generate_layer(&n, &n2, &n4, &pd, 1, "/dev/null/%d", i);
 		// check if n is dupe free
@@ -125,7 +124,7 @@ bool test_dedupe(){
 		n2 = n4;
 		n4 = init_darr(false, 0);
 	}
-	printf("No errors reported.\n");
+	log_out("No errors reported.", LOG_INFO_);
 	return true;
 }
 
