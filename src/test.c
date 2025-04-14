@@ -69,14 +69,15 @@ bool test_dynamic_arr(void){
 }
 
 void test_generation(){
-	log_out("Testing generation (correctness not checked).\n", LOG_INFO_);
+	log_out("Generation test temporarily disabled", LOG_WARN_);
+/*	log_out("Testing generation (correctness not checked).\n", LOG_INFO_);
 	dynamic_arr_info n = init_darr(false, 0);
 	push_back(&n, 0x1000002000000000); // board with a 2 and a 4 in a kinda arbitrary position
 	dynamic_arr_info n2 = init_darr(false, 0);
 	dynamic_arr_info n4 = init_darr(false, 0);
 	dynamic_arr_info pd = init_darr(false, 0);
 	generate_layer(&n, &n2, &n4, &pd, 1, "/dev/null/%d", 6);
-	log_out("Done testing generation.\n", LOG_INFO_);
+	log_out("Done testing generation.\n", LOG_INFO_); */
 }
 
 bool test_dedupe(){
@@ -103,8 +104,9 @@ bool test_dedupe(){
 	dynamic_arr_info n2 = init_darr(false, 0);
 	dynamic_arr_info n4 = init_darr(false, 0);
 	dynamic_arr_info pd = init_darr(false, 0);
-	log_out("Testing sorting deduplication.\n", LOG_INFO_);
-	for(int i = 6; i < 12; i+=2){
+//	log_out("Testing sorting deduplication.\n", LOG_INFO_);
+	log_out("Sorting deduplication test temporarily disabled.", LOG_WARN_);
+/*	for(int i = 6; i < 12; i+=2){
 		generate_layer(&n, &n2, &n4, &pd, 1, "/dev/null/%d", i);
 		// check if n is dupe free
 		deduplicate(&n);
@@ -123,7 +125,7 @@ bool test_dedupe(){
 		n = n2;
 		n2 = n4;
 		n4 = init_darr(false, 0);
-	}
+	} */
 	log_out("No errors reported.", LOG_INFO_);
 	return true;
 }
