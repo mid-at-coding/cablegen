@@ -41,7 +41,7 @@ static int get_cfg(Ini_File *file){
 int get_bool_setting(char *key, bool* data){
 	char *str = malloc_errcheck(MAX_PROP_SIZE);
 	int e;
-	if(e = get_str_setting(key, &(str)))
+	if((e = get_str_setting(key, &(str))))
 		return e;
 	if(!strcmp(strlwr(str), "true"))
 		*data = true;
@@ -50,18 +50,19 @@ int get_bool_setting(char *key, bool* data){
 int get_str_setting (char *key, char** str){
 	Ini_File *file = malloc_errcheck(sizeof(Ini_File));
 	int e;
-	if(e = get_cfg(file))
+	if((e = get_cfg(file)))
 		return e;
 	e = ini_file_find_property(file, "Cablegen", key, str);
 	if(e != 0){ // assume this is due to the prop not existing
 		log_out("Could not find property!", LOG_WARN_);
 		return EFAULT;
 	}
+	return 0;
 }
 int get_int_setting (char *key, int* data){
 	char *str = malloc_errcheck(MAX_PROP_SIZE);
 	int e;
-	if(e = get_str_setting(key, &str))
+	if((e = get_str_setting(key, &str)))
 		return e;
 	*data = atoi(str);
 	return 0;

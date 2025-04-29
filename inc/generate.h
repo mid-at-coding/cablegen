@@ -6,5 +6,6 @@
 
 void generate(const int, const int, const char*, uint64_t*, const size_t, const uint, bool prespawn);
 static_arr_info read_boards(const char *dir);
+void write_boards(const static_arr_info n, const char* fmt, const int layer);
 
 #endif

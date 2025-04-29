@@ -200,15 +200,11 @@ static uint64_t max(uint64_t a, uint64_t b){
 }
 
 void canonicalize(uint64_t* board){ // turn a board into it's canonical version
-	uint64_t nonrot = *board;
-	uint64_t one = *board;
-	uint64_t two = *board;
-	uint64_t three = *board;
-	rotate_clockwise(&one);
-	rotate_clockwise(&two);
-	rotate_clockwise(&two);
-	rotate_counterclockwise(&three);
-	*board = max(nonrot, max(one, max(two, three)));
+	uint64_t *rots = get_all_rots(*board);
+	for(int i = 0; i < 8; i++){
+		if(rots[i] > *board)
+			*board = rots[i];
+	}
 }
 
 int get_sum(uint64_t b){
@@ -220,3 +216,45 @@ int get_sum(uint64_t b){
 	return res;
 }
 
+uint64_t *get_all_rots(uint64_t board){
+	uint64_t *boards = malloc_errcheck(8 * sizeof(uint64_t));
+	for(int i = 0; i < 8; i++){
+		boards[i] = board;
+	}
+	// e
+	boards[0] = board;
+	// a
+	rotate_clockwise(&boards[1]);
+	// a^2
+	rotate_clockwise(&boards[2]);
+	rotate_clockwise(&boards[2]);
+	// a^3
+	rotate_counterclockwise(&boards[3]);
+	// b
+	flip(&boards[4]);
+	// ba
+	flip(&boards[5]);
+	rotate_clockwise(&boards[5]);
+	// ba^2
+	flip(&boards[6]);
+	rotate_clockwise(&boards[6]);
+	rotate_clockwise(&boards[6]);
+	// ba^3
+	flip(&boards[7]);
+	rotate_counterclockwise(&boards[7]);
+	return boards;
+}
+
+void flip(uint64_t *board){
+	// 0  1  2  3
+	// 4  5  6  7
+	// 8  9  10 11
+	// 12 13 14 15
+	uint64_t tmp = *board;
+	for(int i = 0; i < 4; i++){
+		SET_TILE((*board),(4 * i + 0),(GET_TILE(tmp,(3  + 4 * i))));
+		SET_TILE((*board),(4 * i + 1),(GET_TILE(tmp,(2  + 4 * i))));
+		SET_TILE((*board),(4 * i + 2),(GET_TILE(tmp,(1  + 4 * i))));
+		SET_TILE((*board),(4 * i + 3),(GET_TILE(tmp,(0  + 4 * i))));
+	}
+}

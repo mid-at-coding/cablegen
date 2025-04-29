@@ -3,20 +3,22 @@
 #include "../inc/board.h"
 #include "../inc/main.h"
 #include "../inc/thpool.h"
+#include "../inc/settings.h"
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#define DBG
 struct {
 	static_arr_info n; 
-	dynamic_arr_info* nret;
-	dynamic_arr_info* n2; 
-	dynamic_arr_info* n4;
+	dynamic_arr_info nret;
+	dynamic_arr_info n2; 
+	dynamic_arr_info n4;
 	size_t start; 
 	size_t end; 
 } typedef arguments;
-static void write_boards(const static_arr_info n, const char* fmt, const int layer){
+void write_boards(const static_arr_info n, const char* fmt, const int layer){
 	size_t filename_size = strlen(fmt) + 10; // if there are more than 10 digits of layers i'll eat my shoe
 	char* filename = malloc_errcheck(sizeof(char) * filename_size);
 	snprintf(filename, filename_size, fmt, layer);
@@ -56,7 +58,7 @@ void generation_thread_move(void* data){
 				if(shifted(tmp2, tmp))
 				    continue;
 				canonicalize(&tmp);
-				push_back(args->nret, tmp);
+				push_back(&args->nret, tmp);
 			}
 		}
 	}
@@ -70,11 +72,11 @@ void generation_thread_spawn(void* data){
 				tmp = args->n.bp[i];
 				SET_TILE(tmp, tile, 1);
 				canonicalize(&tmp);
-				push_back(args->n2, tmp);
+				push_back(&args->n2, tmp);
 				tmp = args->n.bp[i];
 				SET_TILE(tmp, tile, 2);
 				canonicalize(&tmp);
-				push_back(args->n4, tmp);
+				push_back(&args->n4, tmp);
 			}
 		}
 	}
@@ -83,20 +85,18 @@ void init_thread_data(arguments *cores, const size_t core_count, const size_t sp
 		const dynamic_arr_info *n){
 	for(uint i = 0; i < core_count; i++){ // initialize worker threads
 		if(spawn){
-			*cores[i].n2 = init_darr(false, spawn_reserve);
-			*cores[i].n4 = init_darr(false, spawn_reserve);
+			cores[i].n2 = init_darr(false, spawn_reserve);
+			cores[i].n4 = init_darr(false, spawn_reserve);
 		}
 		else
-			*cores[i].nret = init_darr(false, move_reserve);
+			cores[i].nret = init_darr(false, move_reserve);
 
 		cores[i].n = (static_arr_info){n->valid, n->bp, n->sp - n->bp};
 		// divide up [0,n.size)
 		// cores work in [start,end)
-		int block_size = n->size / core_count;
+		int block_size = (n->sp - n->bp) / core_count;
 		cores[i].start = i * block_size;
 		cores[i].end = (i + 1) * block_size;
-		log_out("Core end:", LOG_DBG_);
-//		log_out(itocs(cores[i].args.end).chars, LOG_DBG_);
 		// core_count * n.size / core_count = n.size
 		// make sure that the last thread covers all of the array
 		if(i + 1 == core_count){
@@ -117,16 +117,44 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	thpool_wait(*pool);
 	// concatenate all the data TODO: maybe there is some clever way to do this?
 	for(uint i = 0; i < core_count; i++){ 
-		*n = concat(n, args[i].nret);
+		*n = concat(n, &args[i].nret);
 	}
 	deduplicate(n);
 	const size_t spawn_reserve = n->size * 2; // assume about 2 spawns per board in n
 	init_thread_data(args, core_count, spawn_reserve, 0, true, n);
 	for(int i = 0; i < core_count; i++){
 		thpool_add_work((*pool), generation_thread_spawn, (void*)(&args[i]));
-	}	
+	}
+	write_boards((static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp}, fmt_dir, layer);
+	thpool_wait(*pool);
+	for(uint i = 0; i < core_count; i++){ 
+		*n2 = concat(n2, &args[i].n2);
+		*n4 = concat(n4, &args[i].n4);
+	}
+	deduplicate(n2);
+	deduplicate(n4);
+#ifdef DBG
+	for(uint64_t *b = n->bp; b < n->sp; b++){
+		if(get_sum(*b) != layer){
+			log_out("Layer mismatch!", LOG_DBG_);
+		}
+	}
+	for(uint64_t *b = n2->bp; b < n2->sp; b++){
+		if(get_sum(*b) != layer + 2){
+			log_out("Layer mismatch!", LOG_DBG_);
+		}
+	}
+	for(uint64_t *b = n4->bp; b < n4->sp; b++){
+		if(get_sum(*b) != layer + 4){
+			log_out("Layer mismatch!", LOG_DBG_);
+		}
+	}
+#endif
 }
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, const uint core_count, bool prespawn){
+	bool free_formation = 0; // TODO, should boards that don't come from moving n really stay?
+	get_bool_setting("free_formation", &free_formation);
+	generate_lut(free_formation);
 	threadpool pool = thpool_init(core_count);
 	const static size_t DARR_INITIAL_SIZE = 100;
 	dynamic_arr_info n  = init_darr(false, 0);
@@ -137,11 +165,22 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 	dynamic_arr_info n4 = init_darr(false, DARR_INITIAL_SIZE);
 	for(int i = start; i <= end; i += 2){
 		generate_layer(&n, &n2, &n4, core_count, fmt, i, &pool);
+		destroy_darr(&n);
+		n = n2;
+		n2 = n4;
+		n4 = init_darr(false, DARR_INITIAL_SIZE);
 	}
 	thpool_destroy(pool);
 }
 static_arr_info read_boards(const char *dir){
 	FILE *fp = fopen(dir, "rb");
+	if(fp == NULL){
+		char *buf = malloc_errcheck(100);
+		snprintf(buf, 100, "Couldn't read %s!\n", dir);
+		log_out(buf, LOG_WARN_);
+		free(buf);
+		return (static_arr_info){.valid = false};
+	}
 	fseek(fp, 0L, SEEK_END);
 	size_t sz = ftell(fp);
 	rewind(fp);
@@ -154,6 +193,16 @@ static_arr_info read_boards(const char *dir){
 	log_out(buf, LOG_DBG_);
 	free(buf);
 	fclose(fp);
-	return (static_arr_info){true, data, sz / 8}; 
+	static_arr_info res = {true, data, sz / 8}; 
+#ifdef DBG
+	uint64_t tmp;
+	for(size_t i = 0; i < sz / 8; i++){
+		tmp = res.bp[i];
+		canonicalize(&tmp);
+		if(tmp != res.bp[i]){
+			log_out("Reading non canonicalized board!!!!", LOG_WARN_);
+		}
+	}
+#endif
+	return res;
 }
-
