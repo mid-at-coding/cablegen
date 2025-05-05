@@ -14,6 +14,10 @@ enum {
 	down
 } typedef dir;
 
+typedef struct {
+	uint64_t board[8];
+} symmetries;
+
 extern uint16_t _move_lut[2][UINT16_MAX + 1]; // store every possible row move
 extern bool   _locked_lut[2][UINT16_MAX + 1]; // true for all rows that shift: could be 4 bits per lookup but that's probably slower
 

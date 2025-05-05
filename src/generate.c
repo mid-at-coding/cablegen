@@ -63,8 +63,8 @@ void generation_thread_move(void* data){
 		tmp2 = args->n.bp[i];
 		for(dir d = left; d < down; d++){
 			if(move(&tmp, d)){
-				if(shiftedr(tmp2, tmp))
-				    continue;
+//				if(shiftedr(tmp2, tmp))
+//				    continue;
 				canonicalize_b(&tmp);
 				push_back(&args->nret, tmp);
 			}
@@ -128,7 +128,7 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 		*n = concat(n, &args[i].nret);
 	}
 	deduplicate(n);
-	const size_t spawn_reserve = n->size * 2; // assume about 2 spawns per board in n
+	const size_t spawn_reserve = n->size * 4; // assume about 4 spawns per board in n
 	init_thread_data(args, core_count, spawn_reserve, 0, true, n);
 	for(int i = 0; i < core_count; i++){
 		thpool_add_work((*pool), generation_thread_spawn, (void*)(&args[i]));

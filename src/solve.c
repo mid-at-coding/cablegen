@@ -6,6 +6,14 @@
 #include <math.h>
 #include <stdio.h>
 #define DBG
+typedef struct {
+	table *n;
+	table *n2;
+	table *n4;
+	size_t start;
+	size_t end;
+	static_arr_info *winstates;
+} solve_core_data;
 void write_table(const table *t, const char *filename){
 	printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", t->key.size, filename, 2 * sizeof(uint64_t) * t->key.size);  // lol
 	FILE *file = fopen(filename, "wb");
@@ -56,6 +64,10 @@ void read_table(table *t, const char *filename){
 }
 
 double lookup(uint64_t key, table *t){
+	if(t->key.size == 0){
+		log_out("Empty table!", LOG_TRACE_);
+		return 0.0;
+	}
 	// binary search for the index of the key
 	canonicalize_b(&key);
 	int current_depth = 0;	
@@ -88,6 +100,7 @@ void destroy_table(table* t){
 
 void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *winstates, unsigned cores){
 	set_log_level(LOG_INFO_);
+	threadpool th = thpool_init(cores);
 	const size_t FILENAME_SIZE = 100;
 	bool free_formation = 0;
 	get_bool_setting("free_formation", &free_formation);
@@ -108,7 +121,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 		snprintf(filename, FILENAME_SIZE, posfmt, i);
 		n->key = read_boards(filename);
 		n->value = init_sarr(0,n->key.size);
-		solve_layer(n4, n2, n, winstates);
+		solve_layer(n4, n2, n, winstates, cores, th);
 		snprintf(filename, FILENAME_SIZE, tablefmt, i);
 		write_table(n, filename);
 		// cycle the tables -- n goes down by two so n2 will be our freshly solved n, n4 our read n2, and n will be reset next loop
@@ -165,15 +178,38 @@ double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstat
 	return (0.9 * n2prob / spaces) + (0.1 * n4prob / spaces);
 }
 
-void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates){
-	for(size_t curr = 0; curr < n->key.size; curr++){
+void solve_worker_thread(void *args){
+	solve_core_data *sargs = args;
+	for(size_t curr = sargs->start; curr < sargs->end; curr++){
 		double prob = 0;
-		if(satisfied(&n->key.bp[curr], winstates)){
+		if(satisfied(&sargs->n->key.bp[curr], sargs->winstates)){
 			prob = 1;
 		}
 		else{
-			prob = expectimax(n->key.bp[curr], n2, n4, winstates); // we should not be moving -- we're reading moves
+			prob = expectimax(sargs->n->key.bp[curr], sargs->n2, sargs->n4, sargs->winstates); // we should not be moving -- we're reading moves
 		}
-		n->value.bp[curr] = *((uint64_t*)(&prob));
+		sargs->n->value.bp[curr] = *((uint64_t*)(&prob));
 	}
+}
+
+void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, threadpool pool){
+	solve_core_data *cores = malloc_errcheck(sizeof(solve_core_data) * core_count);
+	for(uint i = 0; i < core_count; i++){ // initialize worker threads
+		cores[i].n = n;
+		cores[i].n2 = n2;
+		cores[i].n4 = n4;
+		cores[i].winstates = winstates;
+		// divide up [0,n.size)
+		// cores work in [start,end)
+		int block_size = (n->key.size) / core_count;
+		cores[i].start = i * block_size;
+		cores[i].end = (i + 1) * block_size;
+		// core_count * n.size / core_count = n.size
+		// make sure that the last thread covers all of the array
+		if(i + 1 == core_count){
+			cores[i].end = n->key.size;
+		}
+		thpool_add_work(pool, solve_worker_thread, (void*)(cores + i));
+	}
+	thpool_wait(pool);
 }

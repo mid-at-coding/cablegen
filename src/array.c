@@ -4,6 +4,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <pthread.h>
+#define SORT_NAME uint64
+#define SORT_TYPE uint64_t
+#include "../inc/sort.h"
 
 bool push_back(dynamic_arr_info *info, uint64_t v){
 	pthread_mutex_lock(&info->mut);
@@ -93,21 +96,14 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	static_arr_info arr1_shrink = shrink_darr(arr1);
 	static_arr_info arr2_shrink = shrink_darr(arr2);
 	arr1->valid = arr2->valid = false;
-	dynamic_arr_info arr1_dynamic = {
-		.valid = true,
-		.bp   = ((arr1_shrink.bp == NULL) ? init_darr(0,false).bp : arr1_shrink.bp ),
-		.sp   = arr1_shrink.bp + arr1_shrink.size, 
-		.size = arr1_shrink.size
-	};
-	int res = pthread_mutex_init(&arr1_dynamic.mut, NULL);
-	if(res != 0){
-		log_out("Mutex initialization failed in concat(...)\n", LOG_ERROR_);
-		arr1_dynamic.valid = false;
-	}
-	for(size_t i = 0; i < arr2_shrink.size; i++)
-		push_back(&arr1_dynamic, arr2_shrink.bp[i]); // TODO memcpy if this is taking up too much time
+	dynamic_arr_info arr = init_darr(0, arr1_shrink.size + arr2_shrink.size);
+	memcpy(arr.bp, arr1_shrink.bp, arr1_shrink.size);
+	memcpy(arr.bp, arr2_shrink.bp + arr1_shrink.size, arr2_shrink.size);
+	arr.sp = arr.bp + arr.size;
+
 	free(arr2_shrink.bp);
-	return arr1_dynamic;
+	free(arr1_shrink.bp);
+	return arr;
 }
 [[nodiscard]] dynamic_arr_info concat_unique(dynamic_arr_info * restrict arr1, dynamic_arr_info * restrict arr2){
 	static_arr_info arr1_shrink = shrink_darr(arr1);
@@ -146,7 +142,8 @@ void deduplicate(dynamic_arr_info *s){
 		return;
 	}
     dynamic_arr_info res = init_darr(0, 0.7 * (s->sp - s->bp)); // assume it's around 30% dupes
-	qsort(s->bp, s->sp - s->bp, sizeof(uint64_t), compare);
+//	qsort(s->bp, s->sp - s->bp, sizeof(uint64_t), compare);
+	uint64_quick_sort(s->bp, s->sp - s->bp);
 	push_back(&res, *s->bp);
 	for(uint64_t *curr = s->bp + 1; curr < s->sp; curr++){
 		if(*curr != *(curr - 1)){
