@@ -174,23 +174,25 @@ bool movedir(uint64_t* board, dir d){
 	return changed;
 }
 
-void rotate_clockwise(uint64_t* b){ // there's probably some trick to do this faster but lut lookup is probably not a bottleneck
-	uint64_t tmp = *b;
-	for(int i = 0; i < 4; i++){
-		SET_TILE((*b),(4 * i + 0),(GET_TILE(tmp,(i + 12))));
-		SET_TILE((*b),(4 * i + 1),(GET_TILE(tmp,(i + 8))));
-		SET_TILE((*b),(4 * i + 2),(GET_TILE(tmp,(i + 4))));
-		SET_TILE((*b),(4 * i + 3),(GET_TILE(tmp,(i + 0))));
-	}
+void rotate_clockwise(uint64_t* board){ // taken from game-difficult/2048EndgameTablebase (Calculator.py)
+    *board = (((*board) & 0xff00ff0000000000) >> 8 ) |
+			 (((*board) & 0x00ff00ff00000000) >> 32) |
+             (((*board) & 0x00000000ff00ff00) << 32) | 
+			 (((*board) & 0x0000000000ff00ff) << 8 );
+    *board = (((*board) & 0xf0f00000f0f00000) >> 4 ) |
+             (((*board) & 0x0f0f00000f0f0000) >> 16) |
+             (((*board) & 0x0000f0f00000f0f0) << 16) |
+			 (((*board) & 0x00000f0f00000f0f) << 4 );
 }
 void rotate_counterclockwise(uint64_t* b){
-	uint64_t tmp = *b;
-	for(int i = 0; i < 4; i++){
-		SET_TILE((*b),(4 * i + 0),(GET_TILE(tmp,(3  - i))));
-		SET_TILE((*b),(4 * i + 1),(GET_TILE(tmp,(7  - i))));
-		SET_TILE((*b),(4 * i + 2),(GET_TILE(tmp,(11 - i))));
-		SET_TILE((*b),(4 * i + 3),(GET_TILE(tmp,(15 - i))));
-	}
+    *b = (((*b) & 0xff00ff0000000000) >> 8 ) |
+		 (((*b) & 0x00ff00ff00000000) >> 32) |
+         (((*b) & 0x00000000ff00ff00) << 32) |
+		 (((*b) & 0x0000000000ff00ff) << 8 );
+    *b = (((*b) & 0xf0f00000f0f00000) >> 4 ) |
+		 (((*b) & 0x0f0f00000f0f0000) >> 16) |
+         (((*b) & 0x0000f0f00000f0f0) << 16) |
+		 (((*b) & 0x00000f0f00000f0f) << 4 );
 }
 
 static uint64_t max(uint64_t a, uint64_t b){
@@ -199,12 +201,13 @@ static uint64_t max(uint64_t a, uint64_t b){
 	return a;
 }
 
-void canonicalize(uint64_t* board){ // turn a board into it's canonical version
+void canonicalize_b(uint64_t* board){ // turn a board into it's canonical version
 	uint64_t *rots = get_all_rots(*board);
 	for(int i = 0; i < 8; i++){
 		if(rots[i] > *board)
 			*board = rots[i];
 	}
+	free(rots);
 }
 
 int get_sum(uint64_t b){
@@ -246,6 +249,11 @@ uint64_t *get_all_rots(uint64_t board){
 }
 
 void flip(uint64_t *board){
+    *board = (((*board) & 0xffffffff00000000) >> 32) |
+			 (((*board) & 0x00000000ffffffff) << 32);
+    *board = (((*board) & 0xffff0000ffff0000) >> 16) |
+             (((*board) & 0x0000ffff0000ffff) << 16);
+	return;
 	// 0  1  2  3
 	// 4  5  6  7
 	// 8  9  10 11

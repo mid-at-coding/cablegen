@@ -97,7 +97,7 @@ static void parseSolve(int argc, char **argv){
 	if(boards.size < 1){
 		printf("No boards in %s!", argv[6]);
 	}
-	solve(start, end, posfmt, table_fmt, &boards);
+	solve(start, end, posfmt, table_fmt, &boards, cores);
 }
 
 static void parseWrite(int argc, char **argv){

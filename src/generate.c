@@ -9,7 +9,6 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
-#define DBG
 struct {
 	static_arr_info n; 
 	dynamic_arr_info nret;
@@ -46,6 +45,15 @@ bool shifted(uint64_t a, uint64_t b){
     }
 	return false;
 }
+bool shiftedr(uint64_t a, uint64_t b){
+	uint64_t *rots_a = get_all_rots(a);
+	for(int i = 0; i < 8; i++){
+		if(!shifted(rots_a[i], b)){
+			return false;
+		}
+	}
+	return true;
+}
 void generation_thread_move(void* data){
 	arguments *args = data;
 	uint64_t tmp, tmp2;
@@ -55,9 +63,9 @@ void generation_thread_move(void* data){
 		tmp2 = args->n.bp[i];
 		for(dir d = left; d < down; d++){
 			if(move(&tmp, d)){
-				if(shifted(tmp2, tmp))
+				if(shiftedr(tmp2, tmp))
 				    continue;
-				canonicalize(&tmp);
+				canonicalize_b(&tmp);
 				push_back(&args->nret, tmp);
 			}
 		}
@@ -71,11 +79,11 @@ void generation_thread_spawn(void* data){
 			if(GET_TILE((args->n).bp[i], tile) == 0){
 				tmp = args->n.bp[i];
 				SET_TILE(tmp, tile, 1);
-				canonicalize(&tmp);
+				canonicalize_b(&tmp);
 				push_back(&args->n2, tmp);
 				tmp = args->n.bp[i];
 				SET_TILE(tmp, tile, 2);
-				canonicalize(&tmp);
+				canonicalize_b(&tmp);
 				push_back(&args->n4, tmp);
 			}
 		}
@@ -198,9 +206,9 @@ static_arr_info read_boards(const char *dir){
 	uint64_t tmp;
 	for(size_t i = 0; i < sz / 8; i++){
 		tmp = res.bp[i];
-		canonicalize(&tmp);
+		canonicalize_b(&tmp);
 		if(tmp != res.bp[i]){
-			log_out("Reading non canonicalized board!!!!", LOG_WARN_);
+			log_out("Reading non canonicalize_bd board!!!!", LOG_WARN_);
 		}
 	}
 #endif

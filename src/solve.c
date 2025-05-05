@@ -63,7 +63,7 @@ void read_table(table *t, const char *filename){
 
 double lookup(uint64_t key, table *t){
 	// binary search for the index of the key
-	canonicalize(&key);
+	canonicalize_b(&key);
 	int current_depth = 0;	// TODO switch this to use pointers instead of indexes, may be faster?
 	int max_depth = (log(t->key.sp - t->key.bp) / log(2)) + 1; // when we'll stop searching
 	size_t top = t->key.sp - t->key.bp;
@@ -86,7 +86,13 @@ double lookup(uint64_t key, table *t){
 	return *(double*)(&(t->value.bp[midpoint]));
 }
 
-void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *winstates){
+void destroy_table(table* t){
+	free(t->key.bp);
+	free(t->value.bp);
+	free(t);
+}
+
+void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *winstates, unsigned cores){
 	set_log_level(LOG_INFO_);
 	const size_t FILENAME_SIZE = 100;
 	bool free_formation = 0;
@@ -94,10 +100,11 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	generate_lut(free_formation); // if we don't gen a lut we can't move
 	// make sure winstates are canonicalized otherwise they won't work right
 	for(size_t i = 0; i < winstates->size; i++)
-		canonicalize(winstates->bp + i);
+		canonicalize_b(winstates->bp + i);
 	table *n4 = malloc_errcheck(sizeof(table));
 	table *n2 = malloc_errcheck(sizeof(table));
 	table *n  = malloc_errcheck(sizeof(table));
+	table *tmp_p;
 	n2->key = init_darr(0,0);
 	n2->value = init_darr(0,0);
 	n4->key = init_darr(0,0);
@@ -114,16 +121,18 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 		// cycle the tables -- n goes down by two so n2 will be our freshly solved n, n4 our read n2, and n will be reset next loop
 		destroy_darr(&n4->key);
 		destroy_darr(&n4->value);
-		free(n4);
-		n4 = n2;
-		n2 = n;
-		n  = malloc_errcheck(sizeof(table));
+		tmp_p = n4;
+		n4    = n2;
+		n2    = n;
+		n     = tmp_p;
 	}
+	destroy_table(n2);
+	destroy_table(n4);
 }
 
 static bool satisfied(uint64_t *board, static_arr_info *winstates){
 	for(int i = 0; i < winstates->size; i++){
-		canonicalize(board);
+		canonicalize_b(board);
 		if(((winstates->bp[i]) & (*board)) == *board){
 			return true;
 		}
