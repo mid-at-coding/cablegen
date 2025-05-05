@@ -96,14 +96,21 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	static_arr_info arr1_shrink = shrink_darr(arr1);
 	static_arr_info arr2_shrink = shrink_darr(arr2);
 	arr1->valid = arr2->valid = false;
-	dynamic_arr_info arr = init_darr(0, arr1_shrink.size + arr2_shrink.size);
-	memcpy(arr.bp, arr1_shrink.bp, arr1_shrink.size);
-	memcpy(arr.bp, arr2_shrink.bp + arr1_shrink.size, arr2_shrink.size);
-	arr.sp = arr.bp + arr.size;
-
+	dynamic_arr_info arr1_dynamic = {
+		.valid = true,
+		.bp   = ((arr1_shrink.bp == NULL) ? init_darr(0,false).bp : arr1_shrink.bp ),
+		.sp   = arr1_shrink.bp + arr1_shrink.size, 
+		.size = arr1_shrink.size
+	};
+	int res = pthread_mutex_init(&arr1_dynamic.mut, NULL);
+	if(res != 0){
+		log_out("Mutex initialization failed in concat(...)\n", LOG_ERROR_);
+		arr1_dynamic.valid = false;
+	}
+	for(size_t i = 0; i < arr2_shrink.size; i++)
+		push_back(&arr1_dynamic, arr2_shrink.bp[i]); // TODO memcpy if this is taking up too much time
 	free(arr2_shrink.bp);
-	free(arr1_shrink.bp);
-	return arr;
+	return arr1_dynamic;
 }
 [[nodiscard]] dynamic_arr_info concat_unique(dynamic_arr_info * restrict arr1, dynamic_arr_info * restrict arr2){
 	static_arr_info arr1_shrink = shrink_darr(arr1);

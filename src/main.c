@@ -29,13 +29,15 @@ static int numPlaces (int n) {
 }
 
 static void help(){
-	log_out("Cablegen v0.0 by ember/emelia/cattodoameow", LOG_INFO_);
+	log_out("Cablegen v1.0 by ember/emelia/cattodoameow", LOG_INFO_);
 	log_out("Commands:", LOG_INFO_);
 	log_out("help -- this output", LOG_INFO_);
 	log_out("generate [FILE] [DIR] [END] [CORES] -- generate all sub-boards of the boards in FILE in DIR until the tile sum meets END, using CORES cores", LOG_INFO_);
 	log_out("solve [BDIR] [TDIR] [START] [END] [WINSTATE] [CORES] -- solve all boards in BDIR backwards, putting the solutions in TDIR", LOG_INFO_);
 	log_out("test -- run self test", LOG_INFO_);
 	log_out("write [FILE] [BOARD] (BOARD) ... -- write board(s) to a file", LOG_INFO_);
+	log_out("lookup [TDIR] [BOARD] ... -- look a board up in TDIR", LOG_INFO_);
+	log_out("explore [TABLE] ... -- show all the boards in TABLE", LOG_INFO_);
 }
 
 static void parseGenerate(int argc, char **argv){
@@ -113,6 +115,45 @@ static void parseWrite(int argc, char **argv){
 	write_boards((static_arr_info){.valid = boards.valid, .bp = boards.bp, .size = boards.sp - boards.bp}, argv[2], 0);
 }
 
+
+static void parseLookup(int argc, char **argv){
+	if(argc < 4){ log_out("Not enough arguments!", LOG_ERROR_); return;}
+	uint64_t board = strtoull(argv[3], NULL, 16); // interpret as hex string
+	if (errno != 0){
+		printf("Error parsing string! %s\n", strerror(errno));
+	}
+	uint64_t sum = get_sum(board);
+
+	char* default_table_postfix = "%d.tables";
+	size_t table_fmt_size = strlen(default_table_postfix) + strlen(argv[2]) + 10;
+	char* table_fmt = malloc(table_fmt_size);
+	char* tablestr = malloc(table_fmt_size);
+	if(table_fmt == NULL)
+		log_out("Alloc failed!", LOG_ERROR_);
+	snprintf(table_fmt, table_fmt_size, "%s%s", argv[2], default_table_postfix);
+	snprintf(tablestr, table_fmt_size, table_fmt, sum);
+	log_out(tablestr, LOG_TRACE_);
+	
+	table *t = malloc_errcheck(sizeof(table));
+	read_table(t, tablestr);
+	double res = lookup(board, t);
+
+
+	printf("Board(%lf):\n", res);
+	output_board(board);
+}
+
+static void parseExplore(int argc, char **argv){
+	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); return;}
+
+	table *t = malloc_errcheck(sizeof(table));
+	read_table(t, argv[2]);
+	for(int i = 0; i < t->key.size; i++){
+		printf("Board(%lf):\n", *(double*)(t->value.bp + i));
+		output_board(t->key.bp[i]);
+	}
+}
+
 int main(int argc, char **argv){
 	// parse arguments
 	// valid commands:
@@ -126,6 +167,8 @@ int main(int argc, char **argv){
 		else if(!strcmp(strlwr(argv[1]), "solve")) {parseSolve(argc, argv);}
 		else if(!strcmp(strlwr(argv[1]), "test")) {test();}
 		else if(!strcmp(strlwr(argv[1]), "write")) {parseWrite(argc, argv);}
+		else if(!strcmp(strlwr(argv[1]), "lookup")) {parseLookup(argc, argv);}
+		else if(!strcmp(strlwr(argv[1]), "explore")) {parseExplore(argc, argv);}
 		else{
 			log_out("Unrecognized command!", LOG_WARN_);
 			help();

@@ -29,8 +29,8 @@ void write_table(const table *t, const char *filename){
 		printf("(%lu, %lu)/n", t->key.size, t->value.size);
 		return;
 	}
-	fwrite(t->key.bp,   t->key.size,   sizeof(uint64_t), file);
-	fwrite(t->value.bp, t->value.size, sizeof(uint64_t), file);
+	fwrite(t->key.bp,   sizeof(uint64_t), t->key.size,   file);
+	fwrite(t->value.bp, sizeof(double),   t->value.size, file);
 	fclose(file);
 }
 
@@ -50,10 +50,10 @@ void read_table(table *t, const char *filename){
 	rewind(fp);
 	if(sz % 16 != 0) // 16 is 2 * 8 bytes is a double and a board
 		log_out("sz %%16 != 0, this is probably not a real table!\n", LOG_WARN_);
-	t->key = init_sarr(0, sz / 2);
-	t->value = init_sarr(0, sz / 2);
-	fread(t->key.bp,   1, sz / 2, fp);
-	fread(t->value.bp, 1, sz / 2, fp);
+	t->key = init_sarr(0, sz / 16);
+	t->value = init_sarr(0, sz / 16);
+	fread(t->key.bp,   sizeof(uint64_t), sz / 16, fp);
+	fread(t->value.bp, sizeof(double),   sz / 16, fp);
 	char *buf = malloc_errcheck(100);
 	snprintf(buf, 100, "Read %ld bytes (%ld boards) from %s\n", sz, sz / 16, filename);
 	log_out(buf, LOG_DBG_);
@@ -64,6 +64,10 @@ void read_table(table *t, const char *filename){
 }
 
 double lookup(uint64_t key, table *t){
+//	printf("size: %d\n", t->key.size);
+//	for(size_t i = 0; i < t->key.size; i++){
+//		printf("looking: %lx , %d\n", t->key.bp[i], i);
+//	}
 	if(t->key.size == 0){
 		log_out("Empty table!", LOG_TRACE_);
 		return 0.0;
@@ -76,8 +80,10 @@ double lookup(uint64_t key, table *t){
 	size_t bottom = 0;
 	size_t midpoint = (top + bottom) / 2;
 	while (t->key.bp[midpoint] != key){
+//		printf("looking: %lx , %d\n", t->key.bp[midpoint], midpoint);
 		if(current_depth > max_depth){
 			log_out("Couldn't find board!", LOG_TRACE_);
+			printf("%lx\n", key);
 			return 0.0;
 		}
 		if(t->key.bp[midpoint] < key)
@@ -147,15 +153,16 @@ static bool satisfied(uint64_t *board, static_arr_info *winstates){
 }
 static double expectimaxm(uint64_t board, table *n){
 	uint64_t tmp = board;
-	int c = 0;
+	double tmp_prob = 0;
 	double prob = 0;
 	for(dir d = left; d < down; d++){
 		if(movedir(&tmp, d)){
-			++c;
-			prob += lookup(tmp, n);
+			if(prob < (tmp_prob = lookup(tmp, n))){
+				prob = tmp_prob;
+			}
 		}
 	}
-	return (c == 0) ? 0 : prob / c;
+	return prob;
 }
 double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstates){
 	int spaces = 0;

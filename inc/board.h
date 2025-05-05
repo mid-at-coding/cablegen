@@ -31,5 +31,6 @@ void canonicalize_b(uint64_t*);
 void normalize(uint64_t*, dir); // make every direction left
 int get_sum(uint64_t);
 uint64_t *get_all_rots(uint64_t);
+void output_board(uint64_t);
 
 #endif

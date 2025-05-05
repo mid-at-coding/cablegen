@@ -266,3 +266,30 @@ void flip(uint64_t *board){
 		SET_TILE((*board),(4 * i + 3),(GET_TILE(tmp,(0  + 4 * i))));
 	}
 }
+
+void output_board(uint64_t board){
+	char tiles[16][4] = {
+		"   \0",
+		"2  \0",
+		"4  \0",
+		"8  \0",
+		"16 \0",
+		"32 \0",
+		"64 \0",
+		"128\0",
+		"256\0",
+		"512\0",
+		"1k \0",
+		"2k \0",
+		"4k \0",
+		"8k \0",
+		"16k\0",
+		"x  \0"
+	};
+	for(int i = 0; i < 4; i++){
+		for(int j = 0; j < 4; j++){
+			printf("%s ", tiles[GET_TILE(board, (i * 4 + j))]);	
+		}
+		printf("\n");
+	}
+}
