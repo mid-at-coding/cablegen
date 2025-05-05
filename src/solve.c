@@ -16,13 +16,13 @@ void write_table(const table *t, const char *filename){
 		free(buf);
 		return;
 	}
-	if(t->key.sp - t->key.bp != t->value.sp - t->value.bp){
+	if(t->key.size != t->value.size){
 		log_out("Key and value size inequal, refusing to write!", LOG_WARN_);
-		printf("(%lu, %lu)/n", t->key.sp - t->key.bp, t->value.sp - t->value.bp);
+		printf("(%lu, %lu)/n", t->key.size, t->value.size);
 		return;
 	}
-	fwrite(t->key.bp,   t->key.sp   - t->key.bp,   sizeof(uint64_t), file);
-	fwrite(t->value.bp, t->value.sp - t->value.bp, sizeof(uint64_t), file);
+	fwrite(t->key.bp,   t->key.size,   sizeof(uint64_t), file);
+	fwrite(t->value.bp, t->value.size, sizeof(uint64_t), file);
 	fclose(file);
 }
 
@@ -31,8 +31,8 @@ void read_table(table *t, const char *filename){
 	if(fp == NULL){
 		char *buf = malloc_errcheck(100);
 		snprintf(buf, 100, "Couldn't read %s!\n", filename);
-		t->key = init_darr(0,0);
-		t->value = init_darr(0,0);
+		t->key = init_sarr(0,0);
+		t->value = init_sarr(0,0);
 		log_out(buf, LOG_WARN_);
 		free(buf);
 		return;
@@ -42,18 +42,12 @@ void read_table(table *t, const char *filename){
 	rewind(fp);
 	if(sz % 16 != 0) // 16 is 2 * 8 bytes is a double and a board
 		log_out("sz %%16 != 0, this is probably not a real table!\n", LOG_WARN_);
-	t->key = init_darr(0, sz / 2);
-	t->value = init_darr(0, sz / 2);
+	t->key = init_sarr(0, sz / 2);
+	t->value = init_sarr(0, sz / 2);
 	fread(t->key.bp,   1, sz / 2, fp);
 	fread(t->value.bp, 1, sz / 2, fp);
 	char *buf = malloc_errcheck(100);
 	snprintf(buf, 100, "Read %ld bytes (%ld boards) from %s\n", sz, sz / 16, filename);
-	if(t->key.sp - t->key.bp != t->value.sp - t->value.bp){
-		log_out("Key and value size inequal, this is definitely not a real table!", LOG_WARN_);
-		t->key.valid = false;
-		t->value.valid = false;
-		return;
-	}
 	log_out(buf, LOG_DBG_);
 	free(buf);
 	fclose(fp);
@@ -64,9 +58,9 @@ void read_table(table *t, const char *filename){
 double lookup(uint64_t key, table *t){
 	// binary search for the index of the key
 	canonicalize_b(&key);
-	int current_depth = 0;	// TODO switch this to use pointers instead of indexes, may be faster?
-	int max_depth = (log(t->key.sp - t->key.bp) / log(2)) + 1; // when we'll stop searching
-	size_t top = t->key.sp - t->key.bp;
+	int current_depth = 0;	
+	int max_depth = (log(t->key.size) / log(2)) + 1; // when we'll stop searching
+	size_t top = t->key.size;
 	size_t bottom = 0;
 	size_t midpoint = (top + bottom) / 2;
 	while (t->key.bp[midpoint] != key){
@@ -105,22 +99,21 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	table *n2 = malloc_errcheck(sizeof(table));
 	table *n  = malloc_errcheck(sizeof(table));
 	table *tmp_p;
-	n2->key = init_darr(0,0);
-	n2->value = init_darr(0,0);
-	n4->key = init_darr(0,0);
-	n4->value = init_darr(0,0);
+	n2->key   = init_sarr(0,0);
+	n2->value = init_sarr(0,0);
+	n4->key   = init_sarr(0,0);
+	n4->value = init_sarr(0,0);
 	char *filename = malloc_errcheck(FILENAME_SIZE);
 	for(unsigned int i = start; i >= end; i -= 2){
 		snprintf(filename, FILENAME_SIZE, posfmt, i);
-		static_arr_info tmp = read_boards(filename);
-		n->key = sarrtodarr(&tmp);
-		n->value = init_darr(0,0);
+		n->key = read_boards(filename);
+		n->value = init_sarr(0,n->key.size);
 		solve_layer(n4, n2, n, winstates);
 		snprintf(filename, FILENAME_SIZE, tablefmt, i);
 		write_table(n, filename);
 		// cycle the tables -- n goes down by two so n2 will be our freshly solved n, n4 our read n2, and n will be reset next loop
-		destroy_darr(&n4->key);
-		destroy_darr(&n4->value);
+		free(n4->key.bp);
+		free(n4->value.bp);
 		tmp_p = n4;
 		n4    = n2;
 		n2    = n;
@@ -173,14 +166,14 @@ double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstat
 }
 
 void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates){
-	for(uint64_t *curr = n->key.bp; curr < n->key.sp; curr++){
+	for(size_t curr = 0; curr < n->key.size; curr++){
 		double prob = 0;
-		if(satisfied(curr, winstates)){
+		if(satisfied(&n->key.bp[curr], winstates)){
 			prob = 1;
 		}
 		else{
-			prob = expectimax(*curr, n2, n4, winstates); // we should not be moving -- we're reading moves
+			prob = expectimax(n->key.bp[curr], n2, n4, winstates); // we should not be moving -- we're reading moves
 		}
-		push_back(&(n->value), *((uint64_t*)(&prob)));
+		n->value.bp[curr] = *((uint64_t*)(&prob));
 	}
 }

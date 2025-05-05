@@ -3,8 +3,8 @@
 #include "../inc/array.h"
 
 typedef struct {
-	dynamic_arr_info key;
-	dynamic_arr_info value;
+	static_arr_info key;
+	static_arr_info value;
 } table;
 
 void write_table(const table *t, const char *path);
