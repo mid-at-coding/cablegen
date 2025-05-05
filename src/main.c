@@ -36,8 +36,8 @@ static void help(){
 	log_out("solve [BDIR] [TDIR] [START] [END] [WINSTATE] [CORES] -- solve all boards in BDIR backwards, putting the solutions in TDIR", LOG_INFO_);
 	log_out("test -- run self test", LOG_INFO_);
 	log_out("write [FILE] [BOARD] (BOARD) ... -- write board(s) to a file", LOG_INFO_);
-	log_out("lookup [TDIR] [BOARD] ... -- look a board up in TDIR", LOG_INFO_);
-	log_out("explore [TABLE] ... -- show all the boards in TABLE", LOG_INFO_);
+	log_out("lookup [TDIR] [BOARD] -- look a board up in TDIR", LOG_INFO_);
+	log_out("explore [TABLE] -- show all the boards in TABLE", LOG_INFO_);
 }
 
 static void parseGenerate(int argc, char **argv){
