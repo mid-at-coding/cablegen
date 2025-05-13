@@ -56,15 +56,15 @@ bool shiftedr(uint64_t a, uint64_t b){
 }
 void generation_thread_move(void* data){
 	arguments *args = data;
-	uint64_t tmp, tmp2;
+	uint64_t tmp;
 	bool (*move)(uint64_t*, dir) = movedir; //flat_movement ? flat_move : movedir;
 	for(size_t i = args->start; i < args->end; i++){
 		tmp = args->n.bp[i];
-		tmp2 = args->n.bp[i];
 		for(dir d = left; d < down; d++){
 			if(move(&tmp, d)){
 				canonicalize_b(&tmp);
 				push_back(&args->nret, tmp);
+				tmp = args->n.bp[i];
 			}
 		}
 	}
@@ -161,7 +161,7 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 }
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, const uint core_count, bool prespawn){
 	bool free_formation = 0; // TODO, should boards that don't come from moving n really stay?
-	get_bool_setting("free_formation", &free_formation);
+//	get_bool_setting("free_formation", &free_formation);
 	generate_lut(free_formation);
 	threadpool pool = thpool_init(core_count);
 	const static size_t DARR_INITIAL_SIZE = 100;

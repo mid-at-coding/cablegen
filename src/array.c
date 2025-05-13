@@ -39,7 +39,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	dynamic_arr_info d;
 	d.valid = true;
 	if(zero)
-		d.bp = calloc(sizeof(uint64_t), size);
+		d.bp = calloc(size, sizeof(uint64_t));
 	else	
 		d.bp = malloc(sizeof(uint64_t) * size);
 	if (d.bp == NULL){
@@ -60,7 +60,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	static_arr_info s;
 	s.valid = true;
 	if(zero)
-		s.bp = calloc(sizeof(uint64_t), size);
+		s.bp = calloc(size, sizeof(uint64_t));
 	else	
 		s.bp = malloc(sizeof(uint64_t) * size);
 	if (s.bp == NULL){

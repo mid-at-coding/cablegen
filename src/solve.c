@@ -5,7 +5,6 @@
 #include "../inc/settings.h"
 #include <math.h>
 #include <stdio.h>
-#define DBG
 typedef struct {
 	table *n;
 	table *n2;

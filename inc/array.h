@@ -5,25 +5,25 @@
 #include <stdbool.h>
 #define REALLOC_MULT 2
 
-struct{
+typedef struct{
 	bool valid;
 	uint64_t* bp;
 	uint64_t* sp;
 	size_t size;
 	pthread_mutex_t mut;
-} typedef dynamic_arr_info;
+} dynamic_arr_info;
 
-struct{
+typedef struct{
 	bool valid;
 	uint64_t* bp;
 	size_t size;
-} typedef static_arr_info;
+} static_arr_info;
 
-struct _bst_node{
+typedef struct _bst_node{
 	uint64_t val;
 	struct _bst_node *left;
 	struct _bst_node *right;
-} typedef bst_node;
+} bst_node;
 
 [[nodiscard]] void* malloc_errcheck(size_t size); // guaranteed to be non-null
 [[nodiscard]] dynamic_arr_info init_darr(bool zero, size_t size); // error handling is callee's responsibility

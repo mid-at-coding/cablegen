@@ -22,11 +22,11 @@ static bool shifted(uint64_t board, uint64_t board2, bool free_formation){
 
 bool flat_move(uint64_t *board, dir d){ // unimplemented
 	return false;
-};
+}
 
 static bool shift(uint64_t *board, const static_arr_info positions, const int i){
 	bool res = 0;
-	for(int j = i; j + 1 < positions.size; j++){ 
+	for(size_t j = i; j + 1 < positions.size; j++){ 
 		SET_TILE((*board), positions.bp[j], GET_TILE((*board), positions.bp[j + 1])); 
 		if(GET_TILE((*board), positions.bp[j+1])){
 			res = true;
@@ -37,7 +37,7 @@ static bool shift(uint64_t *board, const static_arr_info positions, const int i)
 }
 
 static bool shiftable(uint64_t *board, const static_arr_info positions, const int i){
-	for(int j = i; j < positions.size; j++){ 
+	for(size_t j = i; j < positions.size; j++){ 
 		if(GET_TILE((*board), positions.bp[j]))
 			return true;
 	}
@@ -47,12 +47,12 @@ static bool shiftable(uint64_t *board, const static_arr_info positions, const in
 static bool move(uint64_t *board, const static_arr_info positions, bool free_formation){ // this should not be used directly
 	// [ board[pos[0]], board[pos[1]] board[pos[2]] ... board[pos[n]] ] -(left)>
 	bool res = false;
-	for(int i = 0; i < positions.size; i++){ // "compress" everything
+	for(size_t i = 0; i < positions.size; i++){ // "compress" everything
 		while(GET_TILE((*board), positions.bp[i]) == 0 && shiftable(board, positions, i)){
 			res |= shift(board, positions, i);
 		}
 	}
-	for(int i = 0; i + 1 < positions.size; i++){ // merge greedily
+	for(size_t i = 0; i + 1 < positions.size; i++){ // merge greedily
 		if(GET_TILE((*board), positions.bp[i])){
 			if(GET_TILE((*board), positions.bp[i]) == GET_TILE((*board), positions.bp[i + 1]) && GET_TILE((*board), positions.bp[i]) != 0xF){
 				res |= shift(board, positions, i);
@@ -60,7 +60,7 @@ static bool move(uint64_t *board, const static_arr_info positions, bool free_for
 			}
 		}
 	}
-	for(int i = 0; i < positions.size; i++){ // compress everything again
+	for(size_t i = 0; i < positions.size; i++){ // compress everything again
 		while(GET_TILE((*board), positions.bp[i]) == 0 && shiftable(board, positions, i)){
 			res |= shift(board, positions, i);
 		}
@@ -81,7 +81,7 @@ void generate_lut(bool free_formation){
 	b.bp[1] = 2;
 	b.bp[2] = 1;
 	b.bp[3] = 0;
-	for(uint16_t i = 0; i <= UINT16_MAX; i++){
+	for(uint16_t i = 0; true; i++){
 		uint64_t tmp_board = 0;
 		uint64_t premove = 0;
 		SET_TILE(tmp_board, 0, ((i & 0xF000) >> 12));
@@ -272,7 +272,7 @@ void flip(uint64_t *board){
 }
 
 void output_board(uint64_t board){
-	char tiles[16][4] = {
+	char tiles[16][5] = {
 		"   \0",
 		"2  \0",
 		"4  \0",

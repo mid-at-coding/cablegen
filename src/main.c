@@ -1,4 +1,3 @@
-#include <raylib.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -136,7 +135,7 @@ static void parseLookup(int argc, char **argv){
 	
 	table *t = malloc_errcheck(sizeof(table));
 	read_table(t, tablestr);
-	double res = lookup(board, t);
+	double res = lookup(board, t, false);
 
 
 	printf("Board(%lf):\n", res);

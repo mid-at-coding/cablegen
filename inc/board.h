@@ -7,12 +7,12 @@
 #define GET_TILE(b, x) (uint8_t)(((b << OFFSET(x)) & BIT_MASK) >> OFFSET(15))
 #define SET_TILE(b, x, v) ( b = (~(~b | (BIT_MASK >> OFFSET(x))) | ((BIT_MASK & ((uint64_t)v << OFFSET(15))) >> OFFSET(x)) ))
 
-enum {
+typedef enum {
 	left,
 	right,
 	up,
 	down
-} typedef dir;
+} dir;
 
 typedef struct {
 	uint64_t board[8];
