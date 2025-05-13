@@ -12,7 +12,7 @@ void write_table(const table *t, const char *path);
 void read_table(table *t, const char *path);
 void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *winstates, unsigned cores);
 void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstataes, unsigned core_count, threadpool pool);
-double lookup(uint64_t key, table *t);
+double lookup(uint64_t key, table *t, bool canonicalize);
 
 
 #endif

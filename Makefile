@@ -1,5 +1,5 @@
 CC=gcc
-CCFLAGS=-Wall -Og -g -pthread -lraylib -lm -flto
+CCFLAGS=-Wall -Og -g -pthread -lraylib -lm
 CCFLAGS_PROD=-Wall -O3 -pthread -lraylib -lm -DPROD
 EXEC_FILE=cablegen
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))

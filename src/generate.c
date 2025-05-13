@@ -63,8 +63,6 @@ void generation_thread_move(void* data){
 		tmp2 = args->n.bp[i];
 		for(dir d = left; d < down; d++){
 			if(move(&tmp, d)){
-//				if(shiftedr(tmp2, tmp))
-//				    continue;
 				canonicalize_b(&tmp);
 				push_back(&args->nret, tmp);
 			}
@@ -124,6 +122,8 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	// TODO: there's some work we can do by concating all the results as they're coming in instead of waiting for all of them
 	thpool_wait(*pool);
 	// concatenate all the data TODO: maybe there is some clever way to do this?
+//	destroy_darr(n); // in n right now is boards that came from a spawn -- these boards we don't care about, we only write the results of moves
+//	*n = init_darr(0,move_reserve);
 	for(uint i = 0; i < core_count; i++){ 
 		*n = concat(n, &args[i].nret);
 	}
@@ -208,7 +208,7 @@ static_arr_info read_boards(const char *dir){
 		tmp = res.bp[i];
 		canonicalize_b(&tmp);
 		if(tmp != res.bp[i]){
-			log_out("Reading non canonicalize_bd board!!!!", LOG_WARN_);
+			log_out("Reading non canonicalized board!!!!", LOG_WARN_);
 		}
 	}
 #endif

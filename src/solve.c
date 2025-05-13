@@ -50,7 +50,7 @@ void read_table(table *t, const char *filename){
 	rewind(fp);
 	if(sz % 16 != 0) // 16 is 2 * 8 bytes is a double and a board
 		log_out("sz %%16 != 0, this is probably not a real table!\n", LOG_WARN_);
-	t->key = init_sarr(0, sz / 16);
+	t->key =   init_sarr(0, sz / 16);
 	t->value = init_sarr(0, sz / 16);
 	fread(t->key.bp,   sizeof(uint64_t), sz / 16, fp);
 	fread(t->value.bp, sizeof(double),   sz / 16, fp);
@@ -63,33 +63,42 @@ void read_table(table *t, const char *filename){
 #endif
 }
 
-double lookup(uint64_t key, table *t){
-//	printf("size: %d\n", t->key.size);
-//	for(size_t i = 0; i < t->key.size; i++){
-//		printf("looking: %lx , %d\n", t->key.bp[i], i);
-//	}
+double lookup(uint64_t key, table *t, bool canonicalize){
 	if(t->key.size == 0){
 		log_out("Empty table!", LOG_TRACE_);
 		return 0.0;
 	}
 	// binary search for the index of the key
-	canonicalize_b(&key);
+	if(canonicalize)
+		canonicalize_b(&key);
 	int current_depth = 0;	
-	int max_depth = (log(t->key.size) / log(2)) + 1; // when we'll stop searching
+	int max_depth = (log(t->key.size) / log(2)) + 1; // add an extra iteration for safety
 	size_t top = t->key.size;
 	size_t bottom = 0;
 	size_t midpoint = (top + bottom) / 2;
 	while (t->key.bp[midpoint] != key){
-//		printf("looking: %lx , %d\n", t->key.bp[midpoint], midpoint);
+		LOGIF(LOG_TRACE_){
+			printf("Current midpoint: %ld, %016lx(%ld)\n", midpoint, t->key.bp[midpoint], t->key.bp[midpoint]);
+		}
 		if(current_depth > max_depth){
-			log_out("Couldn't find board!", LOG_TRACE_);
-			printf("%lx\n", key);
+			log_out("Couldn't find board!", LOG_WARN_);
+			LOGIF(LOG_TRACE_){
+				printf("Current midpoint: %ld, %016lx(%ld)\n", midpoint, t->key.bp[midpoint], t->key.bp[midpoint]);
+			}
 			return 0.0;
 		}
-		if(t->key.bp[midpoint] < key)
+		if(t->key.bp[midpoint] < key){
 			bottom = midpoint;
-		else
+			LOGIF(LOG_TRACE_){
+				printf("t->key.bp[%ld] (%ld) < key (%ld)\n", midpoint, t->key.bp[midpoint], key);
+			}
+		}
+		else{
 			top = midpoint;
+			LOGIF(LOG_TRACE_){
+				printf("t->key.bp[%ld] (%ld) >= key (%ld)\n", midpoint, t->key.bp[midpoint], key);
+			}
+		}
 		midpoint = (top + bottom) / 2;
 		current_depth++;
 	}
@@ -104,16 +113,25 @@ void destroy_table(table* t){
 	free(t);
 }
 
-void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *winstates, unsigned cores){
+void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *initial_winstates, unsigned cores){
 	set_log_level(LOG_INFO_);
 	threadpool th = thpool_init(cores);
 	const size_t FILENAME_SIZE = 100;
 	bool free_formation = 0;
 	get_bool_setting("free_formation", &free_formation);
+	dynamic_arr_info winstates_d = init_darr(0,0);
 	generate_lut(free_formation); // if we don't gen a lut we can't move
-	// make sure winstates are canonicalized otherwise they won't work right
-	for(size_t i = 0; i < winstates->size; i++)
-		canonicalize_b(winstates->bp + i);
+	// generate all rotations of the winstates
+	for(size_t i = 0; i < initial_winstates->size; i++){
+		uint64_t *rots = get_all_rots(initial_winstates->bp[i]);
+		for(int j = 0; j < 8; j++){ // loop over all 8 symmetries
+			push_back(&winstates_d, rots[j]);
+		}
+	}
+	static_arr_info winstates = shrink_darr(&winstates_d);
+	for(int i = 0; i < winstates.size; i++){
+		printf("winstates %d: %016lx\n", i, winstates.bp[i]);
+	}
 	table *n4 = malloc_errcheck(sizeof(table));
 	table *n2 = malloc_errcheck(sizeof(table));
 	table *n  = malloc_errcheck(sizeof(table));
@@ -127,7 +145,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 		snprintf(filename, FILENAME_SIZE, posfmt, i);
 		n->key = read_boards(filename);
 		n->value = init_sarr(0,n->key.size);
-		solve_layer(n4, n2, n, winstates, cores, th);
+		solve_layer(n4, n2, n, &winstates, cores, th);
 		snprintf(filename, FILENAME_SIZE, tablefmt, i);
 		write_table(n, filename);
 		// cycle the tables -- n goes down by two so n2 will be our freshly solved n, n4 our read n2, and n will be reset next loop
@@ -142,24 +160,40 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	destroy_table(n4);
 }
 
+static bool cmpbrd(uint64_t board, uint64_t board2){
+	for(int i = 0; i < 16; i++){
+		if((GET_TILE(board2, i)) == 0) // 0s 
+			continue;
+		else if(GET_TILE(board, i) != GET_TILE(board2, i)){
+			return false;	
+		}
+	}
+	return true;
+}
+
 static bool satisfied(uint64_t *board, static_arr_info *winstates){
+	for(int i = 0; i < 16; i++){
+		if(GET_TILE((*board), i) == 0x9){
+			return true;
+		}
+	}
+	return false;
 	for(int i = 0; i < winstates->size; i++){
-		canonicalize_b(board);
-		if(((winstates->bp[i]) & (*board)) == *board){
+		if(cmpbrd(*board, winstates->bp[i])){
 			return true;
 		}
 	}
 	return false;
 }
-static double expectimaxm(uint64_t board, table *n){
-	uint64_t tmp = board;
-	double tmp_prob = 0;
+static double maxmove(uint64_t board, table *n, static_arr_info *winstates){
+	uint64_t tmp;
 	double prob = 0;
 	for(dir d = left; d < down; d++){
+		tmp = board;
 		if(movedir(&tmp, d)){
-			if(prob < (tmp_prob = lookup(tmp, n))){
-				prob = tmp_prob;
-			}
+			if(satisfied(&tmp, winstates))
+				return 1.0;
+			prob = fmax(prob, lookup(tmp, n, true));
 		}
 	}
 	return prob;
@@ -169,14 +203,14 @@ double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstat
 	double n2prob = 0;
 	double n4prob = 0;
 	for(short i = 0; i < 16; i++){
-		if(!GET_TILE(board, i)){
-			++spaces;
-			SET_TILE(board, i, 1);
-			n2prob += satisfied(&board, winstates) ? 1 : expectimaxm(board, n2);
-			SET_TILE(board, i, 2);
-			n4prob += satisfied(&board, winstates) ? 1 : expectimaxm(board, n4);
-			SET_TILE(board, i, 0);
-		}
+		if(GET_TILE(board, i))
+			continue;
+		++spaces;
+		SET_TILE(board, i, 1);
+		n2prob += maxmove(board, n2, winstates);
+		SET_TILE(board, i, 2);
+		n4prob += maxmove(board, n4, winstates);
+		SET_TILE(board, i, 0);
 	}
 	if(spaces == 0) {
 		log_out("No space!", LOG_TRACE_);
@@ -192,9 +226,8 @@ void solve_worker_thread(void *args){
 		if(satisfied(&sargs->n->key.bp[curr], sargs->winstates)){
 			prob = 1;
 		}
-		else{
+		else
 			prob = expectimax(sargs->n->key.bp[curr], sargs->n2, sargs->n4, sargs->winstates); // we should not be moving -- we're reading moves
-		}
 		sargs->n->value.bp[curr] = *((uint64_t*)(&prob));
 	}
 }

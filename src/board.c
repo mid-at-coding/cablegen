@@ -232,7 +232,9 @@ uint64_t *get_all_rots(uint64_t board){
 	rotate_clockwise(&boards[2]);
 	rotate_clockwise(&boards[2]);
 	// a^3
-	rotate_counterclockwise(&boards[3]);
+	rotate_clockwise(&boards[3]);
+	rotate_clockwise(&boards[3]);
+	rotate_clockwise(&boards[3]);
 	// b
 	flip(&boards[4]);
 	// ba
@@ -244,7 +246,9 @@ uint64_t *get_all_rots(uint64_t board){
 	rotate_clockwise(&boards[6]);
 	// ba^3
 	flip(&boards[7]);
-	rotate_counterclockwise(&boards[7]);
+	rotate_clockwise(&boards[7]);
+	rotate_clockwise(&boards[7]);
+	rotate_clockwise(&boards[7]);
 	return boards;
 }
 

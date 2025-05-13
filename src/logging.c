@@ -38,6 +38,8 @@ static char* get_postfix(enum LOG_LEVEL level){
 	return "";
 }
 
+bool logif_f(enum LOG_LEVEL level){ return level >= sensitivity; }
+
 void log_out(const char* strin, enum LOG_LEVEL level){
 	char* str = malloc(strlen(strin) + 1);
 	strcpy(str, strin);
@@ -52,4 +54,6 @@ void log_out(const char* strin, enum LOG_LEVEL level){
 void set_log_level(enum LOG_LEVEL level){
 	sensitivity = level;
 }
+
+
 

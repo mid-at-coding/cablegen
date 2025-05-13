@@ -1,8 +1,40 @@
 #include "../inc/generate.h"
+#include "../inc/solve.h"
 #include "../inc/logging.h"
 #include "../inc/board.h"
 #include "../inc/main.h"
 #include <stdio.h>
+
+bool test_searching(void){
+	set_log_level(LOG_DBG_);
+	const size_t test_size = 100;
+	log_out("Testing searching", LOG_INFO_);
+	table t;
+	t.key   = init_sarr(0, test_size); 
+	t.value = init_sarr(0, test_size);
+	for(size_t i = 0; i < test_size; i++){
+		double val = (double)(test_size - i - 1);
+		t.key.bp[i] = i;
+		t.value.bp[i] = *(uint64_t*)(&val);
+	}
+	log_out("Test array:", LOG_TRACE_);
+	for(size_t i = 0; i < t.key.size; i++){
+		LOGIF(LOG_TRACE_){
+			printf("Index: %ld, key: %ld, value: %lf\n", i, t.key.bp[i], *(double*)(&t.value.bp[i]));
+		}
+	}
+	for(size_t i = 0; i < t.key.size; i++){
+		LOGIF(LOG_TRACE_){
+			printf("Looking for %ld (%ld) \n", i, (uint64_t)i);
+		}
+		if(lookup((uint64_t)i, &t, false) != (double)(test_size - i - 1)){
+			log_out("Search test failed!", LOG_ERROR_);
+			return false;
+		}
+	}
+	log_out("Search test passed", LOG_INFO_);
+	return true;
+}
 
 bool test_dynamic_arr(void){
 	bool passed = true;
@@ -41,18 +73,21 @@ bool test_dynamic_arr(void){
 				log_out(buf, LOG_ERROR_);
 				free(buf);
 				passed = false;
+				return false;
 			}
 			for(int i = 0; i < n + m; i++){
 				if(i < n){
 				    if(nm.bp[i] != i){
 						log_out("Concatenation test failed!\n", LOG_ERROR_);
 						passed = false;
+						return false;
 					}
 				}
 				else{
 				    if(nm.bp[i] != i - n){
 						log_out("Concatenation test failed!\n", LOG_ERROR_);
 						passed = false;
+						return false;
 					}
 				}
 			}
@@ -98,15 +133,17 @@ bool test_dedupe(){
 			}
 		}
 	}
+	log_out("No error reported.", LOG_INFO_);
+	log_out("Sorting deduplication test temporarily disabled.", LOG_WARN_);
+	return true;
 	log_out("Testing deduplication in generation.", LOG_INFO_);
-	dynamic_arr_info n = init_darr(false, 0);
+/*	dynamic_arr_info n = init_darr(false, 0);
 	push_back(&n, 0x1000002000000000); // board with a 2 and a 4 in a kinda arbitrary position
 	dynamic_arr_info n2 = init_darr(false, 0);
 	dynamic_arr_info n4 = init_darr(false, 0);
 	dynamic_arr_info pd = init_darr(false, 0);
 //	log_out("Testing sorting deduplication.\n", LOG_INFO_);
-	log_out("Sorting deduplication test temporarily disabled.", LOG_WARN_);
-/*	for(int i = 6; i < 12; i+=2){
+	for(int i = 6; i < 12; i+=2){
 		generate_layer(&n, &n2, &n4, &pd, 1, "/dev/null/%d", i);
 		// check if n is dupe free
 		deduplicate(&n);
@@ -130,13 +167,44 @@ bool test_dedupe(){
 	return true;
 }
 
+bool test_rots(void){
+	set_log_level(LOG_TRACE_);
+	log_out("Testing symmetry generation", LOG_INFO_);
+	uint64_t board;
+	uint64_t *rots;
+	int sum;
+	const size_t iterations = 100;
+	// test a bunch of "random values"
+	for(size_t i = 0; i < iterations; i++){
+		board = rand();
+		sum = get_sum(board);
+		rots = get_all_rots(board);
+		for(int rot = 0; rot < 8; rot++){
+			if(get_sum(rots[rot]) != sum){
+				char *buf = malloc_errcheck(100);
+				snprintf(buf, 100, "%016lx is not a symmetry of %016lx!\n", rots[rot], board);
+				log_out(buf, LOG_ERROR_);
+				log_out("Symmetry test failed!", LOG_ERROR_);
+				LOGIF(LOG_TRACE_){
+					log_out("Other boards:", LOG_TRACE_);
+					for(int j = 0; j < 8; j++)
+						printf("[TRACE] %d : %016lx\n", j, rots[j]);
+				}
+				return false;
+			}
+		}
+	}
+	log_out("No errors reported.", LOG_INFO_);
+	return true;
+}
+
 bool test(){
 	bool passed = true;
 	generate_lut(true);
-	if(!test_dynamic_arr())
-		passed = false;
-	if(!test_dedupe())
-		passed = false;
+	passed &= test_dynamic_arr();
+	passed &= test_searching();
+	passed &= test_dedupe();
+	passed &= test_rots();
 	test_generation();
 	return passed;
 }
