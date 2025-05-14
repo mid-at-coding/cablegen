@@ -114,10 +114,46 @@ static void parseWrite(int argc, char **argv){
 	write_boards((static_arr_info){.valid = boards.valid, .bp = boards.bp, .size = boards.sp - boards.bp}, argv[2], 0);
 }
 
+struct dirprob {
+	dir d;
+	double prob;
+};
+
+static char* dirtos(dir d){
+	switch(d){
+		default:
+		case left:
+			return "left\0";
+		case right:
+			return "right\0";
+		case up:
+			return "up\0";
+		case down:
+			return "down\0";
+	}
+}
+
+static struct dirprob best(uint64_t board, table *n){
+	uint64_t tmp = board;
+	dir maxd = left;
+	double maxp = 0;
+	double tmpp = 0;
+	for(dir d = left; d <= down; d++){
+		if((tmpp = lookup(tmp, n, true)) > maxp){
+			maxd = d;
+			maxp = tmpp;
+		}
+	}
+	return (struct dirprob){maxd, maxp};
+}
 
 static void parseLookup(int argc, char **argv){
 	if(argc < 4){ log_out("Not enough arguments!", LOG_ERROR_); return;}
 	uint64_t board = strtoull(argv[3], NULL, 16); // interpret as hex string
+	set_log_level(LOG_INFO_);
+	bool free_formation = 0;
+	get_bool_setting("free_formation", &free_formation);
+	generate_lut(free_formation); 
 	if (errno != 0){
 		printf("Error parsing string! %s\n", strerror(errno));
 	}
@@ -133,13 +169,34 @@ static void parseLookup(int argc, char **argv){
 	snprintf(tablestr, table_fmt_size, table_fmt, sum);
 	log_out(tablestr, LOG_TRACE_);
 	
-	table *t = malloc_errcheck(sizeof(table));
+	table *t  = malloc_errcheck(sizeof(table));
+	table *t2 = malloc_errcheck(sizeof(table));
+	table *t4 = malloc_errcheck(sizeof(table));
 	read_table(t, tablestr);
-	double res = lookup(board, t, false);
+	double res = lookup(board, t, true);
+	snprintf(tablestr, table_fmt_size, table_fmt, sum + 2);
+	read_table(t2, tablestr);
+	snprintf(tablestr, table_fmt_size, table_fmt, sum + 4);
+	read_table(t4, tablestr);
 
 
 	printf("Board(%lf):\n", res);
 	output_board(board);
+	printf("Spawns:\n");
+	for(int i = 0; i < 16; i++){
+		if(GET_TILE(board, i))
+			continue;
+		SET_TILE(board, i, 1);
+		struct dirprob pb = best(board, t2);
+		printf("Best move: %s (%lf)\n", dirtos(pb.d), pb.prob);
+		output_board(board);
+		SET_TILE(board, i, 2);
+		pb = best(board, t4);
+		printf("Best move: %s (%lf)\n", dirtos(pb.d), pb.prob);
+		output_board(board);
+		SET_TILE(board, i, 0);
+	}
+
 }
 
 static void parseExplore(int argc, char **argv){

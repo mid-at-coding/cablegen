@@ -60,7 +60,7 @@ void generation_thread_move(void* data){
 	bool (*move)(uint64_t*, dir) = movedir; //flat_movement ? flat_move : movedir;
 	for(size_t i = args->start; i < args->end; i++){
 		tmp = args->n.bp[i];
-		for(dir d = left; d < down; d++){
+		for(dir d = left; d <= down; d++){
 			if(move(&tmp, d)){
 				canonicalize_b(&tmp);
 				push_back(&args->nret, tmp);

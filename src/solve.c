@@ -173,12 +173,12 @@ static bool cmpbrd(uint64_t board, uint64_t board2){
 }
 
 static bool satisfied(uint64_t *board, static_arr_info *winstates){
-	for(int i = 0; i < 16; i++){
-		if(GET_TILE((*board), i) == 0x9){
+/*	for(int i = 0; i < 16; i++){
+		if(GET_TILE((*board), i) == 0x8){
 			return true;
 		}
 	}
-	return false;
+	return false; */
 	for(size_t i = 0; i < winstates->size; i++){
 		if(cmpbrd(*board, winstates->bp[i])){
 			return true;
@@ -189,7 +189,7 @@ static bool satisfied(uint64_t *board, static_arr_info *winstates){
 static double maxmove(uint64_t board, table *n, static_arr_info *winstates){
 	uint64_t tmp;
 	double prob = 0;
-	for(dir d = left; d < down; d++){
+	for(dir d = left; d <= down; d++){
 		tmp = board;
 		if(movedir(&tmp, d)){
 			if(satisfied(&tmp, winstates))
@@ -226,6 +226,7 @@ void solve_worker_thread(void *args){
 		double prob = 0;
 		if(satisfied(&sargs->n->key.bp[curr], sargs->winstates)){
 			prob = 1;
+			log_out("Winstate!", LOG_TRACE_);
 		}
 		else
 			prob = expectimax(sargs->n->key.bp[curr], sargs->n2, sargs->n4, sargs->winstates); // we should not be moving -- we're reading moves
