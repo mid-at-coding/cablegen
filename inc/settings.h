@@ -9,4 +9,5 @@ int get_int_setting (char *key, int*);
 int set_bool_setting(char *key, bool);
 int set_str_setting (char *key, char*);
 int set_int_setting (char *key, int);
+char *strlwr_(char *);
 #endif

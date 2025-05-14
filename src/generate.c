@@ -89,7 +89,7 @@ void generation_thread_spawn(void* data){
 }
 void init_thread_data(arguments *cores, const size_t core_count, const size_t spawn_reserve, const size_t move_reserve, const bool spawn, 
 		const dynamic_arr_info *n){
-	for(uint i = 0; i < core_count; i++){ // initialize worker threads
+	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		if(spawn){
 			cores[i].n2 = init_darr(false, spawn_reserve);
 			cores[i].n4 = init_darr(false, spawn_reserve);
@@ -111,7 +111,7 @@ void init_thread_data(arguments *cores, const size_t core_count, const size_t sp
 	}
 }
 void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, 
-		const uint core_count, const char *fmt_dir, const int layer, threadpool *pool){
+		const unsigned core_count, const char *fmt_dir, const int layer, threadpool *pool){
 	arguments *args = malloc_errcheck(core_count * sizeof(arguments));
 	const size_t move_reserve = n->size * 2; // assume about 2 moves per board in n
 	init_thread_data(args, core_count, 0, move_reserve, false, n);
@@ -124,7 +124,7 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	// concatenate all the data TODO: maybe there is some clever way to do this?
 	destroy_darr(n); // in n right now is boards that came from a spawn -- these boards we don't care about, we only write the results of moves
 	*n = args[0].nret;
-	for(uint i = 1; i < core_count; i++){ 
+	for(unsigned i = 1; i < core_count; i++){ 
 		*n = concat(n, &args[i].nret);
 	}
 	deduplicate(n);
@@ -135,7 +135,7 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	}
 	write_boards((static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp}, fmt_dir, layer);
 	thpool_wait(*pool);
-	for(uint i = 0; i < core_count; i++){ 
+	for(unsigned i = 0; i < core_count; i++){ 
 		*n2 = concat(n2, &args[i].n2);
 		*n4 = concat(n4, &args[i].n4);
 	}
@@ -159,7 +159,7 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	}
 #endif
 }
-void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, const uint core_count, bool prespawn){
+void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, const unsigned core_count, bool prespawn){
 	// GENERATE: write all sub-boards where it is the computer's move
 	bool free_formation = 0; 
 //	get_bool_setting("free_formation", &free_formation);

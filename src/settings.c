@@ -6,7 +6,7 @@
 #include <errno.h>
 #include <string.h>
 #include <ctype.h>
-static char *strlwr(char *str) {
+char *strlwr_(char *str) {
   unsigned char *p = (unsigned char *)str;
   while (*p) {
      *p = tolower((unsigned char)*p);
@@ -43,7 +43,7 @@ int get_bool_setting(char *key, bool* data){
 	int e;
 	if((e = get_str_setting(key, &(str))))
 		return e;
-	if(!strcmp(strlwr(str), "true"))
+	if(!strcmp(strlwr_(str), "true"))
 		*data = true;
 	return 0;
 }

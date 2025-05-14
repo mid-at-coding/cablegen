@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <pthread.h>
+#include <sys/types.h>
 #define REALLOC_MULT 2
 
 typedef struct{

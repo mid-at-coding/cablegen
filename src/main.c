@@ -13,14 +13,7 @@
 #include <errno.h>
 #include <ctype.h>
 
-static char *strlwr(char *str) {
-  unsigned char *p = (unsigned char *)str;
-  while (*p) {
-     *p = tolower((unsigned char)*p);
-      p++;
-  }
-  return str;
-}
+
 static int numPlaces (int n) {
     if (n < 0) return numPlaces ((n == INT_MIN) ? INT_MAX: -n) + 1;
     if (n < 10) return 1;
@@ -219,12 +212,12 @@ int main(int argc, char **argv){
 	// 	write [board file] [board] ...
 	if(argc > 1){
 		if(!strcmp(argv[1],"help")) {help();}
-		else if(!strcmp(strlwr(argv[1]), "generate")) {parseGenerate(argc, argv);}
-		else if(!strcmp(strlwr(argv[1]), "solve")) {parseSolve(argc, argv);}
-		else if(!strcmp(strlwr(argv[1]), "test")) {test();}
-		else if(!strcmp(strlwr(argv[1]), "write")) {parseWrite(argc, argv);}
-		else if(!strcmp(strlwr(argv[1]), "lookup")) {parseLookup(argc, argv);}
-		else if(!strcmp(strlwr(argv[1]), "explore")) {parseExplore(argc, argv);}
+		else if(!strcmp(strlwr_(argv[1]), "generate")) {parseGenerate(argc, argv);}
+		else if(!strcmp(strlwr_(argv[1]), "solve")) {parseSolve(argc, argv);}
+		else if(!strcmp(strlwr_(argv[1]), "test")) {test();}
+		else if(!strcmp(strlwr_(argv[1]), "write")) {parseWrite(argc, argv);}
+		else if(!strcmp(strlwr_(argv[1]), "lookup")) {parseLookup(argc, argv);}
+		else if(!strcmp(strlwr_(argv[1]), "explore")) {parseExplore(argc, argv);}
 		else{
 			log_out("Unrecognized command!", LOG_WARN_);
 			help();

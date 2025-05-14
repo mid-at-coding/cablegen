@@ -236,7 +236,7 @@ void solve_worker_thread(void *args){
 
 void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, threadpool pool){
 	solve_core_data *cores = malloc_errcheck(sizeof(solve_core_data) * core_count);
-	for(uint i = 0; i < core_count; i++){ // initialize worker threads
+	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = n;
 		cores[i].n2 = n2;
 		cores[i].n4 = n4;

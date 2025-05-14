@@ -1,4 +1,4 @@
-CC=gcc
+CC=x86_64-w64-mingw32-gcc
 CCFLAGS=-Wall -Og -g -pthread -lm -Wpedantic -Wextra -Wno-unused
 CCFLAGS_PROD=-Wall -O3 -pthread -lm -DPROD
 EXEC_FILE=cablegen
@@ -11,7 +11,7 @@ clean:
 	@rm $(FILES)
 
 build/%.o: src/%.c 
-	$(CC) $< $(CCFLAGS) -c -o $@ 
+	$(CC) $< $(CCFLAGS_PROD) -c -o $@ 
 
 cablegen: $(FILES)
 	$(CC) $(wildcard build/*.o) $(CCFLAGS) -o cablegen
