@@ -128,8 +128,10 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 		}
 	}
 	static_arr_info winstates = shrink_darr(&winstates_d);
-	for(int i = 0; i < winstates.size; i++){
-		printf("winstates %d: %016lx\n", i, winstates.bp[i]);
+	for(size_t i = 0; i < winstates.size; i++){
+		LOGIF(LOG_DBG_){
+			printf("winstates %ld: %016lx\n", i, winstates.bp[i]);
+		}
 	}
 	table *n4 = malloc_errcheck(sizeof(table));
 	table *n2 = malloc_errcheck(sizeof(table));
@@ -177,7 +179,7 @@ static bool satisfied(uint64_t *board, static_arr_info *winstates){
 		}
 	}
 	return false;
-	for(int i = 0; i < winstates->size; i++){
+	for(size_t i = 0; i < winstates->size; i++){
 		if(cmpbrd(*board, winstates->bp[i])){
 			return true;
 		}

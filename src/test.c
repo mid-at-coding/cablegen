@@ -67,7 +67,7 @@ bool test_dynamic_arr(void){
 				push_back(&tmpm, i);
 			}
 			dynamic_arr_info nm = concat(&tmpn, &tmpm);
-			if(nm.sp - nm.bp != n + m){
+			if((size_t)(nm.sp - nm.bp) != n + m){
 				char *buf = malloc(100);
 				snprintf(buf, 100, "Concatenation test failed! n: %zu, m: %zu\n", n, m);
 				log_out(buf, LOG_ERROR_);
@@ -75,7 +75,7 @@ bool test_dynamic_arr(void){
 				passed = false;
 				return false;
 			}
-			for(int i = 0; i < n + m; i++){
+			for(size_t i = 0; i < n + m; i++){
 				if(i < n){
 				    if(nm.bp[i] != i){
 						log_out("Concatenation test failed!\n", LOG_ERROR_);

@@ -147,7 +147,7 @@ static void parseExplore(int argc, char **argv){
 
 	table *t = malloc_errcheck(sizeof(table));
 	read_table(t, argv[2]);
-	for(int i = 0; i < t->key.size; i++){
+	for(size_t i = 0; i < t->key.size; i++){
 		printf("Board(%lf):\n", *(double*)(t->value.bp + i));
 		output_board(t->key.bp[i]);
 	}

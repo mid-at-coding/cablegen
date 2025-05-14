@@ -9,14 +9,14 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
-struct {
+typedef struct {
 	static_arr_info n; 
 	dynamic_arr_info nret;
 	dynamic_arr_info n2; 
 	dynamic_arr_info n4;
 	size_t start; 
 	size_t end; 
-} typedef arguments;
+} arguments;
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
 	size_t filename_size = strlen(fmt) + 10; // if there are more than 10 digits of layers i'll eat my shoe
 	char* filename = malloc_errcheck(sizeof(char) * filename_size);
@@ -115,22 +115,22 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	arguments *args = malloc_errcheck(core_count * sizeof(arguments));
 	const size_t move_reserve = n->size * 2; // assume about 2 moves per board in n
 	init_thread_data(args, core_count, 0, move_reserve, false, n);
-	for(int i = 0; i < core_count; i++){
+	for(unsigned i = 0; i < core_count; i++){
 		thpool_add_work((*pool), generation_thread_move, (void*)(&args[i]));
 	}	
 	// twiddle our thumbs
 	// TODO: there's some work we can do by concating all the results as they're coming in instead of waiting for all of them
 	thpool_wait(*pool);
 	// concatenate all the data TODO: maybe there is some clever way to do this?
-//	destroy_darr(n); // in n right now is boards that came from a spawn -- these boards we don't care about, we only write the results of moves
-//	*n = init_darr(0,move_reserve);
-	for(uint i = 0; i < core_count; i++){ 
+	destroy_darr(n); // in n right now is boards that came from a spawn -- these boards we don't care about, we only write the results of moves
+	*n = args[0].nret;
+	for(uint i = 1; i < core_count; i++){ 
 		*n = concat(n, &args[i].nret);
 	}
 	deduplicate(n);
 	const size_t spawn_reserve = n->size * 4; // assume about 4 spawns per board in n
 	init_thread_data(args, core_count, spawn_reserve, 0, true, n);
-	for(int i = 0; i < core_count; i++){
+	for(unsigned i = 0; i < core_count; i++){
 		thpool_add_work((*pool), generation_thread_spawn, (void*)(&args[i]));
 	}
 	write_boards((static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp}, fmt_dir, layer);
@@ -160,11 +160,12 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 #endif
 }
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, const uint core_count, bool prespawn){
-	bool free_formation = 0; // TODO, should boards that don't come from moving n really stay?
+	// GENERATE: write all sub-boards where it is the computer's move
+	bool free_formation = 0; 
 //	get_bool_setting("free_formation", &free_formation);
 	generate_lut(free_formation);
 	threadpool pool = thpool_init(core_count);
-	const static size_t DARR_INITIAL_SIZE = 100;
+	static const size_t DARR_INITIAL_SIZE = 100;
 	dynamic_arr_info n  = init_darr(false, 0);
 	n.bp = initial;
 	n.size = initial_len;
