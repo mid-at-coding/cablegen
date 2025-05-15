@@ -114,7 +114,7 @@ void destroy_table(table* t){
 
 void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *initial_winstates, unsigned cores){
 	set_log_level(LOG_INFO_);
-	threadpool th = thpool_init(cores);
+	threadpool th = threadpool_t_init(cores);
 	const size_t FILENAME_SIZE = 100;
 	bool free_formation = 0;
 	get_bool_setting("free_formation", &free_formation);
@@ -220,7 +220,7 @@ double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstat
 	return (0.9 * n2prob / spaces) + (0.1 * n4prob / spaces);
 }
 
-void solve_worker_thread(void *args){
+void* solve_worker_thread(void *args){
 	solve_core_data *sargs = args;
 	for(size_t curr = sargs->start; curr < sargs->end; curr++){
 		double prob = 0;
@@ -232,6 +232,7 @@ void solve_worker_thread(void *args){
 			prob = expectimax(sargs->n->key.bp[curr], sargs->n2, sargs->n4, sargs->winstates); // we should not be moving -- we're reading moves
 		sargs->n->value.bp[curr] = *((uint64_t*)(&prob));
 	}
+	return NULL;
 }
 
 void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, threadpool pool){
@@ -251,7 +252,7 @@ void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, uns
 		if(i + 1 == core_count){
 			cores[i].end = n->key.size;
 		}
-		thpool_add_work(pool, solve_worker_thread, (void*)(cores + i));
+		threadpool_add_work(pool, solve_worker_thread, (void*)(cores + i));
 	}
-	thpool_wait(pool);
+	threadpool_wait(pool);
 }

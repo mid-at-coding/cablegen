@@ -1,6 +1,6 @@
 CC=x86_64-w64-mingw32-gcc
 CCFLAGS=-Wall -Og -g -pthread -lm -Wpedantic -Wextra -Wno-unused
-CCFLAGS_PROD=-Wall -O3 -pthread -lm -DPROD
+CCFLAGS_PROD=-Wall -O3 -pthread -lm -DPROD -static
 EXEC_FILE=cablegen
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))
 .PHONY: all clean

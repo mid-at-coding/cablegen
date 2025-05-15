@@ -2,7 +2,6 @@
 #include "../inc/logging.h"
 #include "../inc/board.h"
 #include "../inc/main.h"
-#include "../inc/thpool.h"
 #include "../inc/settings.h"
 #include <stdio.h>
 #include <pthread.h>
@@ -54,7 +53,7 @@ bool shiftedr(uint64_t a, uint64_t b){
 	}
 	return true;
 }
-void generation_thread_move(void* data){
+void* generation_thread_move(void* data){
 	arguments *args = data;
 	uint64_t tmp;
 	bool (*move)(uint64_t*, dir) = movedir; //flat_movement ? flat_move : movedir;
@@ -68,8 +67,9 @@ void generation_thread_move(void* data){
 			}
 		}
 	}
+	return NULL;
 }
-void generation_thread_spawn(void* data){
+void* generation_thread_spawn(void* data){
 	arguments *args = data;
 	uint64_t tmp;
 	for(size_t i = args->start; i < args->end; i++){
@@ -86,6 +86,7 @@ void generation_thread_spawn(void* data){
 			}
 		}
 	}
+	return NULL;
 }
 void init_thread_data(arguments *cores, const size_t core_count, const size_t spawn_reserve, const size_t move_reserve, const bool spawn, 
 		const dynamic_arr_info *n){
@@ -116,11 +117,11 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	const size_t move_reserve = n->size * 2; // assume about 2 moves per board in n
 	init_thread_data(args, core_count, 0, move_reserve, false, n);
 	for(unsigned i = 0; i < core_count; i++){
-		thpool_add_work((*pool), generation_thread_move, (void*)(&args[i]));
+		threadpool_add_work((*pool), generation_thread_move, (void*)(&args[i]));
 	}	
 	// twiddle our thumbs
 	// TODO: there's some work we can do by concating all the results as they're coming in instead of waiting for all of them
-	thpool_wait(*pool);
+	threadpool_wait(*pool);
 	// concatenate all the data TODO: maybe there is some clever way to do this?
 	destroy_darr(n); // in n right now is boards that came from a spawn -- these boards we don't care about, we only write the results of moves
 	*n = args[0].nret;
@@ -131,10 +132,10 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	const size_t spawn_reserve = n->size * 4; // assume about 4 spawns per board in n
 	init_thread_data(args, core_count, spawn_reserve, 0, true, n);
 	for(unsigned i = 0; i < core_count; i++){
-		thpool_add_work((*pool), generation_thread_spawn, (void*)(&args[i]));
+		threadpool_add_work((*pool), generation_thread_spawn, (void*)(&args[i]));
 	}
 	write_boards((static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp}, fmt_dir, layer);
-	thpool_wait(*pool);
+	threadpool_wait(*pool);
 	for(unsigned i = 0; i < core_count; i++){ 
 		*n2 = concat(n2, &args[i].n2);
 		*n4 = concat(n4, &args[i].n4);
@@ -164,7 +165,7 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 	bool free_formation = 0; 
 //	get_bool_setting("free_formation", &free_formation);
 	generate_lut(free_formation);
-	threadpool pool = thpool_init(core_count);
+	threadpool pool = threadpool_t_init(core_count);
 	static const size_t DARR_INITIAL_SIZE = 100;
 	dynamic_arr_info n  = init_darr(false, 0);
 	n.bp = initial;
@@ -179,7 +180,7 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 		n2 = n4;
 		n4 = init_darr(false, DARR_INITIAL_SIZE);
 	}
-	thpool_destroy(pool);
+	threadpool_destroy(pool);
 }
 static_arr_info read_boards(const char *dir){
 	FILE *fp = fopen(dir, "rb");

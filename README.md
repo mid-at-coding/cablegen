@@ -1,9 +1,7 @@
 # Cablegen
 A high speed 2048 generator and solver, entirely in C
 ## Known issues:
-- Generation is weirdly slow, especially on multiple threads. Right now, single threaded generation is recommended
 - Settings aren't fully supported and documented yet (but coming soon!)
-- Boards that shouldn't exist (e.g. two moves without a spawn or two spawns without a move) are generated and solved
 ## Usage
 `generate [FILE] [DIR] [END] [CORES]` -- interprets FILE as containing one or more boards, and then generates every sub-board in DIR (remember the trailing slash), until the tile sum reaches END, using CORES cores
 
@@ -15,3 +13,12 @@ A high speed 2048 generator and solver, entirely in C
 
 `explore [TABLE]` -- lists all boards in TABLE
 
+## Used libraries
+
+[cthreadpool](https://github.com/neo2043/cthreadpool) -- MIT License
+
+[cfgpath](https://github.com/Malvineous/cfgpath) -- Unlicense
+
+[clay](https://github.com/nicbarker/clay) -- Zlib license
+
+[sort](https://github.com/swenson/sort) -- MIT License

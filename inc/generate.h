@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <pthread.h>
 #include "array.h"
+#include "../inc/cthreadpool.h"
+typedef threadpool_t* threadpool;
 
 void generate(const int, const int, const char*, uint64_t*, const size_t, const unsigned, bool prespawn);
 static_arr_info read_boards(const char *dir);

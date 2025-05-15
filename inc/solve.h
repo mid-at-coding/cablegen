@@ -1,8 +1,9 @@
 #ifndef SOLVE_H
 #define SOLVE_H
 #include "../inc/array.h"
-#include "../inc/thpool.h"
+#include "../inc/cthreadpool.h"
 
+typedef threadpool_t* threadpool;
 typedef struct {
 	static_arr_info key;
 	static_arr_info value;
