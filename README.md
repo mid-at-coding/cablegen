@@ -2,6 +2,8 @@
 A high speed 2048 generator and solver, entirely in C
 ## Known issues:
 - Settings aren't fully supported and documented yet (but coming soon!)
+
+- Generation is weirdly slow, especially on multiple threads
 ## Usage
 `generate [FILE] [DIR] [END] [CORES]` -- interprets FILE as containing one or more boards, and then generates every sub-board in DIR (remember the trailing slash), until the tile sum reaches END, using CORES cores
 
