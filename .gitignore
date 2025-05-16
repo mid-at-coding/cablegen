@@ -3,6 +3,8 @@ build/*.o
 tables/*
 tables
 cablegen
+cablegen.exe
+libwinpthread*
 out.txt
 initial
 winstate
