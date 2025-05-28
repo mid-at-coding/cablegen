@@ -255,4 +255,5 @@ void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, uns
 		threadpool_add_work(pool, solve_worker_thread, (void*)(cores + i));
 	}
 	threadpool_wait(pool);
+	free(cores);
 }
