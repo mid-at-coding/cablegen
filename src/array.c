@@ -72,10 +72,12 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 }
 
 [[nodiscard]] static_arr_info shrink_darr(dynamic_arr_info* info){
+	pthread_mutex_lock(&info->mut);
 	int new_size = info->sp - info->bp;
 	if(info->valid == false){
 		log_out("Invalid array, refusing to shrink\n", LOG_WARN_);
 		exit(1);
+		pthread_mutex_unlock(&info->mut);
 		return (static_arr_info){.valid = false, .bp = info->bp, .size = info->sp - info->bp};
 	}
 	info->valid = false; 
@@ -88,8 +90,10 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	uint64_t *new_bp = realloc(info->bp, sizeof(uint64_t) * new_size);
 	if(new_bp == NULL){
 		log_out("Shrink failed!\n", LOG_ERROR_);
+		pthread_mutex_unlock(&info->mut);
 		return (static_arr_info){.valid = false, .bp = info->bp, .size = info->sp - info->bp};
 	}
+	pthread_mutex_unlock(&info->mut);
 	return (static_arr_info){.valid = true, .bp = new_bp, .size = new_size};
 }
 [[nodiscard]] dynamic_arr_info concat(dynamic_arr_info * restrict arr1, dynamic_arr_info * restrict arr2){
