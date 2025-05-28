@@ -9,11 +9,13 @@ A high speed 2048 generator and solver, entirely in C
 
 `solve [BDIR] [TDIR] [START] [END] [WINSTATE] [CORES]` -- interprets WINSTATE as containing one or more winstates (0x0 means that the tile can be anything), and then solves backwards from START to END, using CORES cores
 
+`read [FILE]` -- lists all boards in TABLE
+
 `write [FILE] [BOARD] (BOARD) ...` -- writes one or more boards into FILE, for use as winstates or initial boards
 
 `lookup [TDIR] [BOARD]` -- looks for BOARD in  the tables in TDIR
 
-`explore [TABLE]` -- lists all boards in TABLE
+`explore [TABLE]` -- lists all solved boards in TABLE
 
 ## Used libraries
 
