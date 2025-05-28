@@ -115,6 +115,7 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	}
 	deduplicate(n2);
 	deduplicate(n4);
+	threadpool_wait(pool);
 }
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, const unsigned core_count, bool prespawn){
 	// GENERATE: write all sub-boards where it is the computer's move	

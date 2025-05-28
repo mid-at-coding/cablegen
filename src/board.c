@@ -174,25 +174,35 @@ bool movedir(uint64_t* board, dir d){
 	return changed;
 }
 
-void rotate_clockwise(uint64_t* board){ // taken from game-difficult/2048EndgameTablebase (Calculator.py)
-    *board = (((*board) & 0xff00ff0000000000) >> 8 ) |
-			 (((*board) & 0x00ff00ff00000000) >> 32) |
-             (((*board) & 0x00000000ff00ff00) << 32) | 
-			 (((*board) & 0x0000000000ff00ff) << 8 );
-    *board = (((*board) & 0xf0f00000f0f00000) >> 4 ) |
-             (((*board) & 0x0f0f00000f0f0000) >> 16) |
-             (((*board) & 0x0000f0f00000f0f0) << 16) |
-			 (((*board) & 0x00000f0f00000f0f) << 4 );
-}
-void rotate_counterclockwise(uint64_t* b){
+void rotate_clockwise(uint64_t* b){ // taken from game-difficult/2048EndgameTablebase (Calculator.py)
     *b = (((*b) & 0xff00ff0000000000) >> 8 ) |
 		 (((*b) & 0x00ff00ff00000000) >> 32) |
-         (((*b) & 0x00000000ff00ff00) << 32) |
+         (((*b) & 0x00000000ff00ff00) << 32) | 
 		 (((*b) & 0x0000000000ff00ff) << 8 );
     *b = (((*b) & 0xf0f00000f0f00000) >> 4 ) |
-		 (((*b) & 0x0f0f00000f0f0000) >> 16) |
+         (((*b) & 0x0f0f00000f0f0000) >> 16) |
          (((*b) & 0x0000f0f00000f0f0) << 16) |
 		 (((*b) & 0x00000f0f00000f0f) << 4 );
+}
+void rotate_counterclockwise(uint64_t* b){
+    *b = (((*b) & 0xff00ff0000000000) >> 32) |
+		 (((*b) & 0x00ff00ff00000000) << 8 ) |
+         (((*b) & 0x00000000ff00ff00) >> 8 ) |
+		 (((*b) & 0x0000000000ff00ff) << 32);
+    *b = (((*b) & 0xf0f00000f0f00000) >> 16) |
+		 (((*b) & 0x0f0f00000f0f0000) << 4 ) |
+         (((*b) & 0x0000f0f00000f0f0) >> 4 ) |
+		 (((*b) & 0x00000f0f00000f0f) << 16);
+}
+void rotate_180(uint64_t* b){
+    (*b) = (((*b) & 0xffffffff00000000) >> 32) | 
+		   (((*b) & 0x00000000ffffffff) << 32);
+    (*b) = (((*b) & 0xffff0000ffff0000) >> 16) | 
+		   (((*b) & 0x0000ffff0000ffff) << 16);
+    (*b) = (((*b) & 0xff00ff00ff00ff00) >> 8 ) | 
+		   (((*b) & 0x00ff00ff00ff00ff) << 8 );
+    (*b) = (((*b) & 0xf0f0f0f0f0f0f0f0) >> 4 ) |
+		   (((*b) & 0x0f0f0f0f0f0f0f0f) << 4 );
 }
 
 static uint64_t max(uint64_t a, uint64_t b){
@@ -229,12 +239,9 @@ uint64_t *get_all_rots(uint64_t board){
 	// a
 	rotate_clockwise(&boards[1]);
 	// a^2
-	rotate_clockwise(&boards[2]);
-	rotate_clockwise(&boards[2]);
+	rotate_180(&boards[2]);
 	// a^3
-	rotate_clockwise(&boards[3]);
-	rotate_clockwise(&boards[3]);
-	rotate_clockwise(&boards[3]);
+	rotate_counterclockwise(&boards[3]);
 	// b
 	flip(&boards[4]);
 	// ba
@@ -242,13 +249,10 @@ uint64_t *get_all_rots(uint64_t board){
 	rotate_clockwise(&boards[5]);
 	// ba^2
 	flip(&boards[6]);
-	rotate_clockwise(&boards[6]);
-	rotate_clockwise(&boards[6]);
+	rotate_180(&boards[6]);
 	// ba^3
 	flip(&boards[7]);
-	rotate_clockwise(&boards[7]);
-	rotate_clockwise(&boards[7]);
-	rotate_clockwise(&boards[7]);
+	rotate_counterclockwise(&boards[7]);
 	return boards;
 }
 

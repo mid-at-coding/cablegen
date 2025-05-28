@@ -1,5 +1,5 @@
 CC=gcc
-CCFLAGS=-Wall -Og -g -pthread -lm -Wpedantic -Wextra -Wno-unused -Wno-format
+CCFLAGS=-Wall -Og -g -pg -pthread -lm -Wpedantic -Wextra -Wno-unused -Wno-format
 CCFLAGS_PROD=-Wall -O3 -static -pthread -lm -DPROD --static
 EXEC_FILE=cablegen
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))

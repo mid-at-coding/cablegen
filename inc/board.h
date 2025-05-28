@@ -24,6 +24,7 @@ extern bool   _locked_lut[2][UINT16_MAX + 1]; // true for all rows that shift: c
 void generate_lut(bool free_formation);
 void rotate_clockwise(uint64_t*);
 void rotate_counterclockwise(uint64_t*);
+void rotate_180(uint64_t*);
 void flip(uint64_t*);
 bool movedir(uint64_t*, dir);
 bool flat_move(uint64_t*, dir);

@@ -210,7 +210,8 @@ static void parseRead(int argc, char **argv){
 	static_arr_info t = read_boards(argv[2]);
 	for(size_t i = 0; i < t.size; i++){
 		output_board(t.bp[i]);
-		printf("----\n");
+		if(i + 1 < t.size)
+			printf("----\n");
 	}
 }
 
