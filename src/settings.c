@@ -1,6 +1,6 @@
 #include "../inc/settings.h"
 #include "../inc/cfgpath.h"
-#include "../inc/ini_file.h"
+#include "../inc/ini.h"
 #include "../inc/logging.h"
 #include "../inc/array.h"
 #include <errno.h>
@@ -14,81 +14,85 @@ char *strlwr_(char *str) {
   }
   return str;
 }
+static char cfgdir[MAX_PATH];
 #define MAX_PROP_SIZE 100
-static int get_cfg(Ini_File **file){
-	// get config file path
-	char cfg_file[MAX_PATH];
-	get_user_config_file(cfg_file, MAX_PATH, "cablegen");
-	if(!strcmp(cfg_file, "")){ // we have no config dir
-		log_out("Could not find config dir!", LOG_WARN_);
-		return ENOENT;
-	}
-	*file = ini_file_parse(cfg_file, NULL);
-	if(*file == NULL){
-		log_out("Could not parse config file, trying to create one.", LOG_WARN_);
-		*file = ini_file_new();
-		Ini_File_Error e = ini_file_add_section(*file, "Cablegen");
-		if(e != 0)
-			log_out("Failed to create config section!", LOG_WARN_);
-		e = ini_file_save(*file, cfg_file);
-		if(e != 0){
-			log_out("Failed to create config file!", LOG_WARN_);
-			return ENOENT;
+static ini_t* get_cfg(){
+	static bool init = false;
+	if(!init){
+		get_user_config_file(cfgdir, sizeof(cfgdir), "cablegen");
+		if (cfgdir[0] == 0) {
+			log_out("Could not find config directory!", LOG_WARN_);
+			return NULL;
 		}
 	}
-	return 0;
+	return ini_load(cfgdir);
 }
-int get_bool_setting(char *key, bool* data){
-	char *str;
-	int e;
-	if((e = get_str_setting(key, &(str))))
-		return e;
-	if(!strcmp(strlwr_(str), "true"))
-		*data = true;
-	return 0;
-}
-int get_str_setting (char *key, char** str){
-	Ini_File **file = malloc_errcheck(sizeof(Ini_File*));
-	int e;
-	if((e = get_cfg(file)))
-		return e;
-	e = ini_file_find_property(*file, "Cablegen", key, str);
-	if(e != 0){ // assume this is due to the prop not existing
-		log_out("Could not find property!", LOG_WARN_);
-		return EFAULT;
+void change_config(char *cfg){	
+	if(cfg == NULL || strlen(cfg) > MAX_PATH){
+		log_out("Invalid config file location!", LOG_WARN_);
+		return;
 	}
+	ini_free(get_cfg()); // make sure it's already initialized
+	strcpy(cfgdir, cfg);
+}
+int get_str_setting(char *key, char **str){
+	int e = get_str_setting_section(key, "Cablegen", str);
+	if(e)
+		return e;
 	return 0;
 }
-int get_int_setting (char *key, int* data){
+int get_str_setting_section (char *key, char *section, char** str){
+	auto cfg = get_cfg();
+	if(cfg == NULL){
+		ini_free(cfg);
+		return 1;
+	}
+	char *res = ini_get(cfg, section, key);
+	if(res == NULL){
+		log_out("Could not find property!", LOG_WARN_);
+		ini_free(cfg);
+		return 1;
+	}
+	*str = res;
+	ini_free(cfg);
+	return 0;
+}
+int get_bool_setting(char *key, bool *data){
 	char *str = malloc_errcheck(MAX_PROP_SIZE);
-	int e;
-	if((e = get_str_setting(key, &str)))
+	int e = get_str_setting(key, &str);
+	if(e){
 		return e;
-	*data = atoi(str);
+	}
+	strlwr_(str);
+	*data = !strcmp(str, "true");
+	return 0;
+}
+long long get_int_setting (char *key, int *data){
+	char *str = malloc_errcheck(MAX_PROP_SIZE);
+	int e = get_str_setting(key, &str);
+	if(e){
+		return e;
+	}
+	*data = atoll(str);
 	return 0;
 }
 
-int set_bool_setting(char *key, bool data){
-	return set_str_setting(key, data ? "true" : "false");
-}
-int set_str_setting (char *key, char* data){
-	Ini_File **file = malloc_errcheck(sizeof(Ini_File*));
-	int e = get_cfg(file);
-	if(e)
+int get_bool_setting_section(char *key, char *section, bool *data){
+	char *str = malloc_errcheck(MAX_PROP_SIZE);
+	int e = get_str_setting_section(key, section, &str);
+	if(e){
 		return e;
-	Ini_File_Error err = ini_file_add_property(*file, key, data);
-	if(err)
-		return err;
-	char cfg_file[MAX_PATH];
-	get_user_config_file(cfg_file, MAX_PATH, "cablegen");
-	if(!strcmp(cfg_file, "")){ // we have no config dir
-		log_out("Could not find config dir!", LOG_WARN_);
-		return ENOENT;
 	}
-	return ini_file_save(*file, cfg_file);
+	strlwr_(str);
+	*data = !strcmp(str, "true");
+	return 0;
 }
-int set_int_setting (char *key, int data){
-	char str[MAX_PROP_SIZE];
-	snprintf(str, MAX_PROP_SIZE, "%d", data);
-	return set_str_setting(key, str);
+long long get_int_setting_section (char *key, char *section, int *data){
+	char *str = malloc_errcheck(MAX_PROP_SIZE);
+	int e = get_str_setting_section(key, section, &str);
+	if(e){
+		return e;
+	}
+	*data = atoll(str);
+	return 0;
 }

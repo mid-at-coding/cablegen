@@ -24,71 +24,84 @@ static void help(){
 	log_out("Cablegen v1.1 rc by ember/emelia/cattodoameow", LOG_INFO_);
 	log_out("Commands:", LOG_INFO_);
 	log_out("help -- this output", LOG_INFO_);
-	log_out("generate [FILE] [DIR] [END] [CORES] -- generate all sub-boards of the boards in FILE in DIR until the tile sum meets END, using CORES cores", LOG_INFO_);
-	log_out("solve [BDIR] [TDIR] [START] [END] [WINSTATE] [CORES] -- solve all boards in BDIR backwards, putting the solutions in TDIR", LOG_INFO_);
+	log_out("generate (CONFIG) -- generate boards, optionally specifying an alternate config file", LOG_INFO_);
+	log_out("solve (CONFIG) -- solve boards backwards, optionally specifying an alternate config file", LOG_INFO_);
 	log_out("test -- run self test", LOG_INFO_);
 	log_out("read [FILE] -- read board(s) from a file", LOG_INFO_);
 	log_out("write [FILE] [BOARD] (BOARD) ... -- write board(s) to a file", LOG_INFO_);
-	log_out("lookup [TDIR] [BOARD] -- look a board up in TDIR", LOG_INFO_);
-	log_out("explore [TABLE] -- show all the boards in TABLE", LOG_INFO_);
+	log_out("lookup [BOARD] (TDIR) -- look a board up, optionally specifying an alternate directory to look in", LOG_INFO_);
+	log_out("explore [TABLE] -- show all the solved boards in TABLE", LOG_INFO_);
 }
 
 static void parseGenerate(int argc, char **argv){
-	if(argc < 6){ log_out("Not enough arguments!", LOG_ERROR_); return;}
-	char* default_postfix = "%d.boards";
-	size_t fmt_size = strlen(default_postfix) + strlen(argv[3]) + 1;
-	char* fmt = malloc(fmt_size);
+	if(argc > 2){
+		change_config(argv[2]);
+	}
+	char *dir;
+	if(get_str_setting_section("dir", "Generate", &dir)){
+		log_out("Could not get board dir!", LOG_ERROR_);
+		exit(1);
+	}
+	char *default_postfix = "%d.boards";
+	size_t fmt_size = strlen(default_postfix) + strlen(dir) + 1;
+	char *fmt = malloc(fmt_size);
 	if(fmt == NULL)
 		log_out("Alloc failed!", LOG_ERROR_);
-	snprintf(fmt, fmt_size, "%s%s", argv[3], default_postfix);
+	snprintf(fmt, fmt_size, "%s%s", dir, default_postfix);
 
 	// assume all boards in FILE are the same sum (!!)
-	static_arr_info boards = read_boards(argv[2]);
+	if(get_str_setting_section("initial", "Generate", &dir)){
+		log_out("Could not get initial board location!", LOG_ERROR_);
+		exit(1);
+	}
+	static_arr_info boards = read_boards(dir);
 	if(boards.size < 1){
-		printf("No boards in %s!", argv[2]);
+		printf("No boards in %s!", dir);
 	}
 	int layer = get_sum(boards.bp[0]);
-	int end = atoi(argv[4]); 
-	if (errno != 0){
-		printf("Error parsing end! %s\n", strerror(errno));
-	}
-	int core_count = atoi(argv[5]); 
-	if (errno != 0){
-		printf("Error parsing core count! %s\n", strerror(errno));
-	}
+	int end;
+	get_int_setting_section("end", "Generate", &end);
+	int core_count;
+	get_int_setting("cores", &core_count);
 	generate(layer, end, fmt, boards.bp, boards.size, core_count, false);
 }
 
 static void parseSolve(int argc, char **argv){
-	if(argc < 8){ log_out("Not enough arguments!", LOG_ERROR_); return;}
-	// solve [BDIR] [TDIR] [START] [END] [WINSTATE] [CORES] -- solve all boards in BDIR backwards, putting the solutions in TDIR
-	char* default_board_postfix = "%d.boards";
-	size_t posfmt_size = strlen(default_board_postfix) + strlen(argv[2]) + 1;
+	if(argc > 2){ 
+		change_config(argv[2]);
+	}
+	char *bdir, *tdir;
+	if(get_str_setting_section("dir", "Generate", &bdir)){
+		log_out("Could not get board dir!", LOG_ERROR_);
+		exit(1);
+	}
+	if(get_str_setting_section("dir", "Solve", &tdir)){
+		log_out("Could not get table dir!", LOG_ERROR_);
+		exit(1);
+	}
+	char *default_board_postfix = "%d.boards";
+	size_t posfmt_size = strlen(default_board_postfix) + strlen(bdir) + 1;
 	char* posfmt = malloc(posfmt_size);
 	if(posfmt == NULL)
 		log_out("Alloc failed!", LOG_ERROR_);
-	snprintf(posfmt, posfmt_size, "%s%s", argv[2], default_board_postfix);
+	snprintf(posfmt, posfmt_size, "%s%s", bdir, default_board_postfix);
 
 	char* default_table_postfix = "%d.tables";
-	size_t table_fmt_size = strlen(default_table_postfix) + strlen(argv[3]) + 1;
+	size_t table_fmt_size = strlen(default_table_postfix) + strlen(tdir) + 1;
 	char* table_fmt = malloc(table_fmt_size);
 	if(table_fmt == NULL)
 		log_out("Alloc failed!", LOG_ERROR_);
-	snprintf(table_fmt, table_fmt_size, "%s%s", argv[3], default_table_postfix);
+	snprintf(table_fmt, table_fmt_size, "%s%s", tdir, default_table_postfix);
 
-	int start = atoi(argv[4]); 
-	if (errno != 0){
-		printf("Error parsing start! %s\n", strerror(errno));
-	}
-	int end = atoi(argv[5]); 
-	if (errno != 0){
-		printf("Error parsing end! %s\n", strerror(errno));
-	} // TODO refactor this !!
-	int cores = atoi(argv[7]);  // unused
-	if (errno != 0){
-		printf("Error parsing core count! %s\n", strerror(errno));
-	} 
-	static_arr_info boards = read_boards(argv[6]);
+	int start;
+	get_int_setting_section("end", "Generate", &start);
+	int end;
+	get_int_setting_section("end", "Solve", &end);
+	int cores;
+	get_int_setting("cores", &cores);
+	char *winstate_fmt;
+	get_str_setting_section("winstates", "Solve", &winstate_fmt);
+	static_arr_info boards = read_boards(winstate_fmt);
 	if(boards.size < 1){
 		printf("No boards in %s!", argv[6]);
 	}
@@ -133,6 +146,9 @@ static struct dirprob best(uint64_t board, table *n){
 	double maxp = 0;
 	double tmpp = 0;
 	for(dir d = left; d <= down; d++){
+		tmp = board;
+		if(!movedir(&tmp, d))
+			continue;
 		if((tmpp = lookup(tmp, n, true)) > maxp){
 			maxd = d;
 			maxp = tmpp;
@@ -142,7 +158,11 @@ static struct dirprob best(uint64_t board, table *n){
 }
 
 static void parseLookup(int argc, char **argv){
-	if(argc < 4){ log_out("Not enough arguments!", LOG_ERROR_); return;}
+	char *tabledir;
+	get_str_setting_section("dir", "Solve", &tabledir);
+	if(argc > 3){ 
+		tabledir = argv[2];
+	}
 	uint64_t board = strtoull(argv[3], NULL, 16); // interpret as hex string
 	set_log_level(LOG_INFO_);
 	bool free_formation = 0;

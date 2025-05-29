@@ -81,6 +81,9 @@ double lookup(uint64_t key, table *t, bool canonicalize){
 		}
 		if(current_depth > max_depth){
 			log_out("Couldn't find board!", LOG_WARN_);
+			LOGIF(LOG_WARN_){
+				printf("board: %016lx\n", key);
+			}
 			LOGIF(LOG_TRACE_){
 				printf("Current midpoint: %ld, %016lx(%ld)\n", midpoint, t->key.bp[midpoint], t->key.bp[midpoint]);
 			}

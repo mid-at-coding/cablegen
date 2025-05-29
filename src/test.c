@@ -7,34 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
-static bool test_settings(){
-	bool passed = true;
-	char *key = "TestKey";
-	char *strTest = "TestString";
-	char *buf;
-	log_out("Testing string settings...", LOG_INFO_);
-	set_str_setting(key, strTest);
-	get_str_setting(key, &buf);
-	if(!strcmp(buf, strTest)){
-		log_out("Failed!", LOG_ERROR_);
-		passed = false;
-	}
-	log_out("Testing int settings...[0,50]", LOG_INFO_);
-	for(int i = 0; i <= 50; i++){
-		int *val = malloc_errcheck(sizeof(int));
-		set_int_setting(key, i);
-		get_int_setting(key, val);
-		if(i != *val){
-			log_out("Failed!", LOG_ERROR_);
-			return false;
-		}
-		free(val);
-	}
-	return true;
-}
-
 static bool test_searching(void){
-	set_log_level(LOG_DBG_);
 	const size_t test_size = 100;
 	log_out("Testing searching", LOG_INFO_);
 	table t;
@@ -162,7 +135,6 @@ bool test_dedupe(){
 }
 
 bool test_rots(void){
-	set_log_level(LOG_TRACE_);
 	log_out("Testing symmetry generation", LOG_INFO_);
 	uint64_t board;
 	uint64_t *rots;
@@ -193,13 +165,13 @@ bool test_rots(void){
 }
 
 bool test(){
+	set_log_level(LOG_DBG_);
 	bool passed = true;
 	generate_lut(true);
 	passed &= test_dynamic_arr();
 	passed &= test_searching();
 	passed &= test_dedupe();
 	passed &= test_rots();
-	passed &= test_settings();
 	test_generation();
 	return passed;
 }
