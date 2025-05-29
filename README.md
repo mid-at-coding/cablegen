@@ -1,9 +1,7 @@
 # Cablegen
 A high speed 2048 generator and solver, entirely in C
 ## Known issues:
-- Settings aren't fully supported and documented yet (but coming soon!)
-
-- Generation is weirdly slow, especially on multiple threads
+- libwinpthread missing dll error on windows -- a copy is provided here, just drop it into the same directory or your PATH
 ## Usage
 `generate (CONFIG)` -- Generate boards, optionally specifiying an alternate config file
 
