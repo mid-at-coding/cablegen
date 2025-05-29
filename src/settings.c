@@ -71,6 +71,7 @@ long long get_int_setting (char *key, int *data){
 	char *str = malloc_errcheck(MAX_PROP_SIZE);
 	int e = get_str_setting(key, &str);
 	if(e){
+		*data = 0;
 		return e;
 	}
 	*data = atoll(str);

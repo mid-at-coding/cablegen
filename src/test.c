@@ -108,7 +108,7 @@ void test_generation(){
 	log_out("Testing generation (correctness not checked).\n", LOG_INFO_);
 	dynamic_arr_info n = init_darr(false, 0);
 	push_back(&n, 0x1000002000000000); // board with a 2 and a 4 in a kinda arbitrary position
-	generate(get_sum(n.bp[0]), get_sum(n.bp[0]) + 16, "/dev/null", n.bp, 1, 1, 0);
+	generate(get_sum(n.bp[0]), get_sum(n.bp[0]) + 16, "/dev/null", n.bp, 1, 1, 0, 0);
 	log_out("Done testing generation.\n", LOG_INFO_);
 }
 
@@ -164,6 +164,31 @@ bool test_rots(void){
 	return true;
 }
 
+bool test_misc(){
+	bool res = true;
+	log_out("Testing tile detection", LOG_INFO_);
+	const size_t iterations = 100;
+	for(char x = 0; x <= 0xf; x++){
+		for(size_t i = 0; i < iterations; i++){
+			bool flag = false;
+			uint64_t board = rand();
+			for(int i = 0; i < 16; i++){
+				if((GET_TILE(board, i)) == x)
+					flag = true;
+			}
+			if(!flag != checkx(board, x)){
+				log_out("Failed!", LOG_ERROR_);
+				res = false;
+				LOGIF(LOG_DBG_){
+					printf("-> Board: %016lx\n-> X: %d\n", board, x);
+				}
+			}
+		}
+	}
+	log_out("No errors reported", LOG_INFO_);
+	return res;
+}
+
 bool test(){
 	set_log_level(LOG_DBG_);
 	bool passed = true;
@@ -172,6 +197,7 @@ bool test(){
 	passed &= test_searching();
 	passed &= test_dedupe();
 	passed &= test_rots();
+	passed &= test_misc();
 	test_generation();
 	return passed;
 }

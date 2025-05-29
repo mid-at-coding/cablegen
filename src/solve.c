@@ -6,6 +6,8 @@
 #include <math.h>
 #include <stdio.h>
 typedef struct {
+	char nox;
+	bool score;
 	table *n;
 	table *n2;
 	table *n4;
@@ -115,8 +117,8 @@ void destroy_table(table* t){
 	free(t);
 }
 
-void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *initial_winstates, unsigned cores){
-	set_log_level(LOG_INFO_);
+void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *initial_winstates, unsigned cores, char nox, bool score){
+	set_log_level(LOG_DBG_);
 	threadpool th = threadpool_t_init(cores);
 	const size_t FILENAME_SIZE = 100;
 	bool free_formation = 0;
@@ -149,7 +151,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 		snprintf(filename, FILENAME_SIZE, posfmt, i);
 		n->key = read_boards(filename);
 		n->value = init_sarr(0,n->key.size);
-		solve_layer(n4, n2, n, &winstates, cores, th);
+		solve_layer(n4, n2, n, &winstates, cores, th, nox, score);
 		snprintf(filename, FILENAME_SIZE, tablefmt, i);
 		write_table(n, filename);
 		// cycle the tables -- n goes down by two so n2 will be our freshly solved n, n4 our read n2, and n will be reset next loop
@@ -175,13 +177,11 @@ static bool cmpbrd(uint64_t board, uint64_t board2){
 	return true;
 }
 
-static bool satisfied(uint64_t *board, static_arr_info *winstates){
-/*	for(int i = 0; i < 16; i++){
-		if(GET_TILE((*board), i) == 0x8){
-			return true;
-		}
-	}
-	return false; */
+static bool satisfied(uint64_t *board, static_arr_info *winstates, char nox, bool score){
+	if(nox && !score)
+		return !checkx(*board, nox);
+	if(score)
+		return 0;
 	for(size_t i = 0; i < winstates->size; i++){
 		if(cmpbrd(*board, winstates->bp[i])){
 			return true;
@@ -189,20 +189,21 @@ static bool satisfied(uint64_t *board, static_arr_info *winstates){
 	}
 	return false;
 }
-static double maxmove(uint64_t board, table *n, static_arr_info *winstates){
+static double maxmove(uint64_t board, table *n, static_arr_info *winstates, char nox, bool score){
 	uint64_t tmp;
 	double prob = 0;
 	for(dir d = left; d <= down; d++){
 		tmp = board;
 		if(movedir(&tmp, d)){
-			if(satisfied(&tmp, winstates))
+			if(satisfied(&tmp, winstates, nox, score))
 				return 1.0;
-			prob = fmax(prob, lookup(tmp, n, true));
+			if((nox && checkx(tmp,nox)) || !nox)
+				prob = fmax(prob, lookup(tmp, n, true));
 		}
 	}
 	return prob;
 }
-double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstates){
+double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstates, char nox, bool score){
 	int spaces = 0;
 	double n2prob = 0;
 	double n4prob = 0;
@@ -211,39 +212,46 @@ double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstat
 			continue;
 		++spaces;
 		SET_TILE(board, i, 1);
-		n2prob += maxmove(board, n2, winstates);
+		n2prob += maxmove(board, n2, winstates, nox, score);
 		SET_TILE(board, i, 2);
-		n4prob += maxmove(board, n4, winstates);
+		n4prob += maxmove(board, n4, winstates, nox, score);
 		SET_TILE(board, i, 0);
 	}
-	if(spaces == 0) {
+	double res = 0;
+	if(spaces == 0)
 		log_out("No space!", LOG_TRACE_);
-		return 0;
-	};
-	return (0.9 * n2prob / spaces) + (0.1 * n4prob / spaces);
+	else
+		res = (0.9 * n2prob / spaces) + (0.1 * n4prob / spaces);
+	if(score && res == 0){ // if this board is a leaf or otherwise dead, return the score. this is the base case
+		// this is technically incorrect
+		res = get_sum(board);
+	}
+	return res;
 }
 
 void* solve_worker_thread(void *args){
 	solve_core_data *sargs = args;
 	for(size_t curr = sargs->start; curr < sargs->end; curr++){
 		double prob = 0;
-		if(satisfied(&sargs->n->key.bp[curr], sargs->winstates)){
+		if(satisfied(&sargs->n->key.bp[curr], sargs->winstates, sargs->nox, sargs->score)){
 			prob = 1;
 			log_out("Winstate!", LOG_TRACE_);
 		}
 		else
-			prob = expectimax(sargs->n->key.bp[curr], sargs->n2, sargs->n4, sargs->winstates); // we should not be moving -- we're reading moves
+			prob = expectimax(sargs->n->key.bp[curr], sargs->n2, sargs->n4, sargs->winstates, sargs->nox, sargs->score); // we should not be moving -- we're reading moves
 		sargs->n->value.bp[curr] = *((uint64_t*)(&prob));
 	}
 	return NULL;
 }
 
-void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, threadpool pool){
+void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, threadpool pool, char nox, bool score){
 	solve_core_data *cores = malloc_errcheck(sizeof(solve_core_data) * core_count);
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = n;
 		cores[i].n2 = n2;
 		cores[i].n4 = n4;
+		cores[i].nox = nox;
+		cores[i].score = score;
 		cores[i].winstates = winstates;
 		// divide up [0,n.size)
 		// cores work in [start,end)

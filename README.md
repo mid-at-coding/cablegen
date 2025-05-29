@@ -26,6 +26,7 @@ Configuration is stored in an INI file and defines many properties of a table
 [Cablegen] ; global settings 
 free_formation = false ; whether unmergeable tiles (0xf) are allowed to move
 cores = 1              ; how many cores are used during generation and solving
+nox = 0                ; generate and solve as if merging to this tile will lead to death
 
 [Generate] ; generation specific settings
 dir = ./boards/        : where generated unsolved boards will go, relative to where cablegen is run
@@ -36,6 +37,7 @@ end = 800              ; the tile sum where generation stops
 dir = ./tables/        ; where solved boards will go, relative to where cablegen is run
 winstates = ./winstate ; where the winstates for solving are
 end = 14               ; the lowest tile sum, where solving ends
+score = false          ; use score instead of win percentage
 ```
 
 ## Used libraries

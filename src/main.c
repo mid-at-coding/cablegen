@@ -21,7 +21,7 @@ static int numPlaces (int n) {
 }
 
 static void help(){
-	log_out("Cablegen v1.1 rc by ember/emelia/cattodoameow", LOG_INFO_);
+	log_out("Cablegen v1.1 by ember/emelia/cattodoameow", LOG_INFO_);
 	log_out("Commands:", LOG_INFO_);
 	log_out("help -- this output", LOG_INFO_);
 	log_out("generate (CONFIG) -- generate boards, optionally specifying an alternate config file", LOG_INFO_);
@@ -63,7 +63,9 @@ static void parseGenerate(int argc, char **argv){
 	get_int_setting_section("end", "Generate", &end);
 	int core_count;
 	get_int_setting("cores", &core_count);
-	generate(layer, end, fmt, boards.bp, boards.size, core_count, false);
+	int nox;
+	get_int_setting("nox", &nox);
+	generate(layer, end, fmt, boards.bp, boards.size, core_count, false, nox);
 }
 
 static void parseSolve(int argc, char **argv){
@@ -101,11 +103,15 @@ static void parseSolve(int argc, char **argv){
 	get_int_setting("cores", &cores);
 	char *winstate_fmt;
 	get_str_setting_section("winstates", "Solve", &winstate_fmt);
+	int nox;
+	get_int_setting("nox", &nox);
+	bool score;
+	get_bool_setting_section("score", "Solve", &score);
 	static_arr_info boards = read_boards(winstate_fmt);
 	if(boards.size < 1){
 		printf("No boards in %s!", argv[6]);
 	}
-	solve(start, end, posfmt, table_fmt, &boards, cores);
+	solve(start, end, posfmt, table_fmt, &boards, cores, nox, score);
 }
 
 static void parseWrite(int argc, char **argv){
@@ -157,7 +163,7 @@ static struct dirprob best(uint64_t board, table *n){
 	return (struct dirprob){maxd, maxp};
 }
 
-static void parseLookup(int argc, char **argv){
+static void parseLookup(int argc, char **argv){ // TODO: this segfaults on bad input
 	char *tabledir;
 	get_str_setting_section("dir", "Solve", &tabledir);
 	if(argc > 3){ 
