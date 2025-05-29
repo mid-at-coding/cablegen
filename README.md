@@ -1,9 +1,7 @@
 # Cablegen
 A high speed 2048 generator and solver, entirely in C
 ## Known issues:
-- Settings aren't fully supported and documented yet (but coming soon!)
 
-- Generation is weirdly slow, especially on multiple threads
 ## Usage
 `generate (CONFIG)` -- Generate boards, optionally specifiying an alternate config file
 
