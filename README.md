@@ -15,6 +15,8 @@ A high speed 2048 generator and solver, entirely in C
 
 `explore [TABLE]` -- lists all solved boards in TABLE
 
+`play [BOARD] (TDIR)` -- simulate an optimal game of BOARD with random spawns
+
 ## Configuration
 
 Configuration is stored in an INI file and defines many properties of a table

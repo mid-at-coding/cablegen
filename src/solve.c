@@ -117,7 +117,8 @@ void destroy_table(table* t){
 	free(t);
 }
 
-void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *initial_winstates, unsigned cores, char nox, bool score, bool free_formation){
+void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *initial_winstates, unsigned cores, char nox, 
+		bool score, bool free_formation){
 	set_log_level(LOG_DBG_);
 	threadpool th = threadpool_t_init(cores);
 	const size_t FILENAME_SIZE = 100;

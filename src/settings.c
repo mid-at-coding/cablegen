@@ -43,7 +43,7 @@ settings_t get_settings(){
 	get_str_setting_section("dir", "Solve", &res.tdir);
 	get_str_setting_section("winstates", "Solve", &res.winstates);
 	get_int_setting_section("end", "Solve", &res.end_solve); 
-	get_bool_setting("score", &res.score);
+	get_bool_setting_section("score", "Solve", &res.score);
 	return res;
 }
 
@@ -67,8 +67,8 @@ static ini_t* get_cfg(){
 			return NULL;
 		}
 	}
-	log_out("Loading config from: ", LOG_INFO_);
-	log_out(cfgdir, LOG_DBG_);
+	log_out("Loading config from: ", LOG_TRACE_);
+	log_out(cfgdir, LOG_TRACE_);
 	return ini_load(cfgdir);
 }
 void change_config(char *cfg){	
@@ -96,6 +96,7 @@ static int get_str_setting_section (const char *key, char *section, char** str){
 	char *res = ini_get(cfg, section, key);
 	if(res == NULL){
 		log_out("Could not find property!", LOG_WARN_);
+		log_out(key, LOG_WARN_);
 		ini_free(cfg);
 		return 1;
 	}
