@@ -19,12 +19,15 @@ static char cfgdir[MAX_PATH];
 static ini_t* get_cfg(){
 	static bool init = false;
 	if(!init){
+		init = true;
 		get_user_config_file(cfgdir, sizeof(cfgdir), "cablegen");
 		if (cfgdir[0] == 0) {
 			log_out("Could not find config directory!", LOG_WARN_);
 			return NULL;
 		}
 	}
+	log_out("Loading config from: ", LOG_DBG_);
+	log_out(cfgdir, LOG_DBG_);
 	return ini_load(cfgdir);
 }
 void change_config(char *cfg){	
@@ -33,7 +36,9 @@ void change_config(char *cfg){
 		return;
 	}
 	ini_free(get_cfg()); // make sure it's already initialized
-	strcpy(cfgdir, cfg);
+	memcpy(cfgdir, cfg, strlen(cfg) + 1);
+	log_out("New config dir: ", LOG_DBG_);
+	log_out(cfgdir, LOG_DBG_);
 }
 int get_str_setting(char *key, char **str){
 	int e = get_str_setting_section(key, "Cablegen", str);
@@ -44,7 +49,6 @@ int get_str_setting(char *key, char **str){
 int get_str_setting_section (char *key, char *section, char** str){
 	auto cfg = get_cfg();
 	if(cfg == NULL){
-		ini_free(cfg);
 		return 1;
 	}
 	char *res = ini_get(cfg, section, key);

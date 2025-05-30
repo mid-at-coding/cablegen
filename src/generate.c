@@ -185,6 +185,7 @@ static_arr_info read_boards(const char *dir){
 			log_out("Reading non canonicalized board!!!!", LOG_WARN_);
 		}
 	}
+	
 #endif
 	return res;
 }
