@@ -1,8 +1,6 @@
 #include "../inc/generate.h"
 #include "../inc/logging.h"
 #include "../inc/board.h"
-#include "../inc/main.h"
-#include "../inc/settings.h"
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
@@ -132,11 +130,9 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	threadpool_wait(pool);
 }
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, 
-		const unsigned core_count, bool prespawn, char nox){
+		const unsigned core_count, bool prespawn, char nox, bool free_formation){
 	set_log_level(LOG_DBG_);
 	// GENERATE: write all sub-boards where it is the computer's move	
-	bool free_formation = 0; 
-	get_bool_setting("free_formation", &free_formation);
 	generate_lut(free_formation);
 	threadpool pool = threadpool_t_init(core_count);
 	static const size_t DARR_INITIAL_SIZE = 100;

@@ -117,12 +117,10 @@ void destroy_table(table* t){
 	free(t);
 }
 
-void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *initial_winstates, unsigned cores, char nox, bool score){
+void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *initial_winstates, unsigned cores, char nox, bool score, bool free_formation){
 	set_log_level(LOG_DBG_);
 	threadpool th = threadpool_t_init(cores);
 	const size_t FILENAME_SIZE = 100;
-	bool free_formation = 0;
-	get_bool_setting("free_formation", &free_formation);
 	dynamic_arr_info winstates_d = init_darr(0,0);
 	generate_lut(free_formation); // if we don't gen a lut we can't move
 	// generate all rotations of the winstates

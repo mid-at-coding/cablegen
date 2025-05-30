@@ -8,3 +8,4 @@ libwinpthread*
 out.txt
 initial
 winstate
+gmon.out

@@ -11,7 +11,6 @@
 #include "../inc/settings.h"
 #include <string.h>
 #include <errno.h>
-#include <ctype.h>
 
 
 static int numPlaces (int n) {
@@ -37,81 +36,47 @@ static void parseGenerate(int argc, char **argv){
 	if(argc > 2){
 		change_config(argv[2]);
 	}
-	char *dir;
-	if(get_str_setting_section("dir", "Generate", &dir)){
-		log_out("Could not get board dir!", LOG_ERROR_);
-		exit(1);
-	}
+	settings_t settings = get_settings();
 	char *default_postfix = "%d.boards";
-	size_t fmt_size = strlen(default_postfix) + strlen(dir) + 1;
+	size_t fmt_size = strlen(default_postfix) + strlen(settings.bdir) + 1;
 	char *fmt = malloc(fmt_size);
 	if(fmt == NULL)
 		log_out("Alloc failed!", LOG_ERROR_);
-	snprintf(fmt, fmt_size, "%s%s", dir, default_postfix);
+	snprintf(fmt, fmt_size, "%s%s", settings.bdir, default_postfix);
 
 	// assume all boards in FILE are the same sum (!!)
-	if(get_str_setting_section("initial", "Generate", &dir)){
-		log_out("Could not get initial board location!", LOG_ERROR_);
-		exit(1);
-	}
-	static_arr_info boards = read_boards(dir);
+	static_arr_info boards = read_boards(settings.initial);
 	if(boards.size < 1){
-		printf("No boards in %s!", dir);
+		printf("No boards in %s!", settings.initial);
 	}
 	int layer = get_sum(boards.bp[0]);
-	int end;
-	get_int_setting_section("end", "Generate", &end);
-	int core_count;
-	get_int_setting("cores", &core_count);
-	int nox;
-	get_int_setting("nox", &nox);
-	generate(layer, end, fmt, boards.bp, boards.size, core_count, false, nox);
+	generate(layer, settings.end_gen, fmt, boards.bp, boards.size, settings.cores, settings.premove, settings.nox, settings.free_formation);
 }
 
 static void parseSolve(int argc, char **argv){
 	if(argc > 2){ 
 		change_config(argv[2]);
 	}
-	char *bdir, *tdir;
-	if(get_str_setting_section("dir", "Generate", &bdir)){
-		log_out("Could not get board dir!", LOG_ERROR_);
-		exit(1);
-	}
-	if(get_str_setting_section("dir", "Solve", &tdir)){
-		log_out("Could not get table dir!", LOG_ERROR_);
-		exit(1);
-	}
+	settings_t settings = get_settings();
 	char *default_board_postfix = "%d.boards";
-	size_t posfmt_size = strlen(default_board_postfix) + strlen(bdir) + 1;
+	size_t posfmt_size = strlen(default_board_postfix) + strlen(settings.bdir) + 1;
 	char* posfmt = malloc(posfmt_size);
 	if(posfmt == NULL)
 		log_out("Alloc failed!", LOG_ERROR_);
-	snprintf(posfmt, posfmt_size, "%s%s", bdir, default_board_postfix);
+	snprintf(posfmt, posfmt_size, "%s%s", settings.bdir, default_board_postfix);
 
 	char* default_table_postfix = "%d.tables";
-	size_t table_fmt_size = strlen(default_table_postfix) + strlen(tdir) + 1;
+	size_t table_fmt_size = strlen(default_table_postfix) + strlen(settings.tdir) + 1;
 	char* table_fmt = malloc(table_fmt_size);
 	if(table_fmt == NULL)
 		log_out("Alloc failed!", LOG_ERROR_);
-	snprintf(table_fmt, table_fmt_size, "%s%s", tdir, default_table_postfix);
+	snprintf(table_fmt, table_fmt_size, "%s%s", settings.tdir, default_table_postfix);
 
-	int start;
-	get_int_setting_section("end", "Generate", &start);
-	int end;
-	get_int_setting_section("end", "Solve", &end);
-	int cores;
-	get_int_setting("cores", &cores);
-	char *winstate_fmt;
-	get_str_setting_section("winstates", "Solve", &winstate_fmt);
-	int nox;
-	get_int_setting("nox", &nox);
-	bool score;
-	get_bool_setting_section("score", "Solve", &score);
-	static_arr_info boards = read_boards(winstate_fmt);
+	static_arr_info boards = read_boards(settings.winstates);
 	if(boards.size < 1){
 		printf("No boards in %s!", argv[6]);
 	}
-	solve(start, end, posfmt, table_fmt, &boards, cores, nox, score);
+	solve(settings.end_gen, settings.end_solve, posfmt, table_fmt, &boards, settings.cores, settings.nox, settings.score, settings.free_formation);
 }
 
 static void parseWrite(int argc, char **argv){
@@ -165,15 +130,14 @@ static struct dirprob best(uint64_t board, table *n){
 
 static void parseLookup(int argc, char **argv){ // TODO: this segfaults on bad input
 	char *tabledir;
-	get_str_setting_section("dir", "Solve", &tabledir);
+	settings_t settings = get_settings();
+	tabledir = settings.tdir;
 	if(argc > 3){ 
 		tabledir = argv[2];
 	}
 	uint64_t board = strtoull(argv[3], NULL, 16); // interpret as hex string
 	set_log_level(LOG_INFO_);
-	bool free_formation = 0;
-	get_bool_setting("free_formation", &free_formation);
-	generate_lut(free_formation); 
+	generate_lut(settings.free_formation); 
 	if (errno != 0){
 		printf("Error parsing string! %s\n", strerror(errno));
 	}

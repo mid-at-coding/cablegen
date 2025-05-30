@@ -1,6 +1,7 @@
 #ifndef LOGGING_H
 #define LOGGING_H
 #include <string.h>
+#include <stdbool.h>
 #define LOGIF(level) if(logif_f(level))
 
 enum LOG_LEVEL{

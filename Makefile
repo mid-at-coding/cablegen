@@ -8,7 +8,7 @@ FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c))
 all: $(FILES) cablegen
 
 clean: 
-	@rm $(FILES)
+	@rm build/*.o
 
 build/%.o: src/%.c 
 	$(CC) $< $(CCFLAGS) -c -o $@ 

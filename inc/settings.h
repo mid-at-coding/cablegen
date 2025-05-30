@@ -2,14 +2,24 @@
 #define SETTINGS_H
 #include <errno.h>
 #include <stdbool.h>
+char *strlwr_(char *str);
 void change_config(char *cfg);
-int get_bool_setting(char *key, bool*);
-int get_str_setting (char *key, char**);
-long long get_int_setting (char *key, int*);
+typedef struct {
+	bool free_formation;
+	long long cores;
+	long long nox;
 
-int 	  get_bool_setting_section(char *key, char *section, bool*);
-int 	  get_str_setting_section (char *key, char *section, char**);
-long long get_int_setting_section (char *key, char *section, int*);
+	bool premove;
+	char *bdir;
+	char *initial;
+	long long end_gen;
 
-char *strlwr_(char *);
+	char *tdir;
+	char *winstates;
+	long long end_solve;
+	bool score;
+} settings_t;
+
+settings_t get_settings();
+
 #endif

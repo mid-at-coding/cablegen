@@ -30,6 +30,7 @@ nox = 0                ; generate and solve as if merging to this tile will lead
 dir = ./boards/        : where generated unsolved boards will go, relative to where cablegen is run
 initial = ./initial    ; where the initial boards for generation are
 end = 800              ; the tile sum where generation stops
+premove = false        ; move initial boards before spawning
 
 [Solve]    ; solving specific settings
 dir = ./tables/        ; where solved boards will go, relative to where cablegen is run

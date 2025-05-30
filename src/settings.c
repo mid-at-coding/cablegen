@@ -3,9 +3,50 @@
 #include "../inc/ini.h"
 #include "../inc/logging.h"
 #include "../inc/array.h"
-#include <errno.h>
 #include <string.h>
 #include <ctype.h>
+static bool settings_read = false;
+static int get_bool_setting(const char *key, bool*);
+static int get_str_setting (const char *key, char**);
+static int get_int_setting (const char *key, long long*);
+
+static int get_bool_setting_section(const char *key, char *section, bool*);
+static int get_str_setting_section (const char *key, char *section, char**);
+static int get_int_setting_section (const char *key, char *section, long long*);
+
+settings_t get_settings(){
+	static settings_t res = { // set sane defaults
+		.free_formation = 0,
+		.cores = 1,
+		.nox = 0,
+		
+		.premove = false,
+		.bdir = "./boards/",
+		.initial = "./initial",
+		.end_gen = 1200,
+
+		.tdir = "./tables/",
+		.winstates = "./winstates",
+		.end_solve = 0,
+		.score = false
+	};
+	if(settings_read)
+		return res;
+	settings_read = true; 
+	get_bool_setting("free_formation", &res.free_formation);
+	get_int_setting("cores", &res.cores); 
+	get_int_setting("nox", &res.nox); 
+	get_bool_setting_section("premove", "Generate", &res.premove);
+	get_str_setting_section("dir", "Generate", &res.bdir);
+	get_str_setting_section("initial", "Generate", &res.initial);
+	get_int_setting_section("end", "Generate", &res.end_gen); 
+	get_str_setting_section("dir", "Solve", &res.tdir);
+	get_str_setting_section("winstates", "Solve", &res.winstates);
+	get_int_setting_section("end", "Solve", &res.end_solve); 
+	get_bool_setting("score", &res.score);
+	return res;
+}
+
 char *strlwr_(char *str) {
   unsigned char *p = (unsigned char *)str;
   while (*p) {
@@ -26,7 +67,7 @@ static ini_t* get_cfg(){
 			return NULL;
 		}
 	}
-	log_out("Loading config from: ", LOG_DBG_);
+	log_out("Loading config from: ", LOG_INFO_);
 	log_out(cfgdir, LOG_DBG_);
 	return ini_load(cfgdir);
 }
@@ -35,19 +76,20 @@ void change_config(char *cfg){
 		log_out("Invalid config file location!", LOG_WARN_);
 		return;
 	}
+	settings_read = false; // update settings reading
 	ini_free(get_cfg()); // make sure it's already initialized
 	memcpy(cfgdir, cfg, strlen(cfg) + 1);
 	log_out("New config dir: ", LOG_DBG_);
 	log_out(cfgdir, LOG_DBG_);
 }
-int get_str_setting(char *key, char **str){
+static int get_str_setting(const char *key, char **str){
 	int e = get_str_setting_section(key, "Cablegen", str);
 	if(e)
 		return e;
 	return 0;
 }
-int get_str_setting_section (char *key, char *section, char** str){
-	auto cfg = get_cfg();
+static int get_str_setting_section (const char *key, char *section, char** str){
+	ini_t* cfg = get_cfg();
 	if(cfg == NULL){
 		return 1;
 	}
@@ -61,7 +103,7 @@ int get_str_setting_section (char *key, char *section, char** str){
 	ini_free(cfg);
 	return 0;
 }
-int get_bool_setting(char *key, bool *data){
+static int get_bool_setting(const char *key, bool *data){
 	char *str = malloc_errcheck(MAX_PROP_SIZE);
 	int e = get_str_setting(key, &str);
 	if(e){
@@ -71,18 +113,17 @@ int get_bool_setting(char *key, bool *data){
 	*data = !strcmp(str, "true");
 	return 0;
 }
-long long get_int_setting (char *key, int *data){
+static int get_int_setting (const char *key, long long *data){
 	char *str = malloc_errcheck(MAX_PROP_SIZE);
 	int e = get_str_setting(key, &str);
 	if(e){
-		*data = 0;
 		return e;
 	}
 	*data = atoll(str);
 	return 0;
 }
 
-int get_bool_setting_section(char *key, char *section, bool *data){
+static int get_bool_setting_section(const char *key, char *section, bool *data){
 	char *str = malloc_errcheck(MAX_PROP_SIZE);
 	int e = get_str_setting_section(key, section, &str);
 	if(e){
@@ -92,7 +133,7 @@ int get_bool_setting_section(char *key, char *section, bool *data){
 	*data = !strcmp(str, "true");
 	return 0;
 }
-long long get_int_setting_section (char *key, char *section, int *data){
+static int get_int_setting_section (const char *key, char *section, long long *data){
 	char *str = malloc_errcheck(MAX_PROP_SIZE);
 	int e = get_str_setting_section(key, section, &str);
 	if(e){

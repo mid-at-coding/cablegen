@@ -108,7 +108,7 @@ void test_generation(){
 	log_out("Testing generation (correctness not checked).\n", LOG_INFO_);
 	dynamic_arr_info n = init_darr(false, 0);
 	push_back(&n, 0x1000002000000000); // board with a 2 and a 4 in a kinda arbitrary position
-	generate(get_sum(n.bp[0]), get_sum(n.bp[0]) + 16, "/dev/null", n.bp, 1, 1, 0, 0);
+	generate(get_sum(n.bp[0]), get_sum(n.bp[0]) + 16, "/dev/null", n.bp, 1, 1, 0, 0, 0);
 	log_out("Done testing generation.\n", LOG_INFO_);
 }
 
