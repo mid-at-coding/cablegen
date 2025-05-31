@@ -22,7 +22,7 @@ static int numPlaces (int n) {
 }
 
 static void help(){
-	log_out("Cablegen v1.1.3 by ember/emelia/cattodoameow", LOG_INFO_);
+	log_out("Cablegen v1.1.4 by ember/emelia/cattodoameow", LOG_INFO_);
 	log_out("Commands:", LOG_INFO_);
 	log_out("help -- this output", LOG_INFO_);
 	log_out("generate (CONFIG) -- generate boards, optionally specifying an alternate config file", LOG_INFO_);
