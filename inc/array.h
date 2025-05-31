@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <pthread.h>
+#include <threads.h>
 #include <sys/types.h>
 #define REALLOC_MULT 2
 
@@ -12,7 +12,7 @@ typedef struct{
 	uint64_t* bp;
 	uint64_t* sp;
 	size_t size;
-	pthread_mutex_t mut;
+	mtx_t mut;
 } dynamic_arr_info;
 
 typedef struct{

@@ -4,12 +4,13 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <threads.h>
 #define SORT_NAME uint64
 #define SORT_TYPE uint64_t
 #include "../inc/sort.h"
 
 bool push_back(dynamic_arr_info *info, uint64_t v){
-	pthread_mutex_lock(&info->mut);
+	mtx_lock(&info->mut);
 	bool res = false;
 	if(info->valid == false){
 		log_out("Invalid array, refusing to push\n", LOG_WARN_);
@@ -31,7 +32,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 		res = true;
 	}
 	*(info->sp++) = v;
-	pthread_mutex_unlock(&info->mut);
+	mtx_unlock(&info->mut);
 	return res;
 }
 
@@ -46,7 +47,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 		log_out("Alloc failed! Download more ram!\n", LOG_ERROR_);
 		d.valid = false;
 	}
-	int res = pthread_mutex_init(&d.mut, NULL);
+	int res = mtx_init(&d.mut, mtx_plain);
 	if (res != 0){
 		log_out("Dynamic arr mutex initialization failed", LOG_WARN_);
 		d.valid = false;
@@ -72,12 +73,12 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 }
 
 [[nodiscard]] static_arr_info shrink_darr(dynamic_arr_info* info){
-	pthread_mutex_lock(&info->mut);
+	mtx_lock(&info->mut);
 	int new_size = info->sp - info->bp;
 	if(info->valid == false){
 		log_out("Invalid array, refusing to shrink\n", LOG_WARN_);
 		exit(1);
-		pthread_mutex_unlock(&info->mut);
+		mtx_unlock(&info->mut);
 		return (static_arr_info){.valid = false, .bp = info->bp, .size = info->sp - info->bp};
 	}
 	info->valid = false; 
@@ -90,10 +91,10 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	uint64_t *new_bp = realloc(info->bp, sizeof(uint64_t) * new_size);
 	if(new_bp == NULL){
 		log_out("Shrink failed!\n", LOG_ERROR_);
-		pthread_mutex_unlock(&info->mut);
+		mtx_unlock(&info->mut);
 		return (static_arr_info){.valid = false, .bp = info->bp, .size = info->sp - info->bp};
 	}
-	pthread_mutex_unlock(&info->mut);
+	mtx_unlock(&info->mut);
 	return (static_arr_info){.valid = true, .bp = new_bp, .size = new_size};
 }
 [[nodiscard]] dynamic_arr_info concat(dynamic_arr_info * restrict arr1, dynamic_arr_info * restrict arr2){
@@ -106,7 +107,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 		.sp   = arr1_shrink.bp + arr1_shrink.size, 
 		.size = arr1_shrink.size
 	};
-	int res = pthread_mutex_init(&arr1_dynamic.mut, NULL);
+	int res = mtx_init(&arr1_dynamic.mut, mtx_plain);
 	if(res != 0){
 		log_out("Mutex initialization failed in concat(...)\n", LOG_ERROR_);
 		arr1_dynamic.valid = false;
@@ -126,7 +127,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 		.sp   = arr1_shrink.bp + arr1_shrink.size, 
 		.size = arr1_shrink.size
 	};
-	int res = pthread_mutex_init(&arr1_dynamic.mut, NULL);
+	int res = mtx_init(&arr1_dynamic.mut, mtx_plain);
 	if(res != 0){
 		log_out("Mutex initialization failed in concat(...)\n", LOG_ERROR_);
 		arr1_dynamic.valid = false;

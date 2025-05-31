@@ -148,12 +148,12 @@ static void parseLookup(int argc, char **argv){ // TODO: this segfaults on bad i
 	uint64_t sum = get_sum(board);
 
 	char* default_table_postfix = "%d.tables";
-	size_t table_fmt_size = strlen(default_table_postfix) + strlen(argv[2]) + 10;
+	size_t table_fmt_size = strlen(default_table_postfix) + strlen(tabledir) + 10;
 	char* table_fmt = malloc(table_fmt_size);
 	char* tablestr = malloc(table_fmt_size);
 	if(table_fmt == NULL)
 		log_out("Alloc failed!", LOG_ERROR_);
-	snprintf(table_fmt, table_fmt_size, "%s%s", argv[2], default_table_postfix);
+	snprintf(table_fmt, table_fmt_size, "%s%s", tabledir, default_table_postfix);
 	snprintf(tablestr, table_fmt_size, table_fmt, sum);
 	log_out(tablestr, LOG_TRACE_);
 	

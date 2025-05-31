@@ -125,7 +125,7 @@ static int thread_do(void *arg) {
 }
 
 int get_thread_id(threadpool_t *threadpool) {
-    pthread_t curr_thread = thrd_current();
+    thrd_t curr_thread = thrd_current();
     for (int i = 0; i < threadpool->thread_num; i++) {
         if (thrd_equal(threadpool->thread_t_arr[i].thread, curr_thread)) { return i; }
     }
