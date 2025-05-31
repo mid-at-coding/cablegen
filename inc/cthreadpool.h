@@ -1,7 +1,7 @@
 #ifndef THREADPOOL
 #define THREADPOOL
 
-#include <pthread.h>
+#include <threads.h>
 #include <stdatomic.h>
 
 #define CHECK(cond, ...)                                                                                                                                       \
@@ -17,8 +17,8 @@
 typedef struct threadpool_s threadpool_t;
 
 typedef struct {
-    pthread_cond_t jobqueue_wait_cond;
-    pthread_mutex_t jobqueue_wait_mutex;
+    cnd_t jobqueue_wait_cond;
+    mtx_t jobqueue_wait_mutex;
 } jobqueue_sync_t;
 
 typedef struct job_t{
@@ -31,13 +31,13 @@ typedef struct {
     int len;
     job_t *rear;
     job_t *front;
-    pthread_mutex_t jobqueue_mutex;
+    mtx_t jobqueue_mutex;
     jobqueue_sync_t *jobqueue_sync;
 } jobqueue_t;
 
 typedef struct {
     int id;
-    pthread_t thread;
+    thrd_t thread;
     threadpool_t *threadpool;
 } thread_t;
 
@@ -48,8 +48,8 @@ struct threadpool_s {
     _Atomic(int) num_threads_alive;
     _Atomic(int) num_threads_working;
     _Atomic(bool) keep_threadpool_alive;
-    pthread_cond_t threadpool_thread_idle_cond;
-    pthread_mutex_t threadpool_thread_count_mutex;
+    cnd_t threadpool_thread_idle_cond;
+    mtx_t threadpool_thread_count_mutex;
 };
 
 threadpool_t *threadpool_t_init(int thread_num);

@@ -1,7 +1,7 @@
-#include <pthread.h>
+#include <threads.h>
+#include <stdio.h>
 #include <stdatomic.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -11,7 +11,7 @@
 
 // THREAD
 static void thread_t_arr_init(threadpool_t *threadpool, int thread_num);
-static void *thread_do(void *arg);
+static int thread_do(void *arg);
 
 // jobqueue
 static jobqueue_t *jobqueue_t_init(void);
@@ -34,8 +34,8 @@ threadpool_t *threadpool_t_init(int thread_num) {
     threadpool_t *threadpool = malloc(sizeof(threadpool_t));
     threadpool->thread_num = thread_num;
     CHECK(threadpool != NULL, "threadpool calloc");
-    CHECK(pthread_mutex_init(&threadpool->threadpool_thread_count_mutex, NULL) == 0, "threadpool_t mutex init");
-    CHECK(pthread_cond_init(&threadpool->threadpool_thread_idle_cond, NULL) == 0, "threadpool_t cond init");
+    CHECK(mtx_init(&threadpool->threadpool_thread_count_mutex, mtx_plain) == 0, "threadpool_t mutex init");
+    CHECK(cnd_init(&threadpool->threadpool_thread_idle_cond) == 0, "threadpool_t cond init");
 
     atomic_init(&threadpool->keep_threadpool_alive, true);
     atomic_init(&threadpool->num_threads_alive, 0);
@@ -62,13 +62,13 @@ void threadpool_add_work(const threadpool_t *threadpool, void *(*worker_func)(vo
 
 // threadpool wait
 void threadpool_wait(threadpool_t *threadpool) {
-    pthread_mutex_lock(&threadpool->threadpool_thread_count_mutex);
-    while ((pthread_mutex_lock(&threadpool->jobqueue->jobqueue_mutex), threadpool->jobqueue->len) || atomic_load(&threadpool->num_threads_working)) {
-		pthread_mutex_unlock(&threadpool->jobqueue->jobqueue_mutex);
-        pthread_cond_wait(&threadpool->threadpool_thread_idle_cond, &threadpool->threadpool_thread_count_mutex);
+    mtx_lock(&threadpool->threadpool_thread_count_mutex);
+    while ((mtx_lock(&threadpool->jobqueue->jobqueue_mutex), threadpool->jobqueue->len) || atomic_load(&threadpool->num_threads_working)) {
+		mtx_unlock(&threadpool->jobqueue->jobqueue_mutex);
+        cnd_wait(&threadpool->threadpool_thread_idle_cond, &threadpool->threadpool_thread_count_mutex);
     }
-	pthread_mutex_unlock(&threadpool->jobqueue->jobqueue_mutex);
-    pthread_mutex_unlock(&threadpool->threadpool_thread_count_mutex);
+	mtx_unlock(&threadpool->jobqueue->jobqueue_mutex);
+    mtx_unlock(&threadpool->threadpool_thread_count_mutex);
 }
 
 // threadpool destroy
@@ -93,13 +93,13 @@ static void thread_t_arr_init(threadpool_t *threadpool, int num_thread) {
     for (int i = 0; i < num_thread; i++) {
         threadpool->thread_t_arr[i].threadpool = threadpool;
         threadpool->thread_t_arr[i].id = i;
-        CHECK(pthread_create(&threadpool->thread_t_arr[i].thread, NULL, thread_do, &threadpool->thread_t_arr[i]) == 0, "new thread create");
-        CHECK(pthread_detach(threadpool->thread_t_arr[i].thread) == 0, "new thread detach");
+        CHECK(thrd_create(&threadpool->thread_t_arr[i].thread, thread_do, &threadpool->thread_t_arr[i]) == 0, "new thread create");
+        CHECK(thrd_detach(threadpool->thread_t_arr[i].thread) == 0, "new thread detach");
     }
 }
 
 // thread_do
-static void *thread_do(void *arg) {
+static int thread_do(void *arg) {
     thread_t *thread = (thread_t *)arg;
 
     atomic_fetch_add(&thread->threadpool->num_threads_alive, 1);
@@ -117,17 +117,17 @@ static void *thread_do(void *arg) {
             free(job);
 
             atomic_fetch_sub(&thread->threadpool->num_threads_working, 1);
-            if (!atomic_load(&thread->threadpool->num_threads_working)) { pthread_cond_signal(&thread->threadpool->threadpool_thread_idle_cond); }
+            if (!atomic_load(&thread->threadpool->num_threads_working)) { cnd_signal(&thread->threadpool->threadpool_thread_idle_cond); }
         }
     }
     atomic_fetch_sub(&thread->threadpool->num_threads_alive, 1);
-    return NULL;
+    return 0;
 }
 
 int get_thread_id(threadpool_t *threadpool) {
-    pthread_t curr_thread = pthread_self();
+    pthread_t curr_thread = thrd_current();
     for (int i = 0; i < threadpool->thread_num; i++) {
-        if (pthread_equal(threadpool->thread_t_arr[i].thread, curr_thread)) { return i; }
+        if (thrd_equal(threadpool->thread_t_arr[i].thread, curr_thread)) { return i; }
     }
     return -1;
 }
@@ -138,7 +138,7 @@ int get_thread_id(threadpool_t *threadpool) {
 static jobqueue_t *jobqueue_t_init(void) {
     jobqueue_t *jobqueue = calloc(1, sizeof(jobqueue_t));
     CHECK(jobqueue != NULL, "jobqueue calloc");
-    CHECK(pthread_mutex_init(&jobqueue->jobqueue_mutex, NULL) == 0, "jobqueue_t mutex init");
+    CHECK(mtx_init(&jobqueue->jobqueue_mutex, mtx_plain) == 0, "jobqueue_t mutex init");
 
     jobqueue->jobqueue_sync = jobqueue_sync_t_init();
     return jobqueue;
@@ -148,18 +148,18 @@ static jobqueue_t *jobqueue_t_init(void) {
 static void jobqueue_t_deinit(jobqueue_t *jobqueue) {
     jobqueue_sync_t_deinit(jobqueue->jobqueue_sync);
     jobqueue_clear(jobqueue);
-    CHECK(pthread_mutex_destroy(&jobqueue->jobqueue_mutex) == 0, "jobqueu_t mutex deinit");
+    mtx_destroy(&jobqueue->jobqueue_mutex);
     free(jobqueue);
 }
 
 // jobqueue pull
 static job_t *jobqueue_pull(jobqueue_t *jobqueue) {
-    pthread_mutex_lock(&jobqueue->jobqueue_mutex);
+    mtx_lock(&jobqueue->jobqueue_mutex);
     job_t *job = jobqueue->front;
 
     switch (jobqueue->len) {
         case 0:
-            // pthread_mutex_unlock(&jobqueue->jobqueue_mutex);
+            // mtx_unlock(&jobqueue->jobqueue_mutex);
             // return NULL;
             break;
         case 1:
@@ -172,13 +172,13 @@ static job_t *jobqueue_pull(jobqueue_t *jobqueue) {
             jobqueue->len--;
             jobqueue_sync_post_all(jobqueue->jobqueue_sync);
     }
-    pthread_mutex_unlock(&jobqueue->jobqueue_mutex);
+    mtx_unlock(&jobqueue->jobqueue_mutex);
     return job;
 }
 
 // jobqueue push
 void jobqueue_push(jobqueue_t *jobqueue, job_t *newjob) {
-    pthread_mutex_lock(&jobqueue->jobqueue_mutex);
+    mtx_lock(&jobqueue->jobqueue_mutex);
     switch (jobqueue->len) {
         case 0:
             jobqueue->front = newjob;
@@ -190,7 +190,7 @@ void jobqueue_push(jobqueue_t *jobqueue, job_t *newjob) {
     }
     jobqueue->len++;
     jobqueue_sync_post_all(jobqueue->jobqueue_sync);
-    pthread_mutex_unlock(&jobqueue->jobqueue_mutex);
+    mtx_unlock(&jobqueue->jobqueue_mutex);
 }
 
 // jobqueue clear
@@ -209,32 +209,32 @@ static void jobqueue_clear(jobqueue_t *jobqueue) {
 static jobqueue_sync_t *jobqueue_sync_t_init(void) {
     jobqueue_sync_t *jobqueue_sync = malloc(sizeof(jobqueue_sync_t));
     CHECK(jobqueue_sync != NULL, "jobqueue sync malloc");
-    CHECK(pthread_cond_init(&jobqueue_sync->jobqueue_wait_cond, NULL) == 0, "job_queue_wait_sync_t cond init");
-    CHECK(pthread_mutex_init(&jobqueue_sync->jobqueue_wait_mutex, NULL) == 0, "job_queue_wait_sync_t mutex init");
+    CHECK(cnd_init(&jobqueue_sync->jobqueue_wait_cond) == 0, "job_queue_wait_sync_t cond init");
+    CHECK(mtx_init(&jobqueue_sync->jobqueue_wait_mutex, mtx_plain) == 0, "job_queue_wait_sync_t mutex init");
     return jobqueue_sync;
 }
 
 // jobqueue wait deinit
 static void jobqueue_sync_t_deinit(jobqueue_sync_t *jobqueue_sync) {
-    CHECK(pthread_cond_destroy(&jobqueue_sync->jobqueue_wait_cond) == 0, "job_queue_wait_sync_t cond deinit");
-    CHECK(pthread_mutex_destroy(&jobqueue_sync->jobqueue_wait_mutex) == 0, "job_queue_wait_sync_t mutex deinit");
+    cnd_destroy(&jobqueue_sync->jobqueue_wait_cond);
+    mtx_destroy(&jobqueue_sync->jobqueue_wait_mutex);
     free(jobqueue_sync);
 }
 
 static void jobqueue_sync_post(jobqueue_sync_t *jobqueue_sync) {
-    pthread_mutex_lock(&jobqueue_sync->jobqueue_wait_mutex);
-    pthread_cond_signal(&jobqueue_sync->jobqueue_wait_cond);
-    pthread_mutex_unlock(&jobqueue_sync->jobqueue_wait_mutex);
+    mtx_lock(&jobqueue_sync->jobqueue_wait_mutex);
+    cnd_signal(&jobqueue_sync->jobqueue_wait_cond);
+    mtx_unlock(&jobqueue_sync->jobqueue_wait_mutex);
 }
 
 static void jobqueue_sync_post_all(jobqueue_sync_t *jobqueue_sync) {
-    pthread_mutex_lock(&jobqueue_sync->jobqueue_wait_mutex);
-    pthread_cond_broadcast(&jobqueue_sync->jobqueue_wait_cond);
-    pthread_mutex_unlock(&jobqueue_sync->jobqueue_wait_mutex);
+    mtx_lock(&jobqueue_sync->jobqueue_wait_mutex);
+    cnd_broadcast(&jobqueue_sync->jobqueue_wait_cond);
+    mtx_unlock(&jobqueue_sync->jobqueue_wait_mutex);
 }
 
 static void jobqueue_sync_wait(jobqueue_sync_t *jobqueue_sync) {
-    pthread_mutex_lock(&jobqueue_sync->jobqueue_wait_mutex);
-    pthread_cond_wait(&jobqueue_sync->jobqueue_wait_cond, &jobqueue_sync->jobqueue_wait_mutex);
-    pthread_mutex_unlock(&jobqueue_sync->jobqueue_wait_mutex);
+    mtx_lock(&jobqueue_sync->jobqueue_wait_mutex);
+    cnd_wait(&jobqueue_sync->jobqueue_wait_cond, &jobqueue_sync->jobqueue_wait_mutex);
+    mtx_unlock(&jobqueue_sync->jobqueue_wait_mutex);
 }
