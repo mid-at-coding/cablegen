@@ -22,7 +22,7 @@ static int numPlaces (int n) {
 }
 
 static void help(){
-	log_out("Cablegen v1.1 by ember/emelia/cattodoameow", LOG_INFO_);
+	log_out("Cablegen v1.1.2 by ember/emelia/cattodoameow", LOG_INFO_);
 	log_out("Commands:", LOG_INFO_);
 	log_out("help -- this output", LOG_INFO_);
 	log_out("generate (CONFIG) -- generate boards, optionally specifying an alternate config file", LOG_INFO_);
@@ -36,6 +36,7 @@ static void help(){
 }
 
 static void parseGenerate(int argc, char **argv){
+	if(argc < 2){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	if(argc > 2){
 		change_config(argv[2]);
 	}
@@ -57,6 +58,7 @@ static void parseGenerate(int argc, char **argv){
 }
 
 static void parseSolve(int argc, char **argv){
+	if(argc < 2){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	if(argc > 2){ 
 		change_config(argv[2]);
 	}
@@ -83,7 +85,7 @@ static void parseSolve(int argc, char **argv){
 }
 
 static void parseWrite(int argc, char **argv){
-	if(argc < 4){ log_out("Not enough arguments!", LOG_ERROR_); return;}
+	if(argc < 4){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	dynamic_arr_info boards = init_darr(0, 1);
 	for(int i = 3; i < argc; i++){
 		uint64_t board = strtoull(argv[i], NULL, 16); // interpret as hex string
@@ -132,6 +134,7 @@ static struct dirprob best(uint64_t board, table *n){
 }
 
 static void parseLookup(int argc, char **argv){ // TODO: this segfaults on bad input
+	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	char *tabledir;
 	settings_t settings = get_settings();
 	tabledir = settings.tdir;
@@ -184,8 +187,7 @@ static void parseLookup(int argc, char **argv){ // TODO: this segfaults on bad i
 }
 
 static void parseExplore(int argc, char **argv){
-	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); return;}
-
+	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	table *t = malloc_errcheck(sizeof(table));
 	read_table(t, argv[2]);
 	for(size_t i = 0; i < t->key.size; i++){
@@ -195,7 +197,7 @@ static void parseExplore(int argc, char **argv){
 }
 
 static void parseRead(int argc, char **argv){
-	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); return;}
+	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 
 	static_arr_info t = read_boards(argv[2]);
 	for(size_t i = 0; i < t.size; i++){
@@ -214,6 +216,7 @@ static bool canMove(uint64_t board){
 }
 
 static void parsePlay(int argc, char **argv){
+	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	set_log_level(LOG_INFO_);
 	settings_t settings = get_settings();
 	srand(time(NULL));

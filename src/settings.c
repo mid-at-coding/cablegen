@@ -6,6 +6,7 @@
 #include <string.h>
 #include <ctype.h>
 static bool settings_read = false;
+static bool init = false;
 static int get_bool_setting(const char *key, bool*);
 static int get_str_setting (const char *key, char**);
 static int get_int_setting (const char *key, long long*);
@@ -58,7 +59,6 @@ char *strlwr_(char *str) {
 static char cfgdir[MAX_PATH];
 #define MAX_PROP_SIZE 100
 static ini_t* get_cfg(){
-	static bool init = false;
 	if(!init){
 		init = true;
 		get_user_config_file(cfgdir, sizeof(cfgdir), "cablegen");
@@ -77,7 +77,7 @@ void change_config(char *cfg){
 		return;
 	}
 	settings_read = false; // update settings reading
-	ini_free(get_cfg()); // make sure it's already initialized
+	init = true;
 	memcpy(cfgdir, cfg, strlen(cfg) + 1);
 	log_out("New config dir: ", LOG_DBG_);
 	log_out(cfgdir, LOG_DBG_);

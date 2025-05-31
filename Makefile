@@ -11,7 +11,7 @@ clean:
 	@rm build/*.o
 
 build/%.o: src/%.c 
-	$(CC) $< $(CCFLAGS) -c -o $@ 
+	$(CC) $< $(CCFLAGS_PROD) -c -o $@ 
 
 cablegen: $(FILES)
 	$(CC) $(wildcard build/*.o) $(CCFLAGS) -o cablegen

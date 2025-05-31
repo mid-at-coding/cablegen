@@ -23,22 +23,36 @@ Configuration is stored in an INI file and defines many properties of a table
 
 ```
 ; example configuration
-[Cablegen] ; global settings 
-free_formation = false ; whether unmergeable tiles (0xf) are allowed to move
-cores = 1              ; how many cores are used during generation and solving
-nox = 0                ; generate and solve as if merging to this tile will lead to death
+; global settings 
+[Cablegen]
+; whether unmergeable tiles (0xf) are allowed to move
+free_formation = false 
+; how many cores are used during generation and solving
+cores = 1
+; generate and solve as if merging to this tile will lead to death
+nox = 0
 
-[Generate] ; generation specific settings
-dir = ./boards/        : where generated unsolved boards will go, relative to where cablegen is run
-initial = ./initial    ; where the initial boards for generation are
-end = 800              ; the tile sum where generation stops
-premove = false        ; move initial boards before spawning
+; generation specific settings
+[Generate]
+: where generated unsolved boards will go, relative to where cablegen is run
+dir = ./boards/
+initial = ./initial
+; where the initial boards for generation are
+end = 800             
+; the tile sum where generation stops
+premove = false       
+; move initial boards before spawning
 
-[Solve]    ; solving specific settings
-dir = ./tables/        ; where solved boards will go, relative to where cablegen is run
-winstates = ./winstate ; where the winstates for solving are
-end = 14               ; the lowest tile sum, where solving ends
-score = false          ; use score instead of win percentage
+[Solve]   
+; solving specific settings
+dir = ./tables/       
+; where solved boards will go, relative to where cablegen is run
+winstates = ./winstate
+; where the winstates for solving are
+end = 14              
+; the lowest tile sum, where solving ends
+score = false         
+; use score instead of win percentage
 ```
 
 ## Used libraries
