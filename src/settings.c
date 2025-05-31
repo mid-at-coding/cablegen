@@ -100,7 +100,9 @@ static int get_str_setting_section (const char *key, char *section, char** str){
 		ini_free(cfg);
 		return 1;
 	}
-	*str = res;
+	char *rres = malloc_errcheck(strlen(res) + 1);
+	strcpy(rres, res);
+	*str = rres;
 	ini_free(cfg);
 	return 0;
 }

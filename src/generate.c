@@ -83,10 +83,13 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 	void* (*fn)(void*) = move ? generation_thread_move : generation_thread_spawn;
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = (static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp};
-		cores[i].nret = init_darr(0, n->sp - n->bp); // TODO if pushing ends up being a bottleneck change this
-		cores[i].n2 = init_darr(0, n->sp - n->bp);
-		cores[i].n4 = init_darr(0, n->sp - n->bp);
-		cores[i].nox = nox;
+		if(move)
+			cores[i].nret = init_darr(0, n->sp - n->bp); // TODO if pushing ends up being a bottleneck change this
+		else{
+			cores[i].n2 = init_darr(0, n->sp - n->bp);
+			cores[i].n4 = init_darr(0, n->sp - n->bp);
+			cores[i].nox = nox;
+		}
 		// divide up [0,n.size)
 		// cores work in [start,end)
 		int block_size = (n->sp - n->bp) / core_count;
@@ -109,7 +112,7 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	// wait for moves to be done
 	threadpool_wait(pool);
 	destroy_darr(n); // this array currently holds boards where we just spawned -- these are never our responsibility
-	n = malloc_errcheck(sizeof(dynamic_arr_info)); // TODO: whos responsibility is this malloc? caller is also dealing with some memory
+//	n = malloc_errcheck(sizeof(dynamic_arr_info)); // TODO: whos responsibility is this malloc? caller is also dealing with some memory
 	*n = init_darr(0,0);
 	for(size_t i = 0; i < core_count; i++){
 		*n = concat(n, &cores[i].nret);

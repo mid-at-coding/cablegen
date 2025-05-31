@@ -1,5 +1,5 @@
 CC=gcc
-CCFLAGS=-Wall -Og -g -pg -pthread -lm -Wpedantic -Wextra -Wno-unused -Wno-format -fno-strict-aliasing
+CCFLAGS= -static -Wall -Og -g -pg -pthread -lm -Wpedantic -Wextra -Wno-unused -Wno-format -fno-strict-aliasing
 CCFLAGS_PROD=-Wall -O2 -static -pthread -lm -DPROD --static -fno-strict-aliasing -Wno-format
 EXEC_FILE=cablegen
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))
@@ -11,7 +11,7 @@ clean:
 	@rm build/*.o
 
 build/%.o: src/%.c 
-	$(CC) $< $(CCFLAGS_PROD) -c -o $@ 
+	$(CC) $< $(CCFLAGS) -c -o $@ 
 
 cablegen: $(FILES)
 	$(CC) $(wildcard build/*.o) $(CCFLAGS) -o cablegen

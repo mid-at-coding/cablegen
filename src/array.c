@@ -17,7 +17,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	}
 	if(info->sp == info->bp + info->size){
 		// reallocate
-		uint64_t *tmp = info->bp;
+		size_t size = info->sp - info->bp;
 		info->bp = realloc(info->bp, info->size ? (info->size * REALLOC_MULT * sizeof(uint64_t)) : sizeof(uint64_t));
 		if (info->bp == NULL){
 			log_out("Alloc failed! Download more ram!\n", LOG_ERROR_);
@@ -27,7 +27,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 			info->size *= REALLOC_MULT;
 		else
 			info->size = 1;
-		info->sp = info->bp + (info->sp - tmp);
+		info->sp = info->bp + size;
 		res = true;
 	}
 	*(info->sp++) = v;

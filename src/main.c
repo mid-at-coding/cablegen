@@ -22,7 +22,7 @@ static int numPlaces (int n) {
 }
 
 static void help(){
-	log_out("Cablegen v1.1.2 by ember/emelia/cattodoameow", LOG_INFO_);
+	log_out("Cablegen v1.1.3 by ember/emelia/cattodoameow", LOG_INFO_);
 	log_out("Commands:", LOG_INFO_);
 	log_out("help -- this output", LOG_INFO_);
 	log_out("generate (CONFIG) -- generate boards, optionally specifying an alternate config file", LOG_INFO_);
@@ -36,6 +36,7 @@ static void help(){
 }
 
 static void parseGenerate(int argc, char **argv){
+	set_log_level(LOG_INFO_);
 	if(argc < 2){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	if(argc > 2){
 		change_config(argv[2]);
