@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <threads.h>
 #define SORT_NAME uint64
 #define SORT_TYPE uint64_t
