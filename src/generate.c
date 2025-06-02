@@ -5,7 +5,6 @@
 #include <pthread.h>
 #include <string.h>
 #include <fcntl.h>
-#include <unistd.h>
 typedef struct {
 	static_arr_info n; 
 	dynamic_arr_info nret;
@@ -112,7 +111,6 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	// wait for moves to be done
 	threadpool_wait(pool);
 	destroy_darr(n); // this array currently holds boards where we just spawned -- these are never our responsibility
-//	n = malloc_errcheck(sizeof(dynamic_arr_info)); // TODO: whos responsibility is this malloc? caller is also dealing with some memory
 	*n = init_darr(0,0);
 	for(size_t i = 0; i < core_count; i++){
 		*n = concat(n, &cores[i].nret);
@@ -131,6 +129,7 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	deduplicate(n2);
 	deduplicate(n4);
 	threadpool_wait(pool);
+	free(cores);
 }
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, 
 		const unsigned core_count, bool prespawn, char nox, bool free_formation){
@@ -147,10 +146,14 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 	dynamic_arr_info n4 = init_darr(false, DARR_INITIAL_SIZE);
 	for(int i = start; i <= end; i += 2){
 		generate_layer(&n, &n2, &n4, core_count, fmt, i, pool, nox);
+		destroy_darr(&n);
 		n = n2;
 		n2 = n4;
 		n4 = init_darr(false, DARR_INITIAL_SIZE);
 	}
+	destroy_darr(&n);
+	destroy_darr(&n2);
+	destroy_darr(&n4);
 	threadpool_destroy(pool);
 }
 static_arr_info read_boards(const char *dir){

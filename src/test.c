@@ -39,22 +39,26 @@ static bool test_searching(void){
 
 bool test_dynamic_arr(void){
 	bool passed = true;
-	dynamic_arr_info tmp;
+	dynamic_arr_info tmp = {0};
 	log_out("Testing initialization (n = [0,50])\n", LOG_INFO_);
 	for(size_t i = 0; i < 50; i++){
 		tmp = init_darr(false, i);
 		for(size_t j = 0; j < i; j++){
 			tmp.bp[j] = 0; // test that we do really have access to all elements
 		}
-		free(tmp.bp);
+		destroy_darr(&tmp);
 	}
 	log_out("Testing resizing (n = [0,50])\n", LOG_INFO_);
 	for(size_t i = 0; i < 50; i++){
 		tmp = init_darr(false, 0);
 		for(size_t j = 0; j < i; j++){
 			push_back(&tmp, 0);
+			if(tmp.sp - tmp.bp > tmp.size){
+				log_out("Resizing failed!", LOG_ERROR_);
+				passed = false;
+			}
 		}
-		free(tmp.bp);
+		destroy_darr(&tmp);
 	}
 	log_out("Testing concatenation (n,m = [0,50])\n", LOG_INFO_);
 	for(size_t n = 0; n < 50; n++){
@@ -139,7 +143,7 @@ bool test_rots(void){
 	uint64_t board;
 	uint64_t *rots;
 	int sum;
-	const size_t iterations = 100;
+	const size_t iterations = 10000;
 	// test a bunch of "random values"
 	for(size_t i = 0; i < iterations; i++){
 		board = rand();
@@ -158,7 +162,17 @@ bool test_rots(void){
 				}
 				return false;
 			}
+			for(int j = 0; j < 8; j++){
+				if(rots[rot] == rots[j] && j != rot){
+					char *buf = malloc_errcheck(100);
+					snprintf(buf, 100, "%016lx is not a unique symmetry of %016lx! (%d, %d)\n", rots[rot], board, j, rot);
+					log_out(buf, LOG_ERROR_);
+					log_out("Symmetry test failed!", LOG_ERROR_);
+					return false;
+				}
+			}
 		}
+		free(rots);
 	}
 	log_out("No errors reported.", LOG_INFO_);
 	return true;
@@ -167,7 +181,7 @@ bool test_rots(void){
 bool test_misc(){
 	bool res = true;
 	log_out("Testing tile detection", LOG_INFO_);
-	const size_t iterations = 100;
+	const size_t iterations = 10000;
 	for(char x = 0; x <= 0xf; x++){
 		for(size_t i = 0; i < iterations; i++){
 			bool flag = false;

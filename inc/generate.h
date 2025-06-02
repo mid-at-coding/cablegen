@@ -1,7 +1,6 @@
 #ifndef GENERATE_H
 #define GENERATE_H
 #include <stdint.h>
-#include <pthread.h>
 #include "array.h"
 #include "../inc/cthreadpool.h"
 typedef threadpool_t* threadpool;

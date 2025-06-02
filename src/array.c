@@ -38,17 +38,20 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 [[nodiscard]] dynamic_arr_info init_darr(bool zero, size_t size){
 	dynamic_arr_info d;
 	d.valid = true;
+	d.bp = NULL;
+	d.sp = NULL;
+	d.size = 0;
+	int res = mtx_init(&d.mut, mtx_plain);
+	if (res != 0){
+		log_out("Dynamic arr mutex initialization failed", LOG_WARN_);
+		d.valid = false;
+	}
 	if(zero)
 		d.bp = calloc(size, sizeof(uint64_t));
 	else	
 		d.bp = malloc(sizeof(uint64_t) * size);
 	if (d.bp == NULL){
 		log_out("Alloc failed! Download more ram!\n", LOG_ERROR_);
-		d.valid = false;
-	}
-	int res = mtx_init(&d.mut, mtx_plain);
-	if (res != 0){
-		log_out("Dynamic arr mutex initialization failed", LOG_WARN_);
 		d.valid = false;
 	}
 	d.sp = d.bp;
@@ -161,7 +164,7 @@ void deduplicate(dynamic_arr_info *s){
 			push_back(&res, *curr);
 		}
 	}
-	free(s->bp);
+	destroy_darr(s);
 	*s = res;
 	return;
 }
@@ -171,6 +174,7 @@ void deduplicate(dynamic_arr_info *s){
 	if(res == NULL){
 		log_out("Alloc failed!", LOG_ERROR_);
 		exit(ENOMEM);
+		return NULL;
 	}
 	return res;
 }

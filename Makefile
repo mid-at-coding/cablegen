@@ -1,6 +1,8 @@
-CC=x86_64-w64-mingw32-gcc
-CCFLAGS= -static -Wall -Og -g -pg -pthread -lm -Wpedantic -Wextra -Wno-unused -Wno-format -fno-strict-aliasing
-CCFLAGS_PROD=-Wall -O2 -static -pthread -lm -DPROD --static -fno-strict-aliasing -Wno-format
+CC=gcc
+CCFLAGS= -Wall -g -pthread -lm -Wpedantic -Wextra -Wno-unused-parameter \
+		 -Wno-format -fno-strict-aliasing -std=c23 -Wno-unused-command-line-argument \
+		 -Wuninitialized -fsanitize=address
+CCFLAGS_PROD=-Wall -O2 -static -pthread -lm -DPROD --static -fno-strict-aliasing -Wno-format -std=c23 -Wno-unused-parameter -Wno-unused-command-line-argument
 EXEC_FILE=cablegen
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))
 .PHONY: all clean
@@ -11,7 +13,7 @@ clean:
 	@rm build/*.o
 
 build/%.o: src/%.c 
-	$(CC) $< $(CCFLAGS_PROD) -c -o $@ 
+	$(CC) $< $(CCFLAGS) -c -o $@ 
 
 cablegen: $(FILES)
 	$(CC) $(wildcard build/*.o) $(CCFLAGS) -o cablegen
