@@ -56,9 +56,11 @@ static void parseGenerate(int argc, char **argv){
 	}
 	int layer = get_sum(boards.bp[0]);
 	generate(layer, settings.end_gen, fmt, boards.bp, boards.size, settings.cores, settings.premove, settings.nox, settings.free_formation);
+	free(fmt);
 }
 
 static void parseSolve(int argc, char **argv){
+	set_log_level(LOG_INFO_);
 	if(argc < 2){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	if(argc > 2){ 
 		change_config(argv[2]);
@@ -83,6 +85,8 @@ static void parseSolve(int argc, char **argv){
 		printf("No boards in %s!", argv[6]);
 	}
 	solve(settings.end_gen, settings.end_solve, posfmt, table_fmt, &boards, settings.cores, settings.nox, settings.score, settings.free_formation);
+	free(posfmt);
+	free(table_fmt);
 }
 
 static void parseWrite(int argc, char **argv){
@@ -184,7 +188,14 @@ static void parseLookup(int argc, char **argv){ // TODO: this segfaults on bad i
 		output_board(board);
 		SET_TILE(board, i, 0);
 	}
-
+	free(table_fmt);
+	free(tablestr);
+	free(t->key.bp);
+	free(t->value.bp);
+	free(t2->key.bp);
+	free(t2->value.bp);
+	free(t4->key.bp);
+	free(t4->value.bp);
 }
 
 static void parseExplore(int argc, char **argv){
@@ -206,6 +217,7 @@ static void parseRead(int argc, char **argv){
 		if(i + 1 < t.size)
 			printf("----\n");
 	}
+	free(t.bp);
 }
 
 static bool canMove(uint64_t board){

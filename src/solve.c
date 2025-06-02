@@ -16,7 +16,12 @@ typedef struct {
 	static_arr_info *winstates;
 } solve_core_data;
 void write_table(const table *t, const char *filename){
-	printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", t->key.size, filename, 2 * sizeof(uint64_t) * t->key.size);  // lol
+	static bool startup_init = 0;
+	static time_t old = 0;
+	static size_t size = 0;
+	LOGIF(LOG_INFO_){
+		printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", t->key.size, filename, 2 * sizeof(uint64_t) * t->key.size);  // lol
+	}
 	FILE *file = fopen(filename, "wb");
 	if(file == NULL){
 		char *buf = malloc_errcheck(100);
@@ -24,6 +29,20 @@ void write_table(const table *t, const char *filename){
 		log_out(buf, LOG_WARN_);
 		free(buf);
 		return;
+	}
+	if(!startup_init){
+		startup_init = true;
+		old = time(NULL);
+	}
+	else{
+		time_t curr = time(NULL);
+		size_t diff = difftime(curr, old);
+		size += t->key.size;
+		if(diff != 0){
+			old = curr;
+			printf("[INFO] Speed: %ld million boards per second\n", (size / diff) / 1000000);
+			size = 0; 
+		}
 	}
 	if(t->key.size != t->value.size){
 		log_out("Key and value size inequal, refusing to write!", LOG_WARN_);
@@ -120,6 +139,9 @@ void destroy_table(table* t){
 void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *initial_winstates, unsigned cores, char nox, 
 		bool score, bool free_formation){
 	set_log_level(LOG_DBG_);
+#ifdef PROD
+	set_log_level(LOG_INFO_);
+#endif
 	threadpool th = threadpool_t_init(cores);
 	const size_t FILENAME_SIZE = 100;
 	dynamic_arr_info winstates_d = init_darr(0,0);

@@ -2,9 +2,9 @@
 #include "../inc/logging.h"
 #include "../inc/board.h"
 #include <stdio.h>
-#include <pthread.h>
 #include <string.h>
 #include <fcntl.h>
+#include <time.h>
 typedef struct {
 	static_arr_info n; 
 	dynamic_arr_info nret;
@@ -15,10 +15,29 @@ typedef struct {
 	char nox;
 } arguments;
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
+	static time_t old;
+	static bool startup_init = 0;
+	static size_t size = 0;
 	size_t filename_size = strlen(fmt) + 10; // if there are more than 10 digits of layers i'll eat my shoe
 	char* filename = malloc_errcheck(sizeof(char) * filename_size);
 	snprintf(filename, filename_size, fmt, layer);
-	printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", n.size, filename, sizeof(uint64_t) * n.size);  // lol
+	LOGIF(LOG_INFO_){
+		printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", n.size, filename, sizeof(uint64_t) * n.size);  // lol
+	}	
+	if(!startup_init){
+		startup_init = true;
+		old = time(NULL);
+	}
+	else{
+		time_t curr = time(NULL);
+		size_t diff = difftime(curr, old);
+		size += n.size;
+		if(diff != 0){
+			old = curr;
+			printf("[INFO] Speed: %ld thousand boards per second\n", (size / diff) / 1000);
+			size = 0; 
+		}
+	}
 	FILE *file = fopen(filename, "wb");
 	if(file == NULL){
 		char *buf = malloc_errcheck(100);
@@ -134,6 +153,9 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, 
 		const unsigned core_count, bool prespawn, char nox, bool free_formation){
 	set_log_level(LOG_DBG_);
+#ifdef PROD
+	set_log_level(LOG_INFO_);
+#endif
 	// GENERATE: write all sub-boards where it is the computer's move	
 	generate_lut(free_formation);
 	threadpool pool = threadpool_t_init(core_count);
