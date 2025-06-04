@@ -59,13 +59,10 @@ char *strlwr_(char *str) {
 static char cfgdir[MAX_PATH];
 #define MAX_PROP_SIZE 100
 static ini_t* get_cfg(){
-	if(!init){
-		init = true;
-		get_user_config_file(cfgdir, sizeof(cfgdir), "cablegen");
-		if (cfgdir[0] == 0) {
-			log_out("Could not find config directory!", LOG_WARN_);
-			return NULL;
-		}
+	get_user_config_file(cfgdir, sizeof(cfgdir), "cablegen");
+	if (cfgdir[0] == 0) {
+		log_out("Could not find config directory!", LOG_WARN_);
+		return NULL;
 	}
 	log_out("Loading config from: ", LOG_TRACE_);
 	log_out(cfgdir, LOG_TRACE_);

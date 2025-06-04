@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <threads.h>
+#include <time.h>
 typedef struct {
 	char nox;
 	bool score;
@@ -35,14 +36,12 @@ void write_table(const table *t, const char *filename){
 		old = time(NULL);
 	}
 	else{
-		time_t curr = time(NULL);
-		size_t diff = difftime(curr, old);
-		size += t->key.size;
-		if(diff != 0){
-			old = curr;
-			printf("[INFO] Speed: %ld million boards per second\n", (size / diff) / 1000000);
-			size = 0; 
-		}
+		clock_t curr = clock();
+		size_t diff = curr - old;
+		old = curr;
+		printf("[INFO] Speed: %ld thousand boards per second\n", (long)((double)size / (double)((diff * 1000) / (double)CLOCKS_PER_SEC)));
+		old = curr;
+		size = 0; 
 	}
 	if(t->key.size != t->value.size){
 		log_out("Key and value size inequal, refusing to write!", LOG_WARN_);
@@ -91,9 +90,9 @@ double lookup(uint64_t key, table *t, bool canonicalize){
 	// binary search for the index of the key
 	if(canonicalize)
 		canonicalize_b(&key);
-	const static int SEARCH_STOP = 50;
+	static const int SEARCH_STOP = 50;
 	int current_depth = 0;	
-	int max_depth = (log(t->key.size) / log(2)) + 1; // add an extra iteration for safety
+//	int max_depth = (log(t->key.size) / log(2)) + 1; // add an extra iteration for safety
 	size_t top = t->key.size;
 	size_t bottom = 0;
 	size_t midpoint = (top + bottom) / 2;
@@ -102,7 +101,11 @@ double lookup(uint64_t key, table *t, bool canonicalize){
 			printf("Current midpoint: %ld, %016lx(%ld)\n", midpoint, t->key.bp[midpoint], t->key.bp[midpoint]);
 		}
 		if(top - bottom < SEARCH_STOP){
-			for(int i = bottom; i < top; i++){
+			log_out("Switching to linear search", LOG_TRACE_);
+			for(size_t i = bottom; i <= top; i++){
+				LOGIF(LOG_TRACE_){
+					printf("Current board: %ld, %016lx(%ld)\n", i, t->key.bp[i], t->key.bp[i]);
+				}
 				if(t->key.bp[i] == key){
 					log_out("Found board!", LOG_TRACE_);
 					// return value as a double
@@ -112,9 +115,6 @@ double lookup(uint64_t key, table *t, bool canonicalize){
 			log_out("Couldn't find board!", LOG_WARN_);
 			LOGIF(LOG_WARN_){
 				printf("board: %016lx\n", key);
-			}
-			LOGIF(LOG_TRACE_){
-				printf("Current midpoint: %ld, %016lx(%ld)\n", midpoint, t->key.bp[midpoint], t->key.bp[midpoint]);
 			}
 			return 0.0;
 		}
@@ -133,6 +133,8 @@ double lookup(uint64_t key, table *t, bool canonicalize){
 		midpoint = (top + bottom) / 2;
 		current_depth++;
 	}
+	// return value as a double
+	return *(double*)(&(t->value.bp[midpoint]));
 }
 
 void destroy_table(table* t){

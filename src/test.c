@@ -5,13 +5,6 @@
 #include <stdio.h>
 #include <string.h>
 
-static int tp_test_v = 0;
-
-static void* tp_test_w(void* v){
-	tp_test_v = (intptr_t)v;
-	return NULL;
-}
-
 static bool test_searching(void){
 	const size_t test_size = 100;
 	log_out("Testing searching", LOG_INFO_);

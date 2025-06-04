@@ -32,7 +32,9 @@ void write_boards(const static_arr_info n, const char* fmt, const int layer){
 		clock_t curr = clock();
 		size_t diff = curr - old;
 		old = curr;
-		printf("[INFO] Speed: %ld thousand boards per second\n", (long int)(n.size / (1000.0f * diff / CLOCKS_PER_SEC)));
+		LOGIF(LOG_INFO_){
+			printf("[INFO] Speed: %ld thousand boards per second\n", (long int)(n.size / (1000.0f * diff / CLOCKS_PER_SEC)));
+		}
 	}
 	FILE *file = fopen(filename, "wb");
 	if(file == NULL){

@@ -13,6 +13,7 @@
 #include "../inc/settings.h"
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 
 
 static int numPlaces (int n) {
@@ -284,6 +285,21 @@ static void parsePlay(int argc, char **argv){
 	while (true);
 }
 
+void benchmark(){
+	log_out("Benchmarking single-threaded generation (LL-128)", LOG_INFO_);
+	dynamic_arr_info initial_arr = init_darr(0,1);
+	push_back(&initial_arr, 0x1000000032ff23ff);
+	clock_t curr = clock();
+	generate(26, 150, "/tmp/cablegen/%d.boards", initial_arr.bp, 1, 1, false, false, false);
+	printf("Single-threaded LL-128: %ld seconds\n", (clock() - curr) / CLOCKS_PER_SEC);
+	log_out("Benchmarking multi-threaded generation (LL-128)", LOG_INFO_);
+	initial_arr = init_darr(0,1);
+	push_back(&initial_arr, 0x1000000032ff23ff);
+	curr = clock();
+	generate(26, 150, "/tmp/cablegen/%d.boards", initial_arr.bp, 1, get_settings().cores, false, false, false);
+	printf("Multi-threaded LL-128: %ld seconds\n", (clock() - curr) / CLOCKS_PER_SEC);
+}
+
 int main(int argc, char **argv){
 	// parse arguments
 	if(argc > 1){
@@ -296,6 +312,7 @@ int main(int argc, char **argv){
 		else if(!strcmp(strlwr_(argv[1]), "lookup")) {parseLookup(argc, argv);}
 		else if(!strcmp(strlwr_(argv[1]), "explore")) {parseExplore(argc, argv);}
 		else if(!strcmp(strlwr_(argv[1]), "play")) {parsePlay(argc, argv);}
+		else if(!strcmp(strlwr_(argv[1]), "benchmark")) {benchmark();}
 		else{
 			log_out("Unrecognized command!", LOG_WARN_);
 			help();
