@@ -1,8 +1,11 @@
 #include "../inc/array.h"
 #include "../inc/logging.h"
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <threads.h>
 #define SORT_NAME uint64
 #define SORT_TYPE uint64_t
@@ -100,23 +103,24 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	return (static_arr_info){.valid = true, .bp = new_bp, .size = new_size};
 }
 [[nodiscard]] dynamic_arr_info concat(dynamic_arr_info * restrict arr1, dynamic_arr_info * restrict arr2){
-	static_arr_info arr1_shrink = shrink_darr(arr1);
-	static_arr_info arr2_shrink = shrink_darr(arr2);
 	arr1->valid = arr2->valid = false;
 	dynamic_arr_info arr1_dynamic = {
 		.valid = true,
-		.bp   = ((arr1_shrink.bp == NULL) ? init_darr(0,false).bp : arr1_shrink.bp ),
-		.sp   = arr1_shrink.bp + arr1_shrink.size, 
-		.size = arr1_shrink.size
+		.bp   = NULL,
+		.sp   = NULL,
+		.size = (arr1->sp - arr1->bp) + (arr2->sp - arr2->bp)
 	};
+	arr1_dynamic.bp = malloc_errcheck(arr1_dynamic.size * sizeof(uint64_t));
+	arr1_dynamic.sp = arr1_dynamic.bp + arr1_dynamic.size;
 	int res = mtx_init(&arr1_dynamic.mut, mtx_plain);
 	if(res != 0){
 		log_out("Mutex initialization failed in concat(...)\n", LOG_ERROR_);
 		arr1_dynamic.valid = false;
 	}
-	for(size_t i = 0; i < arr2_shrink.size; i++)
-		push_back(&arr1_dynamic, arr2_shrink.bp[i]); // TODO memcpy if this is taking up too much time
-	free(arr2_shrink.bp);
+	memcpy(arr1_dynamic.bp, arr1->bp, (arr1->sp - arr1->bp) * sizeof(uint64_t));
+	memcpy(arr1_dynamic.bp + (arr1->sp - arr1->bp), arr2->bp, (arr2->sp - arr2->bp) * sizeof(uint64_t));
+	free(arr1->bp);
+	free(arr2->bp);
 	return arr1_dynamic;
 }
 [[nodiscard]] dynamic_arr_info concat_unique(dynamic_arr_info * restrict arr1, dynamic_arr_info * restrict arr2){
@@ -150,22 +154,82 @@ static int compare(const void *a, const void *b){
     return (((*(uint64_t*)a) > (*(uint64_t*)b))) - (((*(uint64_t*)a) < (*(uint64_t*)b)));
 }
 
-void deduplicate(dynamic_arr_info *s){
+struct qsort_args {
+	uint64_t* bp;
+	size_t size;
+	size_t index;
+};
+
+static void* qsort_wt(void *args){
+	struct qsort_args *qargs = args;
+	uint64_quick_sort(qargs->bp, qargs->size);
+	return NULL;
+}
+
+void deduplicate(dynamic_arr_info *s, size_t core_count, threadpool_t* pool){
     if(s->sp == s->bp || s-> sp == s->bp + 1){
 		log_out("Can't sort one value!\n", LOG_WARN_);
 		return;
 	}
-    dynamic_arr_info res = init_darr(0, 0.7 * (s->sp - s->bp)); // assume it's around 30% dupes
-//	qsort(s->bp, s->sp - s->bp, sizeof(uint64_t), compare);
-	uint64_quick_sort(s->bp, s->sp - s->bp);
-	push_back(&res, *s->bp);
-	for(uint64_t *curr = s->bp + 1; curr < s->sp; curr++){
+	size_t size = s->sp - s->bp;
+	size_t block_size = size / core_count;
+	LOGIF(LOG_TRACE_){
+		printf("Block size: %lu\n", block_size);
+	}
+    dynamic_arr_info res = init_darr(0, 0.7 * size); // assume it's around 30% dupes
+    static_arr_info tmp = init_sarr(0, size);
+	struct qsort_args *args = malloc_errcheck(sizeof(struct qsort_args) * core_count);
+	for(size_t i = 0; i < core_count; i++){
+		args[i].bp = s->bp + (i * block_size);
+		args[i].size = block_size;
+		args[i].index = 0;
+		if(i + 1 == core_count){
+			args[i].size = s->sp - args[i].bp;
+		}
+		LOGIF(LOG_TRACE_){
+			printf("Core: %lu\nStart: %lu\nEnd: %lu\nSize: %lu(actual %lu)\n", i, args[i].bp - s->bp, (args[i].bp - s->bp) + args[i].size, 
+					block_size, args[i].size);
+		}
+		threadpool_add_work(pool, qsort_wt, args + i);
+	}
+	threadpool_wait(pool);
+	LOGIF(LOG_TRACE_){
+	printf("Arr after sorting\n");
+	for(size_t i = 0; i < size; i++){
+		printf("%p : %lu\n", s->bp + i, *(s->bp + i));
+	}
+	}
+	// merge
+	for(size_t i = 0; i < size; i++){
+		uint64_t curr = UINT64_MAX;
+		size_t index_min = 0;
+		for(size_t core = 0; core < core_count; core++){
+			if(args[core].index == args[core].size)
+				continue;
+			if(args[core].bp[args[core].index] < curr){
+				curr = args[core].bp[args[core].index];
+				index_min = core;
+			}
+		}
+		args[index_min].index++;
+		tmp.bp[i] = curr;
+	}
+	LOGIF(LOG_TRACE_){
+	printf("Arr after merging\n");
+	for(size_t i = 0; i < size; i++){
+		printf("%p : %lu\n", tmp.bp + i, *(tmp.bp + i));
+	}
+	}
+	free(args);
+	destroy_darr(s);
+	push_back(&res, *tmp.bp);
+	for(uint64_t *curr = tmp.bp + 1; curr < tmp.size + tmp.bp; curr++){
 		if(*curr != *(curr - 1)){
 			push_back(&res, *curr);
 		}
 	}
-	destroy_darr(s);
 	*s = res;
+	free(tmp.bp);
 	return;
 }
 

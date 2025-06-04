@@ -1,8 +1,8 @@
-CC=clang
-CCFLAGS= -Wall -g -pg -pthread -lm -Wpedantic -Wextra -Wno-unused-parameter \
+CC=gcc
+CCFLAGS= -Wall -g -O2 -pg -pthread -lm -lc -Wpedantic -Wextra -Wno-unused-parameter \
 		 -Wno-format -fno-strict-aliasing -std=c23 -Wno-unused-command-line-argument \
-		 -Wuninitialized
-CCFLAGS_PROD=-Wall -O3 -static -pthread -lm -DPROD --static -fno-strict-aliasing -Wno-format \
+		 -Wuninitialized -fsanitize=address
+CCFLAGS_PROD=-Wall -O2 -static -pthread -lm -lc -DPROD --static -fno-strict-aliasing -Wno-format \
 			  -std=c23 -Wno-unused-parameter -Wno-unused-command-line-argument -Wno-unused-function
 EXEC_FILE=cablegen
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))
@@ -20,4 +20,4 @@ cablegen: $(FILES)
 	$(CC) $(wildcard build/*.o) $(CCFLAGS) -o cablegen
 
 cablegen_prod: $(FILES)
-	$(CC) $(wildcard build/*.o) $(CCFLAGS_PROD) -o cablegen_prod
+	$(CC) $(wildcard build/*.o) $(CCFLAGS_PROD) -o cablegen

@@ -2,10 +2,37 @@
 #include "../inc/solve.h"
 #include "../inc/logging.h"
 #include "../inc/board.h"
-#include "../inc/main.h"
-#include "../inc/settings.h"
 #include <stdio.h>
 #include <string.h>
+
+static int tp_test_v = 0;
+
+static void* tp_test_w(void* v){
+	tp_test_v = (intptr_t)v;
+	return NULL;
+}
+
+static bool test_threadpool(void){
+	return false;
+	bool passed = true;
+	const size_t iterations = 1000;
+	log_out("Testing threadpool", LOG_INFO_);
+	for(int i = 1; i < 5; i++){
+		threadpool_t *thpool = threadpool_t_init(i);
+		for(size_t iteration = 0; iteration <= iterations; iteration++){
+			tp_test_v = -1;
+			for(intptr_t core = 0; core < i; core++){
+				threadpool_add_work(thpool, tp_test_w, (void*)core);
+			}
+			threadpool_wait(thpool);
+			if(tp_test_v == -1){
+				log_out("Failed!", LOG_ERROR_);
+				passed = false;
+			}
+		}
+	}
+	return passed;
+}
 
 static bool test_searching(void){
 	const size_t test_size = 100;
@@ -30,10 +57,14 @@ static bool test_searching(void){
 		}
 		if(lookup((uint64_t)i, &t, false) != (double)(test_size - i - 1)){
 			log_out("Search test failed!", LOG_ERROR_);
+			free(t.key.bp);
+			free(t.value.bp);
 			return false;
 		}
 	}
 	log_out("Search test passed", LOG_INFO_);
+	free(t.key.bp);
+	free(t.value.bp);
 	return true;
 }
 
@@ -53,7 +84,7 @@ bool test_dynamic_arr(void){
 		tmp = init_darr(false, 0);
 		for(size_t j = 0; j < i; j++){
 			push_back(&tmp, 0);
-			if(tmp.sp - tmp.bp > tmp.size){
+			if((size_t)(tmp.sp - tmp.bp) > tmp.size){
 				log_out("Resizing failed!", LOG_ERROR_);
 				passed = false;
 			}
@@ -65,6 +96,9 @@ bool test_dynamic_arr(void){
 		for(size_t m = 0; m < 50; m++){
 			dynamic_arr_info tmpn = init_darr(false, n);
 			dynamic_arr_info tmpm = init_darr(false, m);
+			LOGIF(LOG_TRACE_){
+				printf("Testing n: %ld, m: %ld\n", n, m);
+			}
 			for(size_t i = 0; i < n; i++){
 				push_back(&tmpn, i);
 			}
@@ -72,6 +106,9 @@ bool test_dynamic_arr(void){
 				push_back(&tmpm, i);
 			}
 			dynamic_arr_info nm = concat(&tmpn, &tmpm);
+			LOGIF(LOG_TRACE_){
+				printf("n.size = %ld, m.size = %ld, nm.size = %ld\n", tmpn.sp - tmpn.bp, tmpm.sp - tmpm.bp, nm.sp - nm.bp);
+			}
 			if((size_t)(nm.sp - nm.bp) != n + m){
 				char *buf = malloc(100);
 				snprintf(buf, 100, "Concatenation test failed! n: %zu, m: %zu\n", n, m);
@@ -117,6 +154,7 @@ void test_generation(){
 }
 
 bool test_dedupe(){
+	set_log_level(LOG_INFO_);
     log_out("Testing deduplication with artificial data.\n", LOG_INFO_);
 	dynamic_arr_info d = init_darr(false, 0);
 	push_back(&d, 2);
@@ -125,16 +163,26 @@ bool test_dedupe(){
 	push_back(&d, 5);
 	push_back(&d, 4);
 	push_back(&d, 5);
-	deduplicate(&d);
-	for(uint64_t *a = d.bp; a < d.sp; a++){
-		for(uint64_t *b = d.bp; b < d.sp; b++){
-			if(*a == *b && a != b){
-			    log_out("Failed!", LOG_ERROR_);
-				return false;
+	for(int i = 1; i < 5; i++){
+		threadpool_t *t = threadpool_t_init(i);
+		deduplicate(&d, i, t);
+		threadpool_wait(t);
+		threadpool_wait(t);
+		threadpool_wait(t);
+		for(uint64_t *a = d.bp; a < d.sp; a++){
+			for(uint64_t *b = d.bp; b < d.sp; b++){
+				if(*a == *b && a != b){
+					log_out("Failed!", LOG_ERROR_);
+					set_log_level(LOG_INFO_);
+					return false;
+				}
 			}
 		}
+		threadpool_destroy(t);
 	}
 	log_out("No error reported.", LOG_INFO_);
+	set_log_level(LOG_INFO_);
+	destroy_darr(&d);
 	return true;
 }
 
@@ -160,6 +208,7 @@ bool test_rots(void){
 					for(int j = 0; j < 8; j++)
 						printf("[TRACE] %d : %016lx\n", j, rots[j]);
 				}
+				free(buf);
 				return false;
 			}
 			for(int j = 0; j < 8; j++){
@@ -168,6 +217,23 @@ bool test_rots(void){
 					snprintf(buf, 100, "%016lx is not a unique symmetry of %016lx! (%d, %d)\n", rots[rot], board, j, rot);
 					log_out(buf, LOG_ERROR_);
 					log_out("Symmetry test failed!", LOG_ERROR_);
+					free(buf);
+					return false;
+				}
+			}
+		}
+		free(rots);
+	}
+	log_out("Testing canonicalization", LOG_INFO_);
+	for(size_t i = 0; i < iterations; i++){
+		board = rand();
+		rots = get_all_rots(board);
+		for(int rot = 0; rot < 8; rot++)
+			canonicalize_b(rots + rot);
+		for(int a = 0; a < 8; a++){
+			for(int b = 0; b < 8; b++){
+				if(rots[a] != rots[b]){
+					log_out("Failed!", LOG_ERROR_);
 					return false;
 				}
 			}
@@ -207,11 +273,17 @@ bool test(){
 	set_log_level(LOG_DBG_);
 	bool passed = true;
 	generate_lut(true);
+	passed &= test_threadpool();
 	passed &= test_dynamic_arr();
 	passed &= test_searching();
 	passed &= test_dedupe();
 	passed &= test_rots();
 	passed &= test_misc();
 	test_generation();
+	if(!passed){
+		log_out("One or more tests failed!", LOG_ERROR_);
+	}
+	else
+		log_out("All tests passed!", LOG_INFO_);
 	return passed;
 }

@@ -1,5 +1,7 @@
 #include "../inc/board.h"
 #include "../inc/array.h"
+#include <stdint.h>
+#include <sys/param.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -118,6 +120,7 @@ void generate_lut(bool free_formation){
 	_move_lut[left][0xFFFF] = 0xFFFF;
 	_move_lut[right][0xFFFF] = 0xFFFF;
 	free(a.bp);
+	free(b.bp);
 }
 
 bool movedir_hori(uint64_t* board, dir direction){
@@ -212,12 +215,24 @@ static uint64_t max(uint64_t a, uint64_t b){
 }
 
 void canonicalize_b(uint64_t* board){ // turn a board into it's canonical version
-	uint64_t *rots = get_all_rots(*board);
-	for(int i = 0; i < 8; i++){
-		if(rots[i] > *board)
-			*board = rots[i];
-	}
-	free(rots);
+	uint64_t b = *board;
+	uint64_t max = b;
+	rotate_clockwise(&b);
+	max = MAX(max, b);
+	rotate_clockwise(&b);
+	max = MAX(max, b);
+	rotate_clockwise(&b);
+	max = MAX(max, b);
+	rotate_clockwise(&b);
+	flip(&b);
+	max = MAX(max, b);
+	rotate_clockwise(&b);
+	max = MAX(max, b);
+	rotate_clockwise(&b);
+	max = MAX(max, b);
+	rotate_clockwise(&b);
+	max = MAX(max, b);
+	*board = max;
 }
 
 int get_sum(uint64_t b){

@@ -172,7 +172,7 @@ static void parseLookup(int argc, char **argv){ // TODO: this segfaults on bad i
 	read_table(t4, tablestr);
 
 
-	printf("Board(%lf):\n", res);
+	printf("Board(%0.10lf):\n", res);
 	output_board(board);
 	printf("Spawns:\n");
 	for(int i = 0; i < 16; i++){
@@ -180,11 +180,11 @@ static void parseLookup(int argc, char **argv){ // TODO: this segfaults on bad i
 			continue;
 		SET_TILE(board, i, 1);
 		struct dirprob pb = best(board, t2);
-		printf("Best move: %s (%lf)\n", dirtos(pb.d), pb.prob);
+		printf("Best move: %s (%.10lf)\n", dirtos(pb.d), pb.prob);
 		output_board(board);
 		SET_TILE(board, i, 2);
 		pb = best(board, t4);
-		printf("Best move: %s (%lf)\n", dirtos(pb.d), pb.prob);
+		printf("Best move: %s (%.10lf)\n", dirtos(pb.d), pb.prob);
 		output_board(board);
 		SET_TILE(board, i, 0);
 	}
@@ -203,7 +203,7 @@ static void parseExplore(int argc, char **argv){
 	table *t = malloc_errcheck(sizeof(table));
 	read_table(t, argv[2]);
 	for(size_t i = 0; i < t->key.size; i++){
-		printf("Board(%lf):\n", *(double*)(t->value.bp + i));
+		printf("Board(%0.10lf):\n", *(double*)(t->value.bp + i));
 		output_board(t->key.bp[i]);
 	}
 }

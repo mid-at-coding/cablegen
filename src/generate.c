@@ -15,9 +15,8 @@ typedef struct {
 	char nox;
 } arguments;
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
-	static time_t old;
+	static clock_t old;
 	static bool startup_init = 0;
-	static size_t size = 0;
 	size_t filename_size = strlen(fmt) + 10; // if there are more than 10 digits of layers i'll eat my shoe
 	char* filename = malloc_errcheck(sizeof(char) * filename_size);
 	snprintf(filename, filename_size, fmt, layer);
@@ -26,17 +25,13 @@ void write_boards(const static_arr_info n, const char* fmt, const int layer){
 	}	
 	if(!startup_init){
 		startup_init = true;
-		old = time(NULL);
+		old = clock();
 	}
 	else{
-		time_t curr = time(NULL);
-		size_t diff = difftime(curr, old);
-		size += n.size;
-		if(diff != 0){
-			old = curr;
-			printf("[INFO] Speed: %ld thousand boards per second\n", (size / diff) / 1000);
-			size = 0; 
-		}
+		clock_t curr = clock();
+		size_t diff = curr - old;
+		old = curr;
+		printf("[INFO] Speed: %ld thousand boards per second\n", (long int)(n.size / (1000.0f * diff / CLOCKS_PER_SEC)));
 	}
 	FILE *file = fopen(filename, "wb");
 	if(file == NULL){
@@ -44,10 +39,12 @@ void write_boards(const static_arr_info n, const char* fmt, const int layer){
 		snprintf(buf, 100, "Couldn't write to %s!\n", filename);
 		log_out(buf, LOG_WARN_);
 		free(buf);
+		free(filename);
 		return;
 	}
 	fwrite(n.bp, n.size, sizeof(uint64_t), file);
 	fclose(file);
+	free(filename);
 }
 
 bool checkx(uint64_t board, char x){
@@ -102,10 +99,10 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = (static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp};
 		if(move)
-			cores[i].nret = init_darr(0, n->sp - n->bp); // TODO if pushing ends up being a bottleneck change this
+			cores[i].nret = init_darr(0, 2 * (n->sp - n->bp));
 		else{
-			cores[i].n2 = init_darr(0, n->sp - n->bp);
-			cores[i].n4 = init_darr(0, n->sp - n->bp);
+			cores[i].n2 = init_darr(0, 2 * (n->sp - n->bp));
+			cores[i].n4 = init_darr(0, 2 * (n->sp - n->bp));
 			cores[i].nox = nox;
 		}
 		// divide up [0,n.size)
@@ -134,7 +131,7 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	for(size_t i = 0; i < core_count; i++){
 		*n = concat(n, &cores[i].nret);
 	}
-	deduplicate(n);
+	deduplicate(n, core_count, pool);
 	// spawn
 	init_threads(n, core_count, false, pool, cores, nox);
 	// write while waiting for spawns
@@ -145,8 +142,8 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 		*n2 = concat(n2, &cores[i].n2);
 		*n4 = concat(n4, &cores[i].n4);
 	}
-	deduplicate(n2);
-	deduplicate(n4);
+	deduplicate(n2, core_count, pool);
+	deduplicate(n4, core_count, pool);
 	threadpool_wait(pool);
 	free(cores);
 }
@@ -161,6 +158,7 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 	threadpool pool = threadpool_t_init(core_count);
 	static const size_t DARR_INITIAL_SIZE = 100;
 	dynamic_arr_info n  = init_darr(false, 0);
+	free(n.bp);
 	n.bp = initial;
 	n.size = initial_len;
 	n.sp = n.size + n.bp;
