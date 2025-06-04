@@ -12,28 +12,6 @@ static void* tp_test_w(void* v){
 	return NULL;
 }
 
-static bool test_threadpool(void){
-	return false;
-	bool passed = true;
-	const size_t iterations = 1000;
-	log_out("Testing threadpool", LOG_INFO_);
-	for(int i = 1; i < 5; i++){
-		threadpool_t *thpool = threadpool_t_init(i);
-		for(size_t iteration = 0; iteration <= iterations; iteration++){
-			tp_test_v = -1;
-			for(intptr_t core = 0; core < i; core++){
-				threadpool_add_work(thpool, tp_test_w, (void*)core);
-			}
-			threadpool_wait(thpool);
-			if(tp_test_v == -1){
-				log_out("Failed!", LOG_ERROR_);
-				passed = false;
-			}
-		}
-	}
-	return passed;
-}
-
 static bool test_searching(void){
 	const size_t test_size = 100;
 	log_out("Testing searching", LOG_INFO_);
@@ -164,11 +142,7 @@ bool test_dedupe(){
 	push_back(&d, 4);
 	push_back(&d, 5);
 	for(int i = 1; i < 5; i++){
-		threadpool_t *t = threadpool_t_init(i);
-		deduplicate(&d, i, t);
-		threadpool_wait(t);
-		threadpool_wait(t);
-		threadpool_wait(t);
+		deduplicate(&d, i);
 		for(uint64_t *a = d.bp; a < d.sp; a++){
 			for(uint64_t *b = d.bp; b < d.sp; b++){
 				if(*a == *b && a != b){
@@ -178,7 +152,6 @@ bool test_dedupe(){
 				}
 			}
 		}
-		threadpool_destroy(t);
 	}
 	log_out("No error reported.", LOG_INFO_);
 	set_log_level(LOG_INFO_);
@@ -273,7 +246,6 @@ bool test(){
 	set_log_level(LOG_DBG_);
 	bool passed = true;
 	generate_lut(true);
-	passed &= test_threadpool();
 	passed &= test_dynamic_arr();
 	passed &= test_searching();
 	passed &= test_dedupe();

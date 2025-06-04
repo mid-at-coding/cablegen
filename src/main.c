@@ -33,6 +33,7 @@ static void help(){
 	log_out("lookup [BOARD] (TDIR) -- look a board up, optionally specifying an alternate directory to look in", LOG_INFO_);
 	log_out("explore [TABLE] -- show all the solved boards in TABLE", LOG_INFO_);
 	log_out("play [BOARD] (TDIR) -- simulate an optimal game of BOARD with random spawns", LOG_INFO_);
+	log_out("benchmark -- benchmark cablegen", LOG_INFO_);
 }
 
 static void parseGenerate(int argc, char **argv){

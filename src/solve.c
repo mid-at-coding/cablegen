@@ -2,9 +2,9 @@
 #include "../inc/logging.h"
 #include "../inc/board.h"
 #include "../inc/generate.h"
-#include "../inc/settings.h"
 #include <math.h>
 #include <stdio.h>
+#include <threads.h>
 typedef struct {
 	char nox;
 	bool score;
@@ -91,6 +91,7 @@ double lookup(uint64_t key, table *t, bool canonicalize){
 	// binary search for the index of the key
 	if(canonicalize)
 		canonicalize_b(&key);
+	const static int SEARCH_STOP = 50;
 	int current_depth = 0;	
 	int max_depth = (log(t->key.size) / log(2)) + 1; // add an extra iteration for safety
 	size_t top = t->key.size;
@@ -100,7 +101,14 @@ double lookup(uint64_t key, table *t, bool canonicalize){
 		LOGIF(LOG_TRACE_){
 			printf("Current midpoint: %ld, %016lx(%ld)\n", midpoint, t->key.bp[midpoint], t->key.bp[midpoint]);
 		}
-		if(current_depth > max_depth){
+		if(top - bottom < SEARCH_STOP){
+			for(int i = bottom; i < top; i++){
+				if(t->key.bp[i] == key){
+					log_out("Found board!", LOG_TRACE_);
+					// return value as a double
+					return *(double*)(&(t->value.bp[i]));
+				}
+			}
 			log_out("Couldn't find board!", LOG_WARN_);
 			LOGIF(LOG_WARN_){
 				printf("board: %016lx\n", key);
@@ -125,9 +133,6 @@ double lookup(uint64_t key, table *t, bool canonicalize){
 		midpoint = (top + bottom) / 2;
 		current_depth++;
 	}
-	log_out("Found board!", LOG_TRACE_);
-	// return value as a double
-	return *(double*)(&(t->value.bp[midpoint]));
 }
 
 void destroy_table(table* t){
@@ -142,7 +147,6 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 #ifdef PROD
 	set_log_level(LOG_INFO_);
 #endif
-	threadpool th = threadpool_t_init(cores);
 	const size_t FILENAME_SIZE = 100;
 	dynamic_arr_info winstates_d = init_darr(0,0);
 	generate_lut(free_formation); // if we don't gen a lut we can't move
@@ -172,7 +176,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 		snprintf(filename, FILENAME_SIZE, posfmt, i);
 		n->key = read_boards(filename);
 		n->value = init_sarr(0,n->key.size);
-		solve_layer(n4, n2, n, &winstates, cores, th, nox, score);
+		solve_layer(n4, n2, n, &winstates, cores, nox, score);
 		snprintf(filename, FILENAME_SIZE, tablefmt, i);
 		write_table(n, filename);
 		// cycle the tables -- n goes down by two so n2 will be our freshly solved n, n4 our read n2, and n will be reset next loop
@@ -250,7 +254,7 @@ double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstat
 	return res;
 }
 
-void* solve_worker_thread(void *args){
+int solve_worker_thread(void *args){
 	solve_core_data *sargs = args;
 	for(size_t curr = sargs->start; curr < sargs->end; curr++){
 		double prob = 0;
@@ -262,11 +266,12 @@ void* solve_worker_thread(void *args){
 			prob = expectimax(sargs->n->key.bp[curr], sargs->n2, sargs->n4, sargs->winstates, sargs->nox, sargs->score); // we should not be moving -- we're reading moves
 		sargs->n->value.bp[curr] = *((uint64_t*)(&prob));
 	}
-	return NULL;
+	return 0;
 }
 
-void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, threadpool pool, char nox, bool score){
+void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, char nox, bool score){
 	solve_core_data *cores = malloc_errcheck(sizeof(solve_core_data) * core_count);
+	thrd_t *threads = malloc_errcheck(sizeof(thrd_t) * core_count);
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = n;
 		cores[i].n2 = n2;
@@ -284,8 +289,10 @@ void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, uns
 		if(i + 1 == core_count){
 			cores[i].end = n->key.size;
 		}
-		threadpool_add_work(pool, solve_worker_thread, (void*)(cores + i));
+		thrd_create(threads + i, solve_worker_thread, (void*)(cores + i));
 	}
-	threadpool_wait(pool);
+	for(unsigned i = 0; i < core_count; i++)
+		thrd_join(threads[i], NULL);
+	free(threads);
 	free(cores);
 }

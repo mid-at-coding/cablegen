@@ -98,12 +98,14 @@ static int get_str_setting_section (const char *key, char *section, char** str){
 		log_out("Could not find property!", LOG_WARN_);
 		log_out(key, LOG_WARN_);
 		ini_free(cfg);
+		free(res);
 		return 1;
 	}
 	char *rres = malloc_errcheck(strlen(res) + 1);
 	strcpy(rres, res);
 	*str = rres;
 	ini_free(cfg);
+	free(res);
 	return 0;
 }
 static int get_bool_setting(const char *key, bool *data){
@@ -114,6 +116,7 @@ static int get_bool_setting(const char *key, bool *data){
 	}
 	strlwr_(str);
 	*data = !strcmp(str, "true");
+	free(str);
 	return 0;
 }
 static int get_int_setting (const char *key, long long *data){
@@ -123,6 +126,7 @@ static int get_int_setting (const char *key, long long *data){
 		return e;
 	}
 	*data = atoll(str);
+	free(str);
 	return 0;
 }
 
@@ -134,6 +138,7 @@ static int get_bool_setting_section(const char *key, char *section, bool *data){
 	}
 	strlwr_(str);
 	*data = !strcmp(str, "true");
+	free(str);
 	return 0;
 }
 static int get_int_setting_section (const char *key, char *section, long long *data){
@@ -143,5 +148,6 @@ static int get_int_setting_section (const char *key, char *section, long long *d
 		return e;
 	}
 	*data = atoll(str);
+	free(str);
 	return 0;
 }
