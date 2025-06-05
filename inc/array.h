@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include "cthreadpool.h"
 #include <threads.h>
 #include <sys/types.h>
 #define REALLOC_MULT 2
@@ -29,7 +30,7 @@ typedef struct{
 void destroy_darr(dynamic_arr_info* arr); // frees and invalidates array
 void destroy_sarr(static_arr_info* arr); // frees and invalidates array
 bool push_back(dynamic_arr_info*, uint64_t); // returns whether a resize happened
-void deduplicate(dynamic_arr_info*, size_t core_count);
+void deduplicate(dynamic_arr_info*, size_t core_count, threadpool_t* pool);
 dynamic_arr_info sarrtodarr(static_arr_info*);
 void destroy_darr(dynamic_arr_info* arr);
 void destroy_sarr(static_arr_info* arr);

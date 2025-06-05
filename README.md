@@ -55,6 +55,13 @@ score = false
 ; use score instead of win percentage
 ```
 
+## Note
+
+A large part of this program structure and concepts are inspired by xp's [2048-trainer](https://github.com/1h0si/2048-trainer) and aminos'
+[2048EndgameTablebase](https://github.com/game-difficulty/2048EndgameTablebase), along with its predecessor. Another similar program is 
+[2048-tables](https://github.com/CubeyTheCube/2048-tables/tree/main) by cubey. Of these three, only 2048EndgameTablebase is in active
+development, and as of right now, is more robust than cablegen.
+
 ## Used libraries
 
 [cthreadpool](https://github.com/neo2043/cthreadpool) -- MIT License

@@ -135,7 +135,8 @@ bool test_dedupe(){
 	push_back(&d, 4);
 	push_back(&d, 5);
 	for(int i = 1; i < 5; i++){
-		deduplicate(&d, i);
+		threadpool_t *th = threadpool_t_init(i);
+		deduplicate(&d, i, th);
 		for(uint64_t *a = d.bp; a < d.sp; a++){
 			for(uint64_t *b = d.bp; b < d.sp; b++){
 				if(*a == *b && a != b){
@@ -145,6 +146,7 @@ bool test_dedupe(){
 				}
 			}
 		}
+		threadpool_destroy(th);
 	}
 	log_out("No error reported.", LOG_INFO_);
 	set_log_level(LOG_INFO_);

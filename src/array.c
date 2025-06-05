@@ -161,13 +161,13 @@ struct qsort_args {
 	size_t index;
 };
 
-static int qsort_wt(void *args){
+static void *qsort_wt(void *args){
 	struct qsort_args *qargs = args;
 	uint64_quick_sort(qargs->bp, qargs->size);
-	return 0;
+	return NULL;
 }
 
-void deduplicate(dynamic_arr_info *s, size_t core_count){
+void deduplicate(dynamic_arr_info *s, size_t core_count, threadpool_t *pool){
     if(s->sp == s->bp || s-> sp == s->bp + 1){
 		log_out("Can't sort one value!\n", LOG_WARN_);
 		return;
@@ -180,7 +180,6 @@ void deduplicate(dynamic_arr_info *s, size_t core_count){
     dynamic_arr_info res = init_darr(0, 0.7 * size); // assume it's around 30% dupes
     static_arr_info tmp = init_sarr(0, size);
 	struct qsort_args *args = malloc_errcheck(sizeof(struct qsort_args) * core_count);
-	thrd_t *threads = malloc_errcheck(sizeof(thrd_t) * core_count);
 	for(size_t i = 0; i < core_count; i++){
 		args[i].bp = s->bp + (i * block_size);
 		args[i].size = block_size;
@@ -192,11 +191,9 @@ void deduplicate(dynamic_arr_info *s, size_t core_count){
 			printf("Core: %lu\nStart: %lu\nEnd: %lu\nSize: %lu(actual %lu)\n", i, args[i].bp - s->bp, (args[i].bp - s->bp) + args[i].size, 
 					block_size, args[i].size);
 		}
-		thrd_create(threads + i, qsort_wt, args + i);
+		threadpool_add_work(pool, qsort_wt, args + i);
 	}
-	for(size_t i = 0; i < core_count; i++)
-		thrd_join(threads[i], NULL);
-	free(threads);
+	threadpool_wait(pool);
 	LOGIF(LOG_TRACE_){
 	printf("Arr after sorting\n");
 	for(size_t i = 0; i < size; i++){
