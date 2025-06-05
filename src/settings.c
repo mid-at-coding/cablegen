@@ -95,14 +95,12 @@ static int get_str_setting_section (const char *key, char *section, char** str){
 		log_out("Could not find property!", LOG_WARN_);
 		log_out(key, LOG_WARN_);
 		ini_free(cfg);
-		free(res);
 		return 1;
 	}
 	char *rres = malloc_errcheck(strlen(res) + 1);
 	strcpy(rres, res);
 	*str = rres;
 	ini_free(cfg);
-	free(res);
 	return 0;
 }
 static int get_bool_setting(const char *key, bool *data){
