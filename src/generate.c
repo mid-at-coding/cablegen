@@ -137,9 +137,7 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	for(size_t i = 0; i < core_count; i++){
 		*n = concat(n, &cores[i].nret);
 	}
-	deduplicate_args *args = malloc_errcheck(sizeof(deduplicate_args));
-	args->d = n;
-	thpool_add_work(pool, deduplicate_wt, args);
+	deduplicate(n, core_count, pool);
 	// spawn
 	init_threads(n, core_count, false, pool, cores, nox);
 	// write while waiting for spawns
@@ -150,11 +148,10 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 		*n2 = concat(n2, &cores[i].n2);
 		*n4 = concat(n4, &cores[i].n4);
 	}
-	args->d = n2;
-	thpool_add_work(pool, deduplicate_wt, args);
 	deduplicate(n4, core_count, pool);
+	deduplicate(n2, core_count, pool);
+	thpool_wait(pool);
 	free(cores);
-	free(args);
 }
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, 
 		const unsigned core_count, bool prespawn, char nox, bool free_formation){
