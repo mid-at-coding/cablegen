@@ -12,6 +12,8 @@ enum LOG_LEVEL{
 	LOG_ERROR_
 };
 
+extern enum LOG_LEVEL sensitivity;
+
 void log_out(const char* str, enum LOG_LEVEL level);
 void set_log_level(enum LOG_LEVEL level);
 bool logif_f(enum LOG_LEVEL);

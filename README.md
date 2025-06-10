@@ -64,11 +64,9 @@ development, and as of right now, is more robust than cablegen.
 
 ## Used libraries
 
-[cthreadpool](https://github.com/neo2043/cthreadpool) -- MIT License
+[C-Thread-Pool](https://github.com/Pithikos/C-Thread-Pool) -- MIT License
 
 [cfgpath](https://github.com/Malvineous/cfgpath) -- Unlicense
-
-[clay](https://github.com/nicbarker/clay) -- Zlib license
 
 [sort](https://github.com/swenson/sort) -- MIT License
 

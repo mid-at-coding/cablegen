@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static enum LOG_LEVEL sensitivity;
+enum LOG_LEVEL sensitivity;
 
 static char* get_prefix(enum LOG_LEVEL level){
 	switch (level){

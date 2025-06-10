@@ -161,76 +161,32 @@ struct qsort_args {
 	size_t index;
 };
 
-static void *qsort_wt(void *args){
+static void qsort_wt(void *args){
 	struct qsort_args *qargs = args;
 	uint64_quick_sort(qargs->bp, qargs->size);
-	return NULL;
 }
 
-void deduplicate(dynamic_arr_info *s, size_t core_count, threadpool_t *pool){
+void deduplicate_wt(void *vargs){
+	deduplicate_args *args = vargs;
+	deduplicate(args->d, 1, NULL);
+}
+
+void deduplicate(dynamic_arr_info *s, size_t core_count, threadpool pool){
     if(s->sp == s->bp || s-> sp == s->bp + 1){
 		log_out("Can't sort one value!\n", LOG_WARN_);
 		return;
 	}
 	size_t size = s->sp - s->bp;
-	size_t block_size = size / core_count;
-	LOGIF(LOG_TRACE_){
-		printf("Block size: %lu\n", block_size);
-	}
     dynamic_arr_info res = init_darr(0, 0.7 * size); // assume it's around 30% dupes
-    static_arr_info tmp = init_sarr(0, size);
-	struct qsort_args *args = malloc_errcheck(sizeof(struct qsort_args) * core_count);
-	for(size_t i = 0; i < core_count; i++){
-		args[i].bp = s->bp + (i * block_size);
-		args[i].size = block_size;
-		args[i].index = 0;
-		if(i + 1 == core_count){
-			args[i].size = s->sp - args[i].bp;
-		}
-		LOGIF(LOG_TRACE_){
-			printf("Core: %lu\nStart: %lu\nEnd: %lu\nSize: %lu(actual %lu)\n", i, args[i].bp - s->bp, (args[i].bp - s->bp) + args[i].size, 
-					block_size, args[i].size);
-		}
-		threadpool_add_work(pool, qsort_wt, args + i);
-	}
-	threadpool_wait(pool);
-	LOGIF(LOG_TRACE_){
-	printf("Arr after sorting\n");
-	for(size_t i = 0; i < size; i++){
-		printf("%p : %lu\n", s->bp + i, *(s->bp + i));
-	}
-	}
-	// merge
-	for(size_t i = 0; i < size; i++){
-		uint64_t curr = UINT64_MAX;
-		size_t index_min = 0;
-		for(size_t core = 0; core < core_count; core++){
-			if(args[core].index == args[core].size)
-				continue;
-			if(args[core].bp[args[core].index] < curr){
-				curr = args[core].bp[args[core].index];
-				index_min = core;
-			}
-		}
-		args[index_min].index++;
-		tmp.bp[i] = curr;
-	}
-	LOGIF(LOG_TRACE_){
-	printf("Arr after merging\n");
-	for(size_t i = 0; i < size; i++){
-		printf("%p : %lu\n", tmp.bp + i, *(tmp.bp + i));
-	}
-	}
-	free(args);
-	destroy_darr(s);
-	push_back(&res, *tmp.bp);
-	for(uint64_t *curr = tmp.bp + 1; curr < tmp.size + tmp.bp; curr++){
+	uint64_quick_sort(s->bp, size);
+	push_back(&res, *s->bp);
+	for(uint64_t *curr = s->bp + 1; curr < s->sp; curr++){
 		if(*curr != *(curr - 1)){
 			push_back(&res, *curr);
 		}
 	}
+	destroy_darr(s);
 	*s = res;
-	free(tmp.bp);
 	return;
 }
 

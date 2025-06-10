@@ -3,6 +3,7 @@
 #include "../inc/board.h"
 #include "../inc/generate.h"
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <threads.h>
 #include <time.h>
@@ -19,7 +20,6 @@ typedef struct {
 void write_table(const table *t, const char *filename){
 	static bool startup_init = 0;
 	static time_t old = 0;
-	static size_t size = 0;
 	LOGIF(LOG_INFO_){
 		printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", t->key.size, filename, 2 * sizeof(uint64_t) * t->key.size);  // lol
 	}
@@ -39,9 +39,9 @@ void write_table(const table *t, const char *filename){
 		clock_t curr = clock();
 		size_t diff = curr - old;
 		old = curr;
-		printf("[INFO] Speed: %ld thousand boards per second\n", (long)((double)size / (double)((diff * 1000) / (double)CLOCKS_PER_SEC)));
-		old = curr;
-		size = 0; 
+		LOGIF(LOG_INFO_){
+			printf("[INFO] Speed: %ld thousand boards per second\n", (long)((double)t->key.size / (double)((diff * 1000.0f) / (double)CLOCKS_PER_SEC)));
+		}
 	}
 	if(t->key.size != t->value.size){
 		log_out("Key and value size inequal, refusing to write!", LOG_WARN_);
@@ -82,7 +82,35 @@ void read_table(table *t, const char *filename){
 #endif
 }
 
-double lookup(uint64_t key, table *t, bool canonicalize){
+uint64_t next_pow2(uint64_t x) { 	return x == 1 ? 1 : 1<<(64-__builtin_clzl(x-1)); }
+
+double lookup(uint64_t lookup, table *t, bool canonicalize){
+	size_t length = t->key.size;
+	size_t begin = 0;
+	size_t end = t->key.size;
+	if(length == 0){
+		log_out("Empty table!", LOG_TRACE_);
+		return 0.0;
+	}
+	if(canonicalize)
+		canonicalize_b(&lookup);
+	size_t step = next_pow2(t->key.size) / 2;
+	if(step != length && t->key.bp[step] < lookup){
+		length -= step + 1;
+		if(length == 0)
+			return *((double*)&t->value.bp[end - 1]);
+		step = next_pow2(length);
+		begin = end - step;
+	}
+	for(step /= 2; step != 0; step /= 2){
+		if(t->key.bp[begin + step] < lookup)
+			begin += step;
+	}
+	return *((double*)&t->value.bp[begin + (t->key.bp[begin] < lookup)]);
+}
+
+double lookup_old(uint64_t key, table *t, bool canonicalize){
+//	return lookup_shar(key, t, canonicalize);
 	if(t->key.size == 0){
 		log_out("Empty table!", LOG_TRACE_);
 		return 0.0;
@@ -91,7 +119,7 @@ double lookup(uint64_t key, table *t, bool canonicalize){
 	if(canonicalize)
 		canonicalize_b(&key);
 	static const int SEARCH_STOP = 50;
-	int current_depth = 0;	
+//	int current_depth = 0;	
 //	int max_depth = (log(t->key.size) / log(2)) + 1; // add an extra iteration for safety
 	size_t top = t->key.size;
 	size_t bottom = 0;
@@ -131,7 +159,7 @@ double lookup(uint64_t key, table *t, bool canonicalize){
 			}
 		}
 		midpoint = (top + bottom) / 2;
-		current_depth++;
+//		current_depth++;
 	}
 	// return value as a double
 	return *(double*)(&(t->value.bp[midpoint]));
@@ -145,10 +173,6 @@ void destroy_table(table* t){
 
 void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *initial_winstates, unsigned cores, char nox, 
 		bool score, bool free_formation){
-	set_log_level(LOG_DBG_);
-#ifdef PROD
-	set_log_level(LOG_INFO_);
-#endif
 	const size_t FILENAME_SIZE = 100;
 	dynamic_arr_info winstates_d = init_darr(0,0);
 	generate_lut(free_formation); // if we don't gen a lut we can't move
@@ -174,11 +198,12 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	n4->key   = init_sarr(0,0);
 	n4->value = init_sarr(0,0);
 	char *filename = malloc_errcheck(FILENAME_SIZE);
+	threadpool th = thpool_init(cores);
 	for(unsigned int i = start; i >= end; i -= 2){
 		snprintf(filename, FILENAME_SIZE, posfmt, i);
 		n->key = read_boards(filename);
 		n->value = init_sarr(0,n->key.size);
-		solve_layer(n4, n2, n, &winstates, cores, nox, score);
+		solve_layer(n4, n2, n, &winstates, cores, nox, score, th);
 		snprintf(filename, FILENAME_SIZE, tablefmt, i);
 		write_table(n, filename);
 		// cycle the tables -- n goes down by two so n2 will be our freshly solved n, n4 our read n2, and n will be reset next loop
@@ -256,7 +281,7 @@ double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstat
 	return res;
 }
 
-int solve_worker_thread(void *args){
+void solve_worker_thread(void *args){
 	solve_core_data *sargs = args;
 	for(size_t curr = sargs->start; curr < sargs->end; curr++){
 		double prob = 0;
@@ -268,12 +293,10 @@ int solve_worker_thread(void *args){
 			prob = expectimax(sargs->n->key.bp[curr], sargs->n2, sargs->n4, sargs->winstates, sargs->nox, sargs->score); // we should not be moving -- we're reading moves
 		sargs->n->value.bp[curr] = *((uint64_t*)(&prob));
 	}
-	return 0;
 }
 
-void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, char nox, bool score){
+void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, char nox, bool score, threadpool th){
 	solve_core_data *cores = malloc_errcheck(sizeof(solve_core_data) * core_count);
-	thrd_t *threads = malloc_errcheck(sizeof(thrd_t) * core_count);
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = n;
 		cores[i].n2 = n2;
@@ -291,10 +314,8 @@ void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, uns
 		if(i + 1 == core_count){
 			cores[i].end = n->key.size;
 		}
-		thrd_create(threads + i, solve_worker_thread, (void*)(cores + i));
+		thpool_add_work(th, solve_worker_thread, (void*)(cores + i));
 	}
-	for(unsigned i = 0; i < core_count; i++)
-		thrd_join(threads[i], NULL);
-	free(threads);
+	thpool_wait(th);
 	free(cores);
 }
