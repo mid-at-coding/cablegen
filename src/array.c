@@ -36,7 +36,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	return res;
 }
 
-[[nodiscard]] dynamic_arr_info init_darr(bool zero, size_t size){
+dynamic_arr_info init_darr(bool zero, size_t size){
 	dynamic_arr_info d;
 	d.valid = true;
 	d.bp = NULL;
@@ -55,7 +55,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	return d;
 }
 
-[[nodiscard]] static_arr_info init_sarr(bool zero, size_t size){
+static_arr_info init_sarr(bool zero, size_t size){
 	static_arr_info s;
 	s.valid = true;
 	if(zero)
@@ -70,7 +70,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	return s;
 }
 
-[[nodiscard]] static_arr_info shrink_darr(dynamic_arr_info* info){
+static_arr_info shrink_darr(dynamic_arr_info* info){
 	int new_size = info->sp - info->bp;
 	if(info->valid == false){
 		log_out("Invalid array, refusing to shrink\n", LOG_WARN_);
@@ -91,7 +91,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	}
 	return (static_arr_info){.valid = true, .bp = new_bp, .size = new_size};
 }
-[[nodiscard]] dynamic_arr_info concat(dynamic_arr_info * restrict arr1, dynamic_arr_info * restrict arr2){
+dynamic_arr_info concat(dynamic_arr_info * restrict arr1, dynamic_arr_info * restrict arr2){
 	arr1->valid = arr2->valid = false;
 	dynamic_arr_info arr1_dynamic = {
 		.valid = true,
@@ -107,7 +107,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	free(arr2->bp);
 	return arr1_dynamic;
 }
-[[nodiscard]] dynamic_arr_info concat_unique(dynamic_arr_info * restrict arr1, dynamic_arr_info * restrict arr2){
+dynamic_arr_info concat_unique(dynamic_arr_info * restrict arr1, dynamic_arr_info * restrict arr2){
 	static_arr_info arr1_shrink = shrink_darr(arr1);
 	static_arr_info arr2_shrink = shrink_darr(arr2);
 	arr1->valid = arr2->valid = false;
@@ -146,10 +146,10 @@ static void qsort_wt(void *args){
 
 void deduplicate_wt(void *vargs){
 	deduplicate_args *args = vargs;
-	deduplicate(args->d, 1, NULL);
+	deduplicate(args->d);
 }
 
-void deduplicate(dynamic_arr_info *s, size_t core_count, threadpool pool){
+void deduplicate(dynamic_arr_info *s){
     if(s->sp == s->bp || s-> sp == s->bp + 1){
 		log_out("Can't sort one value!\n", LOG_WARN_);
 		return;
@@ -168,7 +168,7 @@ void deduplicate(dynamic_arr_info *s, size_t core_count, threadpool pool){
 	return;
 }
 
-[[nodiscard]] void* malloc_errcheck(size_t size){ // guaranteed to be non-null
+void* malloc_errcheck(size_t size){ // guaranteed to be non-null
 	void* res = malloc(size);
 	if(res == NULL){
 		log_out("Alloc failed!", LOG_ERROR_);

@@ -15,7 +15,7 @@ static int get_bool_setting_section(const char *key, char *section, bool*);
 static int get_str_setting_section (const char *key, char *section, char**);
 static int get_int_setting_section (const char *key, char *section, long long*);
 
-settings_t get_settings(){
+settings_t get_settings(void){
 	static settings_t res = { // set sane defaults
 		.free_formation = 0,
 		.cores = 1,
@@ -58,7 +58,7 @@ char *strlwr_(char *str) {
 }
 static char cfgdir[MAX_PATH];
 #define MAX_PROP_SIZE 100
-static ini_t* get_cfg(){
+static ini_t* get_cfg(void){
 	get_user_config_file(cfgdir, sizeof(cfgdir), "cablegen");
 	if (cfgdir[0] == 0) {
 		log_out("Could not find config directory!", LOG_WARN_);

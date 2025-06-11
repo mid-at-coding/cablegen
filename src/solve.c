@@ -3,6 +3,7 @@
 #include "../inc/board.h"
 #include "../inc/generate.h"
 #include <math.h>
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <threads.h>
@@ -16,6 +17,7 @@ typedef struct {
 	size_t start;
 	size_t end;
 	static_arr_info *winstates;
+	pthread_t thread;
 } solve_core_data;
 void write_table(const table *t, const char *filename){
 	static bool startup_init = 0;
@@ -84,7 +86,7 @@ void read_table(table *t, const char *filename){
 
 uint64_t next_pow2(uint64_t x) { 	return x == 1 ? 1 : 1<<(64-__builtin_clzl(x-1)); }
 
-double lookup(uint64_t lookup, table *t, bool canonicalize){
+double lookup_shar(uint64_t lookup, table *t, bool canonicalize){
 	size_t length = t->key.size;
 	size_t begin = 0;
 	size_t end = t->key.size;
@@ -109,7 +111,7 @@ double lookup(uint64_t lookup, table *t, bool canonicalize){
 	return *((double*)&t->value.bp[begin + (t->key.bp[begin] < lookup)]);
 }
 
-double lookup_old(uint64_t key, table *t, bool canonicalize){
+double lookup(uint64_t key, table *t, bool canonicalize){
 //	return lookup_shar(key, t, canonicalize);
 	if(t->key.size == 0){
 		log_out("Empty table!", LOG_TRACE_);
@@ -198,12 +200,11 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	n4->key   = init_sarr(0,0);
 	n4->value = init_sarr(0,0);
 	char *filename = malloc_errcheck(FILENAME_SIZE);
-	threadpool th = thpool_init(cores);
 	for(unsigned int i = start; i >= end; i -= 2){
 		snprintf(filename, FILENAME_SIZE, posfmt, i);
 		n->key = read_boards(filename);
 		n->value = init_sarr(0,n->key.size);
-		solve_layer(n4, n2, n, &winstates, cores, nox, score, th);
+		solve_layer(n4, n2, n, &winstates, cores, nox, score);
 		snprintf(filename, FILENAME_SIZE, tablefmt, i);
 		write_table(n, filename);
 		// cycle the tables -- n goes down by two so n2 will be our freshly solved n, n4 our read n2, and n will be reset next loop
@@ -281,7 +282,13 @@ double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstat
 	return res;
 }
 
-void solve_worker_thread(void *args){
+static void wait(solve_core_data *cores, size_t core_count){
+	for(size_t i = 0; i < core_count; i++){
+		pthread_join(cores[i].thread, NULL);
+	}
+}
+
+void *solve_worker_thread(void *args){
 	solve_core_data *sargs = args;
 	for(size_t curr = sargs->start; curr < sargs->end; curr++){
 		double prob = 0;
@@ -293,9 +300,10 @@ void solve_worker_thread(void *args){
 			prob = expectimax(sargs->n->key.bp[curr], sargs->n2, sargs->n4, sargs->winstates, sargs->nox, sargs->score); // we should not be moving -- we're reading moves
 		sargs->n->value.bp[curr] = *((uint64_t*)(&prob));
 	}
+	return NULL;
 }
 
-void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, char nox, bool score, threadpool th){
+void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, char nox, bool score){
 	solve_core_data *cores = malloc_errcheck(sizeof(solve_core_data) * core_count);
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = n;
@@ -314,8 +322,8 @@ void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, uns
 		if(i + 1 == core_count){
 			cores[i].end = n->key.size;
 		}
-		thpool_add_work(th, solve_worker_thread, (void*)(cores + i));
+		pthread_create(&cores[i].thread, NULL, solve_worker_thread, (void*)(cores + i));
 	}
-	thpool_wait(th);
+	wait(cores, core_count);
 	free(cores);
 }

@@ -2,6 +2,7 @@
 #include "../inc/logging.h"
 #include "../inc/board.h"
 #include <stdio.h>
+#include <pthread.h>
 #include <string.h>
 #include <fcntl.h>
 #include <time.h>
@@ -13,6 +14,7 @@ typedef struct {
 	size_t start; 
 	size_t end; 
 	char nox;
+	pthread_t thread;
 } arguments;
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
 	static clock_t old;
@@ -60,7 +62,7 @@ bool checkx(uint64_t board, char x){
 	return true;
 }
 
-void generation_thread_move(void* data){
+void *generation_thread_move(void* data){
 	arguments *args = data;
 	uint64_t tmp;
 	uint64_t old;
@@ -75,8 +77,9 @@ void generation_thread_move(void* data){
 			}
 		}
 	}
+	return NULL;
 }
-void generation_thread_spawn(void* data){
+void *generation_thread_spawn(void* data){
 	arguments *args = data;
 	uint64_t tmp;
 	uint64_t old;
@@ -95,10 +98,11 @@ void generation_thread_spawn(void* data){
 			}
 		}
 	}
+	return NULL;
 }
 
-static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, bool move, threadpool pool, arguments *cores, char nox){
-	void (*fn)(void*) = move ? generation_thread_move : generation_thread_spawn;
+static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, bool move, arguments *cores, char nox){
+	void *(*fn)(void*) = move ? generation_thread_move : generation_thread_spawn;
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = (static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp};
 		if(move)
@@ -119,45 +123,46 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 			cores[i].end = n->sp - n->bp;
 		}
 	}
-	thpool_wait(pool);
 	for(unsigned i = 0; i < core_count; i++){
-		thpool_add_work(pool, fn, (void*)(cores + i));
+		pthread_create(&cores[i].thread, NULL, fn, (void*)(cores + i));
+	}
+}
+
+static void wait(arguments *cores, size_t core_count){
+	for(size_t i = 0; i < core_count; i++){
+		pthread_join(cores[i].thread, NULL);
 	}
 }
 
 void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, 
-		const unsigned core_count, const char *fmt_dir, const int layer, threadpool pool, char nox){
-	arguments *cores = malloc_errcheck(sizeof(arguments) * core_count);
+		const unsigned core_count, const char *fmt_dir, const int layer, arguments *cores, char nox){
 	// move
-	init_threads(n, core_count, true, pool, cores, nox);
+	init_threads(n, core_count, true, cores, nox);
 	// wait for moves to be done
-	thpool_wait(pool);
+	wait(cores, core_count);
 	destroy_darr(n); // this array currently holds boards where we just spawned -- these are never our responsibility
 	*n = init_darr(0,0);
 	for(size_t i = 0; i < core_count; i++){
 		*n = concat(n, &cores[i].nret);
 	}
-	deduplicate(n, core_count, pool);
+	deduplicate(n);
 	// spawn
-	init_threads(n, core_count, false, pool, cores, nox);
+	init_threads(n, core_count, false, cores, nox);
 	// write while waiting for spawns
 	write_boards((static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp}, fmt_dir, layer);
-	thpool_wait(pool);
+	wait(cores,core_count);
 	// concatenate spawns
 	for(size_t i = 0; i < core_count; i++){
 		*n2 = concat(n2, &cores[i].n2);
 		*n4 = concat(n4, &cores[i].n4);
 	}
-	deduplicate(n4, core_count, pool);
-	deduplicate(n2, core_count, pool);
-	thpool_wait(pool);
-	free(cores);
+	deduplicate(n4);
+	deduplicate(n2);
 }
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, 
 		const unsigned core_count, bool prespawn, char nox, bool free_formation){
 	// GENERATE: write all sub-boards where it is the computer's move	
 	generate_lut(free_formation);
-	threadpool pool = thpool_init(core_count);
 	static const size_t DARR_INITIAL_SIZE = 100;
 	dynamic_arr_info n  = init_darr(false, 0);
 	free(n.bp);
@@ -166,8 +171,9 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 	n.sp = n.size + n.bp;
 	dynamic_arr_info n2 = init_darr(false, DARR_INITIAL_SIZE);
 	dynamic_arr_info n4 = init_darr(false, DARR_INITIAL_SIZE);
+	arguments *cores = malloc_errcheck(sizeof(arguments) * core_count);
 	for(int i = start; i <= end; i += 2){
-		generate_layer(&n, &n2, &n4, core_count, fmt, i, pool, nox);
+		generate_layer(&n, &n2, &n4, core_count, fmt, i, cores, nox);
 		destroy_darr(&n);
 		n = n2;
 		n2 = n4;
@@ -176,7 +182,7 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 	destroy_darr(&n);
 	destroy_darr(&n2);
 	destroy_darr(&n4);
-	thpool_destroy(pool);
+	free(cores);
 }
 static_arr_info read_boards(const char *dir){
 	FILE *fp = fopen(dir, "rb");

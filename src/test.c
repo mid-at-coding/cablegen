@@ -116,7 +116,7 @@ bool test_dynamic_arr(void){
 	return passed;
 }
 
-void test_generation(){
+void test_generation(void){
 	log_out("Testing generation (correctness not checked).\n", LOG_INFO_);
 	dynamic_arr_info n = init_darr(false, 0);
 	push_back(&n, 0x1000002000000000); // board with a 2 and a 4 in a kinda arbitrary position
@@ -124,7 +124,7 @@ void test_generation(){
 	log_out("Done testing generation.\n", LOG_INFO_);
 }
 
-bool test_dedupe(){
+bool test_dedupe(void){
 	set_log_level(LOG_INFO_);
     log_out("Testing deduplication with artificial data.\n", LOG_INFO_);
 	dynamic_arr_info d = init_darr(false, 0);
@@ -134,10 +134,8 @@ bool test_dedupe(){
 	push_back(&d, 5);
 	push_back(&d, 4);
 	push_back(&d, 5);
-	threadpool th;
 	for(int i = 1; i < 5; i++){
-		th = thpool_init(i);
-		deduplicate(&d, i, th);
+		deduplicate(&d);
 		for(uint64_t *a = d.bp; a < d.sp; a++){
 			for(uint64_t *b = d.bp; b < d.sp; b++){
 				if(*a == *b && a != b){
@@ -147,7 +145,6 @@ bool test_dedupe(){
 				}
 			}
 		}
-		thpool_destroy(th);
 	}
 	log_out("No error reported.", LOG_INFO_);
 	set_log_level(LOG_INFO_);
@@ -213,7 +210,7 @@ bool test_rots(void){
 	return true;
 }
 
-bool test_misc(){
+bool test_misc(void){
 	bool res = true;
 	log_out("Testing tile detection", LOG_INFO_);
 	const size_t iterations = 10000;
@@ -238,7 +235,7 @@ bool test_misc(){
 	return res;
 }
 
-bool test(){
+bool test(void){
 	set_log_level(LOG_DBG_);
 	bool passed = true;
 	generate_lut(true);
