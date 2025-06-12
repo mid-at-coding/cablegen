@@ -20,6 +20,7 @@
  * SOFTWARE.
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -194,7 +195,13 @@ ini_t* ini_load(const char *filename) {
   /* Get file size */
   fseek(fp, 0, SEEK_END);
   sz = ftell(fp);
+  if(errno != 0){
+		goto fail;
+  }
   rewind(fp);
+  if(errno != 0){
+		goto fail;
+  }
 
   /* Load file content into memory, null terminate, init end var */
   ini->data = malloc(sz + 1);
@@ -213,8 +220,8 @@ ini_t* ini_load(const char *filename) {
   return ini;
 
 fail:
-  if (fp) fclose(fp);
-  if (ini) ini_free(ini);
+  if (fp != NULL) fclose(fp);
+  if (ini != NULL) ini_free(ini);
   return NULL;
 }
 

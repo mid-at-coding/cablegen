@@ -46,7 +46,7 @@ static bool shiftable(uint64_t *board, const static_arr_info positions, const in
 	return false;
 }
 
-static bool move(uint64_t *board, const static_arr_info positions, bool free_formation){ // this should not be used directly
+static bool move(uint64_t *board, const static_arr_info positions){ // this should not be used directly
 	// [ board[pos[0]], board[pos[1]] board[pos[2]] ... board[pos[n]] ] -(left)>
 	bool res = false;
 	for(size_t i = 0; i < positions.size; i++){ // "compress" everything
@@ -94,7 +94,7 @@ void generate_lut(bool free_formation){
 		printf("Lookup: %016lx\n", tmp_board);
 #endif	
 		premove = tmp_board;
-		move(&tmp_board, a, free_formation);
+		move(&tmp_board, a);
 #ifdef TRACE
 		printf("Res: %016lx\n", tmp_board);
 #endif
@@ -108,7 +108,7 @@ void generate_lut(bool free_formation){
 		SET_TILE(tmp_board, 2, ((i & 0x00F0) >> 4));
 		SET_TILE(tmp_board, 3, (i & 0x000F));
 		premove = tmp_board;
-		move(&tmp_board, b, free_formation);
+		move(&tmp_board, b);
 		_move_lut[right][i] = tmp_board >> 12 * 4;
 		_locked_lut[right][i] = !shifted(premove, tmp_board, free_formation);
 		if(i == UINT16_MAX)
@@ -206,12 +206,6 @@ void rotate_180(uint64_t* b){
 		   (((*b) & 0x00ff00ff00ff00ff) << 8 );
     (*b) = (((*b) & 0xf0f0f0f0f0f0f0f0) >> 4 ) |
 		   (((*b) & 0x0f0f0f0f0f0f0f0f) << 4 );
-}
-
-static uint64_t max(uint64_t a, uint64_t b){
-	if (b > a)
-		return b;
-	return a;
 }
 
 void canonicalize_b(uint64_t* board){ // turn a board into it's canonical version

@@ -39,9 +39,7 @@ static void parseGenerate(int argc, char **argv){
 	settings_t settings = get_settings();
 	char *default_postfix = "%d.boards";
 	size_t fmt_size = strlen(default_postfix) + strlen(settings.bdir) + 1;
-	char *fmt = malloc(fmt_size);
-	if(fmt == NULL)
-		log_out("Alloc failed!", LOG_ERROR_);
+	char *fmt = malloc_errcheck(fmt_size);
 	snprintf(fmt, fmt_size, "%s%s", settings.bdir, default_postfix);
 
 	// assume all boards in FILE are the same sum (!!)
@@ -63,16 +61,12 @@ static void parseSolve(int argc, char **argv){
 	settings_t settings = get_settings();
 	char *default_board_postfix = "%d.boards";
 	size_t posfmt_size = strlen(default_board_postfix) + strlen(settings.bdir) + 1;
-	char* posfmt = malloc(posfmt_size);
-	if(posfmt == NULL)
-		log_out("Alloc failed!", LOG_ERROR_);
+	char* posfmt = malloc_errcheck(posfmt_size);
 	snprintf(posfmt, posfmt_size, "%s%s", settings.bdir, default_board_postfix);
 
 	char* default_table_postfix = "%d.tables";
 	size_t table_fmt_size = strlen(default_table_postfix) + strlen(settings.tdir) + 1;
-	char* table_fmt = malloc(table_fmt_size);
-	if(table_fmt == NULL)
-		log_out("Alloc failed!", LOG_ERROR_);
+	char* table_fmt = malloc_errcheck(table_fmt_size);
 	snprintf(table_fmt, table_fmt_size, "%s%s", settings.tdir, default_table_postfix);
 
 	static_arr_info boards = read_boards(settings.winstates);
@@ -148,10 +142,8 @@ static void parseLookup(int argc, char **argv){ // TODO: this segfaults on bad i
 
 	char* default_table_postfix = "%d.tables";
 	size_t table_fmt_size = strlen(default_table_postfix) + strlen(tabledir) + 10;
-	char* table_fmt = malloc(table_fmt_size);
-	char* tablestr = malloc(table_fmt_size);
-	if(table_fmt == NULL)
-		log_out("Alloc failed!", LOG_ERROR_);
+	char* table_fmt = malloc_errcheck(table_fmt_size);
+	char* tablestr = malloc_errcheck(table_fmt_size);
 	snprintf(table_fmt, table_fmt_size, "%s%s", tabledir, default_table_postfix);
 	snprintf(tablestr, table_fmt_size, table_fmt, sum);
 	log_out(tablestr, LOG_TRACE_);
@@ -237,9 +229,7 @@ static void parsePlay(int argc, char **argv){
 
 	char* default_table_postfix = "%d.tables";
 	size_t table_fmt_size = strlen(default_table_postfix) + strlen(tdir) + 1;
-	char* table_fmt = malloc(table_fmt_size);
-	if(table_fmt == NULL)
-		log_out("Alloc failed!", LOG_ERROR_);
+	char* table_fmt = malloc_errcheck(table_fmt_size);
 	snprintf(table_fmt, table_fmt_size, "%s%s", tdir, default_table_postfix);
 
 	size_t table_dir_str_size = strlen(table_fmt) + 10;

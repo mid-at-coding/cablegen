@@ -3,6 +3,7 @@
 #include "../inc/board.h"
 #include "../inc/generate.h"
 #include <math.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -48,6 +49,7 @@ void write_table(const table *t, const char *filename){
 	if(t->key.size != t->value.size){
 		log_out("Key and value size inequal, refusing to write!", LOG_WARN_);
 		printf("(%lu, %lu)/n", t->key.size, t->value.size);
+		fclose(file);
 		return;
 	}
 	fwrite(t->key.bp,   sizeof(uint64_t), t->key.size,   file);
@@ -66,15 +68,31 @@ void read_table(table *t, const char *filename){
 		free(buf);
 		return;
 	}
+	errno = 0;
 	fseek(fp, 0L, SEEK_END);
 	size_t sz = ftell(fp);
+	if(errno){
+		log_out("Failed getting size of table!", LOG_ERROR_);
+		fclose(fp);
+		return;
+	}
 	rewind(fp);
 	if(sz % 16 != 0) // 16 is 2 * 8 bytes is a double and a board
 		log_out("sz %%16 != 0, this is probably not a real table!\n", LOG_WARN_);
 	t->key =   init_sarr(0, sz / 16);
 	t->value = init_sarr(0, sz / 16);
-	fread(t->key.bp,   sizeof(uint64_t), sz / 16, fp);
-	fread(t->value.bp, sizeof(double),   sz / 16, fp);
+	fread(t->key.bp, sizeof(uint64_t), sz / 16, fp);
+	if(ferror(fp)){
+		log_out("Error reading file!", LOG_WARN_);
+		fclose(fp);
+		return;
+	}
+	fread(t->value.bp, sizeof(double), sz / 16, fp);
+	if(ferror(fp) || feof(fp)){
+		log_out("Error reading file!", LOG_WARN_);
+		fclose(fp);
+		return;
+	}
 	char *buf = malloc_errcheck(100);
 	snprintf(buf, 100, "Read %ld bytes (%ld boards) from %s\n", sz, sz / 16, filename);
 	log_out(buf, LOG_DBG_);

@@ -13,6 +13,11 @@
 
 bool push_back(dynamic_arr_info *info, uint64_t v){
 	bool res = false;
+	if(info->sp == NULL){
+		log_out("Invalid stack pointer, refusing to push\n", LOG_WARN_);
+		info->valid = false;
+		return false;
+	}
 	if(info->valid == false){
 		log_out("Invalid array, refusing to push\n", LOG_WARN_);
 		return false;
@@ -24,6 +29,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 		if (info->bp == NULL){
 			log_out("Alloc failed! Download more ram!\n", LOG_ERROR_);
 			info->valid = false;
+			return false;
 		}
 		if(info->size)
 			info->size *= REALLOC_MULT;
@@ -129,20 +135,11 @@ dynamic_arr_info concat_unique(dynamic_arr_info * restrict arr1, dynamic_arr_inf
 	return arr1_dynamic;
 }
 
-static int compare(const void *a, const void *b){
-    return (((*(uint64_t*)a) > (*(uint64_t*)b))) - (((*(uint64_t*)a) < (*(uint64_t*)b)));
-}
-
 struct qsort_args {
 	uint64_t* bp;
 	size_t size;
 	size_t index;
 };
-
-static void qsort_wt(void *args){
-	struct qsort_args *qargs = args;
-	uint64_quick_sort(qargs->bp, qargs->size);
-}
 
 void deduplicate_wt(void *vargs){
 	deduplicate_args *args = vargs;

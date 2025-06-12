@@ -42,6 +42,8 @@ bool logif_f(enum LOG_LEVEL level){ return level >= sensitivity; }
 
 void log_out(const char* strin, enum LOG_LEVEL level){
 	char* str = malloc(strlen(strin) + 1);
+	if(str == NULL)
+		return; // would print a diagnostic but...
 	strcpy(str, strin);
 	if(level >= sensitivity){
 		if(str[strlen(str) - 1] == '\n'){

@@ -172,6 +172,15 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 	dynamic_arr_info n2 = init_darr(false, DARR_INITIAL_SIZE);
 	dynamic_arr_info n4 = init_darr(false, DARR_INITIAL_SIZE);
 	arguments *cores = malloc_errcheck(sizeof(arguments) * core_count);
+	if(prespawn){
+		arguments prespawn_args;
+		prespawn_args.n = (static_arr_info){.valid = n.valid, .bp = n.bp, .size = n.sp - n.bp};
+		prespawn_args.n2 = n2;
+		prespawn_args.n4 = n4;
+		prespawn_args.start = 0;
+		prespawn_args.end = prespawn_args.n.size;
+		generation_thread_spawn(&prespawn_args);
+	}
 	for(int i = start; i <= end; i += 2){
 		generate_layer(&n, &n2, &n4, core_count, fmt, i, cores, nox);
 		destroy_darr(&n);

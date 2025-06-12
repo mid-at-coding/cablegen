@@ -40,7 +40,6 @@ static bool test_searching(void){
 }
 
 bool test_dynamic_arr(void){
-	bool passed = true;
 	dynamic_arr_info tmp = {0};
 	log_out("Testing initialization (n = [0,50])\n", LOG_INFO_);
 	for(size_t i = 0; i < 50; i++){
@@ -57,7 +56,6 @@ bool test_dynamic_arr(void){
 			push_back(&tmp, 0);
 			if((size_t)(tmp.sp - tmp.bp) > tmp.size){
 				log_out("Resizing failed!", LOG_ERROR_);
-				passed = false;
 			}
 		}
 		destroy_darr(&tmp);
@@ -81,25 +79,22 @@ bool test_dynamic_arr(void){
 				printf("n.size = %ld, m.size = %ld, nm.size = %ld\n", tmpn.sp - tmpn.bp, tmpm.sp - tmpm.bp, nm.sp - nm.bp);
 			}
 			if((size_t)(nm.sp - nm.bp) != n + m){
-				char *buf = malloc(100);
+				char *buf = malloc_errcheck(100);
 				snprintf(buf, 100, "Concatenation test failed! n: %zu, m: %zu\n", n, m);
 				log_out(buf, LOG_ERROR_);
 				free(buf);
-				passed = false;
 				return false;
 			}
 			for(size_t i = 0; i < n + m; i++){
 				if(i < n){
 				    if(nm.bp[i] != i){
 						log_out("Concatenation test failed!\n", LOG_ERROR_);
-						passed = false;
 						return false;
 					}
 				}
 				else{
 				    if(nm.bp[i] != i - n){
 						log_out("Concatenation test failed!\n", LOG_ERROR_);
-						passed = false;
 						return false;
 					}
 				}
@@ -110,10 +105,8 @@ bool test_dynamic_arr(void){
 			nm.size = 0;
 		}
 	}
-	if(passed){
-		log_out("No errors reported.\n", LOG_INFO_);
-	}
-	return passed;
+	log_out("No errors reported.\n", LOG_INFO_);
+	return true;
 }
 
 void test_generation(void){

@@ -7,5 +7,5 @@ cablegen.exe
 libwinpthread*
 out.txt
 initial
-winstate
+winstate*
 gmon.out
