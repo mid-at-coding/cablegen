@@ -5,8 +5,8 @@
 #include "../inc/array.h"
 #include <string.h>
 #include <ctype.h>
-static bool settings_read = false;
-static bool init = false;
+bool settings_read = false;
+bool custom_path = false;
 static int get_bool_setting(const char *key, bool*);
 static int get_str_setting (const char *key, char**);
 static int get_int_setting (const char *key, long long*);
@@ -25,6 +25,8 @@ settings_t get_settings(void){
 		.bdir = "./boards/",
 		.initial = "./initial",
 		.end_gen = 1200,
+		.stsl = 100,
+		.advanced = false,
 
 		.tdir = "./tables/",
 		.winstates = "./winstates",
@@ -34,6 +36,7 @@ settings_t get_settings(void){
 	if(settings_read)
 		return res;
 	settings_read = true; 
+	log_out("Reading settings...", LOG_DBG_);
 	get_bool_setting("free_formation", &res.free_formation);
 	get_int_setting("cores", &res.cores); 
 	get_int_setting("nox", &res.nox); 
@@ -56,16 +59,18 @@ char *strlwr_(char *str) {
   }
   return str;
 }
-static char cfgdir[MAX_PATH];
+char cfgdir[MAX_PATH];
 #define MAX_PROP_SIZE 100
-static ini_t* get_cfg(void){
-	get_user_config_file(cfgdir, sizeof(cfgdir), "cablegen");
+ini_t* get_cfg(void){
+	if(!custom_path){
+		get_user_config_file(cfgdir, sizeof(cfgdir), "cablegen");
+	}
 	if (cfgdir[0] == 0) {
 		log_out("Could not find config directory!", LOG_WARN_);
 		return NULL;
 	}
-	log_out("Loading config from: ", LOG_TRACE_);
-	log_out(cfgdir, LOG_TRACE_);
+	log_out("Loading config from: ", LOG_DBG_);
+	log_out(cfgdir, LOG_DBG_);
 	return ini_load(cfgdir);
 }
 void change_config(char *cfg){	
@@ -74,7 +79,7 @@ void change_config(char *cfg){
 		return;
 	}
 	settings_read = false; // update settings reading
-	init = true;
+	custom_path = true;
 	memcpy(cfgdir, cfg, strlen(cfg) + 1);
 	log_out("New config dir: ", LOG_DBG_);
 	log_out(cfgdir, LOG_DBG_);

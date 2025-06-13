@@ -1,6 +1,9 @@
 #include "../inc/generate.h"
 #include "../inc/logging.h"
 #include "../inc/board.h"
+#include "../inc/settings.h"
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
@@ -13,6 +16,7 @@ typedef struct {
 	dynamic_arr_info n4;
 	size_t start; 
 	size_t end; 
+	long stsl; 
 	char nox;
 	pthread_t thread;
 } arguments;
@@ -101,16 +105,70 @@ void *generation_thread_spawn(void* data){
 	return NULL;
 }
 
-static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, bool move, arguments *cores, char nox){
-	void *(*fn)(void*) = move ? generation_thread_move : generation_thread_spawn;
+bool prune_board(const uint64_t board, const long stsl){
+	short tmp = 0;
+	short smallest_tiles = 0;
+	short smallest = -1;
+	int sts = 0; // small tile sum
+	for(short i = 0; i < 16; i++){
+		if((tmp = GET_TILE(board, i)) > 5 && tmp < 0xf){
+			smallest = tmp > smallest ? smallest : tmp;
+		}
+		else{
+			sts += 1 << tmp;
+		}
+	}
+	if(sts + 64 > stsl){
+		return true;
+	}
+	// Large number combinations
+	for(short i = 0; i < 16; i++){
+		if(GET_TILE(board, i) == smallest){
+			if(++smallest_tiles + (smallest == 5) == 3){
+				return true;
+			}
+		}
+	}
+	// condition number three seems impossible??
+	return false;
+}
+
+void *generation_thread_prune(void *vargs){
+	arguments *args = vargs;
+	uint64_t tmp = 0;
+	for(size_t i = args->start; i < args->end; i++){
+		tmp = args->n.bp[i];
+		if(!prune_board(tmp, args->stsl)){ // TODO: may be faster to unconditionally push and pop if it's pruned
+			push_back(&args->nret, tmp);
+		}
+	}
+	return NULL;
+}
+
+static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, bool move, bool spawn, arguments *cores, char nox){
+	void *(*fn)(void*);
+	if(move + spawn > 1){ // ok dude
+		log_out("Invalid initialization!", LOG_ERROR_);	
+		return;
+	}
+	if(move)
+		fn = generation_thread_move;
+	else if(spawn)
+		fn = generation_thread_spawn;
+	else
+		fn = generation_thread_prune;
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = (static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp};
 		if(move)
 			cores[i].nret = init_darr(0, 4 * (n->sp - n->bp));
-		else{
+		else if (spawn){
 			cores[i].n2 = init_darr(0, 4 * (n->sp - n->bp));
 			cores[i].n4 = init_darr(0, 4 * (n->sp - n->bp));
 			cores[i].nox = nox;
+		}
+		else{
+			cores[i].nret = init_darr(0, 4 * (n->sp - n->bp));
+			cores[i].stsl = get_settings().stsl;
 		}
 		// divide up [0,n.size)
 		// cores work in [start,end)
@@ -141,8 +199,16 @@ static void wait(arguments *cores, size_t core_count){
 
 void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, 
 		const unsigned core_count, const char *fmt_dir, const int layer, arguments *cores, char nox){
+	if(get_settings().advanced){
+		init_threads(n, core_count, false, false, cores, nox);
+		wait(cores, core_count);
+		*n = init_darr(0,0);
+		for(size_t i = 0; i < core_count; i++){
+			*n = concat(n, &cores[i].nret);
+		}
+	}
 	// move
-	init_threads(n, core_count, true, cores, nox);
+	init_threads(n, core_count, true, false, cores, nox);
 	// wait for moves to be done
 	wait(cores, core_count);
 	destroy_darr(n); // this array currently holds boards where we just spawned -- these are never our responsibility
@@ -152,7 +218,7 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	}
 	deduplicate(n);
 	// spawn
-	init_threads(n, core_count, false, cores, nox);
+	init_threads(n, core_count, false, true, cores, nox);
 	// write while waiting for spawns
 	write_boards((static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp}, fmt_dir, layer);
 	wait(cores,core_count);

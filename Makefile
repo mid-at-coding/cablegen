@@ -1,4 +1,4 @@
-CC=x86_64-w64-mingw32-gcc
+CC=clang
 CCFLAGS= -Wall -g -O0 -pg -pthread -lm -lc -Wpedantic -Wextra -Wno-unused-parameter \
 		 -fno-strict-aliasing -std=c99 -Wno-unused-command-line-argument \
 		 -Wuninitialized -fcolor-diagnostics -fsanitize=address -Wno-unused-function
@@ -14,7 +14,7 @@ clean:
 	@rm build/*.o
 
 build/%.o: src/%.c 
-	$(CC) $< $(CCFLAGS_PROD) -c -o $@ 
+	$(CC) $< $(CCFLAGS) -c -o $@ 
 
 cablegen: $(FILES)
 	$(CC) $(wildcard build/*.o) $(CCFLAGS) -o cablegen

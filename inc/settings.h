@@ -2,6 +2,10 @@
 #define SETTINGS_H
 #include <errno.h>
 #include <stdbool.h>
+#include "../inc/cfgpath.h"
+extern bool settings_read;
+extern bool custom_path;
+extern char cfgdir[MAX_PATH];
 char *strlwr_(char *str);
 void change_config(char *cfg);
 typedef struct {
@@ -13,6 +17,8 @@ typedef struct {
 	char *bdir;
 	char *initial;
 	long long end_gen;
+	long long stsl;
+	bool advanced;
 
 	char *tdir;
 	char *winstates;
