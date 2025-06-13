@@ -42,6 +42,10 @@ end = 800
 ; the tile sum where generation stops
 premove = false       
 ; move initial boards before spawning
+prune = true
+; prune unlikely boards
+stsl = 58
+; small tile (<64) sum limit for pruning
 
 [Solve]   
 ; solving specific settings

@@ -108,17 +108,17 @@ void *generation_thread_spawn(void* data){
 bool prune_board(const uint64_t board, const long stsl){
 	short tmp = 0;
 	short smallest_tiles = 0;
-	short smallest = -1;
+	int smallest = 0xff;
 	int sts = 0; // small tile sum
 	for(short i = 0; i < 16; i++){
 		if((tmp = GET_TILE(board, i)) > 5 && tmp < 0xf){
 			smallest = tmp > smallest ? smallest : tmp;
 		}
-		else{
+		else if(tmp != 0xf){
 			sts += 1 << tmp;
 		}
 	}
-	if(sts + 64 > stsl){
+	if(sts > stsl + 64){
 		return true;
 	}
 	// Large number combinations

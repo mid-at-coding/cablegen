@@ -25,7 +25,7 @@ settings_t get_settings(void){
 		.bdir = "./boards/",
 		.initial = "./initial",
 		.end_gen = 1200,
-		.stsl = 100,
+		.stsl = 200,
 		.advanced = false,
 
 		.tdir = "./tables/",
@@ -44,6 +44,8 @@ settings_t get_settings(void){
 	get_str_setting_section("dir", "Generate", &res.bdir);
 	get_str_setting_section("initial", "Generate", &res.initial);
 	get_int_setting_section("end", "Generate", &res.end_gen); 
+	get_int_setting_section("stsl", "Generate", &res.stsl); 
+	get_bool_setting_section("prune", "Generate", &res.advanced);
 	get_str_setting_section("dir", "Solve", &res.tdir);
 	get_str_setting_section("winstates", "Solve", &res.winstates);
 	get_int_setting_section("end", "Solve", &res.end_solve); 
