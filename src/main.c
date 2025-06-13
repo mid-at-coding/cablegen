@@ -16,7 +16,7 @@
 #include <time.h>
 
 static void help(void){
-	log_out("Cablegen v1.1.4 by ember/emelia/cattodoameow", LOG_INFO_);
+	log_out("Cablegen v1.2 by ember/emelia/cattodoameow", LOG_INFO_);
 	log_out("Commands:", LOG_INFO_);
 	log_out("help -- this output", LOG_INFO_);
 	log_out("generate (CONFIG) -- generate boards, optionally specifying an alternate config file", LOG_INFO_);
@@ -127,7 +127,7 @@ static struct dirprob best(uint64_t board, table *n){
 	return (struct dirprob){maxd, maxp};
 }
 
-static void parseLookup(int argc, char **argv){ // TODO: this segfaults on bad input
+static void parseLookup(int argc, char **argv){
 	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	char *tabledir;
 	settings_t settings = get_settings();
@@ -179,10 +179,13 @@ static void parseLookup(int argc, char **argv){ // TODO: this segfaults on bad i
 	free(tablestr);
 	free(t->key.bp);
 	free(t->value.bp);
+	free(t);
 	free(t2->key.bp);
 	free(t2->value.bp);
+	free(t2);
 	free(t4->key.bp);
 	free(t4->value.bp);
+	free(t4);
 }
 
 static void parseExplore(int argc, char **argv){
@@ -193,6 +196,9 @@ static void parseExplore(int argc, char **argv){
 		printf("Board(%0.10lf):\n", *(double*)(t->value.bp + i));
 		output_board(t->key.bp[i]);
 	}
+	free(t->key.bp);
+	free(t->value.bp);
+	free(t);
 }
 
 static void parseRead(int argc, char **argv){
@@ -264,8 +270,13 @@ static void parsePlay(int argc, char **argv){
 		snprintf(table_dir_str, table_dir_str_size, table_fmt, get_sum(board));
 		read_table(t, table_dir_str);
 		movedir(&board, best(board, t).d);
+		free(t->key.bp);
+		free(t->value.bp);
 	}
 	while (true);
+	free(table_fmt);
+	free(table_dir_str);
+	free(t);
 }
 
 void benchmark(void){

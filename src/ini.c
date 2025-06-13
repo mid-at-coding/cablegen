@@ -181,23 +181,21 @@ ini_t* ini_load(const char *filename) {
 
   /* Init ini struct */
   ini = malloc(sizeof(*ini));
-  if (!ini) {
+  if (ini == NULL) {
     goto fail;
   }
   memset(ini, 0, sizeof(*ini));
 
   /* Open file */
   fp = fopen(filename, "rb");
-  if (!fp) {
+  if (fp == NULL) {
     goto fail;
   }
 
   /* Get file size */
+  errno = 0;
   fseek(fp, 0, SEEK_END);
   sz = ftell(fp);
-  if(errno != 0){
-		goto fail;
-  }
   rewind(fp);
   if(errno != 0){
 		goto fail;

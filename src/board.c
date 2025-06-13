@@ -7,6 +7,9 @@
 #include <math.h>
 //#define DBG
 //#define TRACE
+#ifdef _WIN32
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#endif
 
 uint16_t _move_lut[2][UINT16_MAX + 1];
 bool   _locked_lut[2][UINT16_MAX + 1];

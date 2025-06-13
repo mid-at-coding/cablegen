@@ -2,6 +2,7 @@
 #include "../inc/solve.h"
 #include "../inc/logging.h"
 #include "../inc/board.h"
+#include "../inc/settings.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -228,6 +229,23 @@ bool test_misc(void){
 	return res;
 }
 
+static bool test_settings(void){
+	log_out("Checking settings (accuracy not checked, verify manually)", LOG_INFO_);
+	settings_t settings = get_settings();
+	printf(".free_formation %d\n", settings.free_formation);
+	printf(".cores %lld\n", settings.cores);
+	printf(".nox %lld\n", settings.nox);
+	printf(".premove %d\n", settings.premove);
+	printf(".bdir %s\n", settings.bdir);
+	printf(".initial %s\n", settings.initial);
+	printf(".end_gen %lld\n", settings.end_gen);
+	printf(".tdir %s\n", settings.tdir);
+	printf(".winstates %s\n", settings.winstates);
+	printf(".end_solve %lld\n", settings.end_solve);
+	printf(".score %d\n", settings.score);
+	return true;
+}
+
 bool test(void){
 	set_log_level(LOG_DBG_);
 	bool passed = true;
@@ -237,6 +255,7 @@ bool test(void){
 	passed &= test_dedupe();
 	passed &= test_rots();
 	passed &= test_misc();
+	passed &= test_settings();
 	test_generation();
 	if(!passed){
 		log_out("One or more tests failed!", LOG_ERROR_);

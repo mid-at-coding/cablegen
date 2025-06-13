@@ -104,7 +104,7 @@ static int get_str_setting_section (const char *key, char *section, char** str){
 	return 0;
 }
 static int get_bool_setting(const char *key, bool *data){
-	char *str = malloc_errcheck(MAX_PROP_SIZE);
+	char *str;
 	int e = get_str_setting(key, &str);
 	if(e){
 		return e;
@@ -115,7 +115,7 @@ static int get_bool_setting(const char *key, bool *data){
 	return 0;
 }
 static int get_int_setting (const char *key, long long *data){
-	char *str = malloc_errcheck(MAX_PROP_SIZE);
+	char *str;
 	int e = get_str_setting(key, &str);
 	if(e){
 		return e;
@@ -126,7 +126,7 @@ static int get_int_setting (const char *key, long long *data){
 }
 
 static int get_bool_setting_section(const char *key, char *section, bool *data){
-	char *str = malloc_errcheck(MAX_PROP_SIZE);
+	char *str;
 	int e = get_str_setting_section(key, section, &str);
 	if(e){
 		return e;
@@ -137,7 +137,7 @@ static int get_bool_setting_section(const char *key, char *section, bool *data){
 	return 0;
 }
 static int get_int_setting_section (const char *key, char *section, long long *data){
-	char *str = malloc_errcheck(MAX_PROP_SIZE);
+	char *str;
 	int e = get_str_setting_section(key, section, &str);
 	if(e){
 		return e;

@@ -7,7 +7,6 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <threads.h>
 #include <time.h>
 typedef struct {
 	char nox;
