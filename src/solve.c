@@ -101,9 +101,21 @@ void read_table(table *t, const char *filename){
 #endif
 }
 
-uint64_t next_pow2(uint64_t x) { 	return x == 1 ? 1 : 1<<(64-__builtin_clzl(x-1)); }
+uint64_t next_pow2(uint64_t x) {
+#ifdef _WIN32
+	x--;
+	x |= x >> 1;
+	x |= x >> 2;
+	x |= x >> 4;
+	x |= x >> 8;
+	x |= x >> 16;
+	x |= x >> 32;
+	return ++x;
+#endif
+	return x == 1 ? 1 : 1<<(64-__builtin_clzl(x-1));
+}
 
-double lookup_shar(uint64_t lookup, table *t, bool canonicalize){
+double lookup(uint64_t lookup, table *t, bool canonicalize){
 	size_t length = t->key.size;
 	size_t begin = 0;
 	size_t end = t->key.size;
@@ -126,9 +138,9 @@ double lookup_shar(uint64_t lookup, table *t, bool canonicalize){
 			begin += step;
 	}
 	return *((double*)&t->value.bp[begin + (t->key.bp[begin] < lookup)]);
-}
+} 
 
-double lookup(uint64_t key, table *t, bool canonicalize){
+double lookup_old(uint64_t key, table *t, bool canonicalize){
 //	return lookup_shar(key, t, canonicalize);
 	if(t->key.size == 0){
 		log_out("Empty table!", LOG_TRACE_);

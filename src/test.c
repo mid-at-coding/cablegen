@@ -3,11 +3,13 @@
 #include "../inc/logging.h"
 #include "../inc/board.h"
 #include "../inc/settings.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
 static bool test_searching(void){
 	const size_t test_size = 100;
+	set_log_level(LOG_INFO_);
 	log_out("Testing searching", LOG_INFO_);
 	table t;
 	t.key   = init_sarr(0, test_size); 
@@ -29,6 +31,9 @@ static bool test_searching(void){
 		}
 		if(lookup((uint64_t)i, &t, false) != (double)(test_size - i - 1)){
 			log_out("Search test failed!", LOG_ERROR_);
+			LOGIF(LOG_TRACE_){
+				printf("Index: %ld, key: %ld, value: %lf\n", i, t.key.bp[i], lookup((uint64_t)i, &t, false));
+			}
 //			free(t.key.bp);
 //			free(t.value.bp);
 //			return false;
@@ -247,7 +252,7 @@ static bool test_settings(void){
 }
 
 bool test(void){
-	set_log_level(LOG_DBG_);
+	set_log_level(LOG_INFO_);
 	bool passed = true;
 	generate_lut(true);
 	passed &= test_dynamic_arr();
