@@ -218,6 +218,7 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	if(get_settings().advanced){
 		init_threads(n, core_count, prune, cores, nox);
 		wait(cores, core_count);
+		destroy_darr(n);
 		*n = init_darr(0,0);
 		for(size_t i = 0; i < core_count; i++){
 			*n = concat(n, &cores[i].nret);
