@@ -26,8 +26,9 @@ settings_t get_settings(void){
 		.initial = "./initial",
 		.end_gen = 1200,
 		.stsl = 200,
-		.ltsl = 1200,
-		.advanced = false,
+		.ltc = 5,
+		.smallest_large = 6,
+		.prune = false,
 
 		.tdir = "./tables/",
 		.winstates = "./winstates",
@@ -46,8 +47,9 @@ settings_t get_settings(void){
 	get_str_setting_section("initial", "Generate", &res.initial);
 	get_int_setting_section("end", "Generate", &res.end_gen); 
 	get_int_setting_section("stsl", "Generate", &res.stsl); 
-	get_int_setting_section("ltsl", "Generate", &res.ltsl); 
-	get_bool_setting_section("prune", "Generate", &res.advanced);
+	get_int_setting_section("ltc", "Generate", &res.ltc); 
+	get_int_setting_section("smallest_large", "Generate", &res.smallest_large); 
+	get_bool_setting_section("prune", "Generate", &res.prune);
 	get_str_setting_section("dir", "Solve", &res.tdir);
 	get_str_setting_section("winstates", "Solve", &res.winstates);
 	get_int_setting_section("end", "Solve", &res.end_solve); 

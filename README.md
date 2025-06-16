@@ -36,16 +36,20 @@ nox = 0
 [Generate]
 : where generated unsolved boards will go, relative to where cablegen is run
 dir = ./boards/
-initial = ./initial
 ; where the initial boards for generation are
-end = 800             
+initial = ./initial
 ; the tile sum where generation stops
-premove = false       
+end = 800             
 ; move initial boards before spawning
-prune = true
+premove = false       
 ; prune unlikely boards
+prune = true
+; small tile sum limit for pruning
 stsl = 58
-; small tile (<64) sum limit for pruning
+; large tile count for pruning
+ltc = 5
+; defines the smallest large tile, below which a tile is "small"
+smallest_large = 6
 
 [Solve]   
 ; solving specific settings

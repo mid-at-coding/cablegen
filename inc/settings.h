@@ -18,8 +18,9 @@ typedef struct {
 	char *initial;
 	long long end_gen;
 	long long stsl;
-	long long ltsl;
-	bool advanced;
+	long long ltc;
+	long long smallest_large;
+	bool prune;
 
 	char *tdir;
 	char *winstates;

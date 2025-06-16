@@ -245,6 +245,7 @@ static bool test_settings(void){
 	printf(".initial %s\n", settings.initial);
 	printf(".end_gen %lld\n", settings.end_gen);
 	printf(".stsl %lld\n", settings.stsl);
+	printf(".smallest_large %lld\n", settings.smallest_large);
 	printf(".advanced %d\n", settings.advanced);
 	printf(".tdir %s\n", settings.tdir);
 	printf(".winstates %s\n", settings.winstates);

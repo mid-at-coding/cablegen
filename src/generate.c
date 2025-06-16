@@ -17,7 +17,8 @@ typedef struct {
 	size_t start; 
 	size_t end; 
 	long stsl; 
-	long ltsl; 
+	long smallest_large; 
+	long ltc;
 	char nox;
 	pthread_t thread;
 } arguments;
@@ -28,26 +29,12 @@ enum thread_op {
 };
 
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
-	static clock_t old;
-	static bool startup_init = 0;
 	size_t filename_size = strlen(fmt) + 10; // if there are more than 10 digits of layers i'll eat my shoe
 	char* filename = malloc_errcheck(sizeof(char) * filename_size);
 	snprintf(filename, filename_size, fmt, layer);
 	LOGIF(LOG_INFO_){
 		printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", n.size, filename, sizeof(uint64_t) * n.size);  // lol
 	}	
-	if(!startup_init){
-		startup_init = true;
-		old = clock();
-	}
-	else{
-		clock_t curr = clock();
-		size_t diff = curr - old;
-		old = curr;
-		LOGIF(LOG_INFO_){
-			printf("[INFO] Speed: %ld thousand boards per second\n", (long int)(n.size / (1000.0f * diff / CLOCKS_PER_SEC)));
-		}
-	}
 	FILE *file = fopen(filename, "wb");
 	if(file == NULL){
 		char *buf = malloc_errcheck(100);
@@ -115,31 +102,24 @@ void *generation_thread_spawn(void* data){
 	return NULL;
 }
 
-bool prune_board(const uint64_t board, const long stsl, const long ltsl){
-
+bool prune_board(const uint64_t board, const long stsl, const long ltc, const long smallest_large){
 	short tmp = 0;
-	short smallest_tiles = 0;
+	short large_tiles = 0;
 	int smallest = 0xff;
 	int sts = 0; // small tile sum
 	for(short i = 0; i < 16; i++){
-		if((tmp = GET_TILE(board, i)) > 5 && tmp < 0xf){
+		if((tmp = GET_TILE(board, i)) >= smallest_large && tmp < 0xf){
 			smallest = tmp > smallest ? smallest : tmp;
+			large_tiles++;
 		}
 		else if(tmp != 0xf){
 			sts += 1 << tmp;
 		}
 	}
-	if(sts > stsl + 64){
+	if(sts > stsl + 64)
 		return true;
-	}
-	// Large number combinations
-	for(short i = 0; i < 16; i++){
-		if(GET_TILE(board, i) == smallest){
-			if(++smallest_tiles + (smallest == 5) == 3){
-				return true;
-			}
-		}
-	}
+	if(large_tiles > ltc)
+		return true;
 	// condition number three seems impossible??
 	return false;
 }
@@ -149,7 +129,7 @@ void *generation_thread_prune(void *vargs){
 	uint64_t tmp = 0;
 	for(size_t i = args->start; i < args->end; i++){
 		tmp = args->n.bp[i];
-		if(!prune_board(tmp, args->stsl, args->ltsl)){ // TODO: may be faster to unconditionally push and pop if it's pruned
+		if(!prune_board(tmp, args->stsl, args->ltc, args->smallest_large)){ // TODO: may be faster to unconditionally push and pop if it's pruned
 			push_back(&args->nret, tmp);
 		}
 	}
@@ -183,7 +163,8 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 		case prune:
 			cores[i].nret = init_darr(0, 4 * (n->sp - n->bp));
 			cores[i].stsl = get_settings().stsl;
-			cores[i].ltsl = get_settings().ltsl;
+			cores[i].ltc = get_settings().ltc;
+			cores[i].smallest_large = get_settings().smallest_large;
 			break;
 		}
 		// divide up [0,n.size)
@@ -215,7 +196,7 @@ static void wait(arguments *cores, size_t core_count){
 
 void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, 
 		const unsigned core_count, const char *fmt_dir, const int layer, arguments *cores, char nox){
-	if(get_settings().advanced){
+	if(get_settings().prune){
 		init_threads(n, core_count, prune, cores, nox);
 		wait(cores, core_count);
 		destroy_darr(n);
