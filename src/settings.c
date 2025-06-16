@@ -26,6 +26,7 @@ settings_t get_settings(void){
 		.initial = "./initial",
 		.end_gen = 1200,
 		.stsl = 200,
+		.ltsl = 1200,
 		.advanced = false,
 
 		.tdir = "./tables/",
@@ -45,6 +46,7 @@ settings_t get_settings(void){
 	get_str_setting_section("initial", "Generate", &res.initial);
 	get_int_setting_section("end", "Generate", &res.end_gen); 
 	get_int_setting_section("stsl", "Generate", &res.stsl); 
+	get_int_setting_section("ltsl", "Generate", &res.ltsl); 
 	get_bool_setting_section("prune", "Generate", &res.advanced);
 	get_str_setting_section("dir", "Solve", &res.tdir);
 	get_str_setting_section("winstates", "Solve", &res.winstates);
@@ -99,8 +101,8 @@ static int get_str_setting_section (const char *key, char *section, char** str){
 	}
 	char *res = ini_get(cfg, section, key);
 	if(res == NULL){
-		log_out("Could not find property!", LOG_WARN_);
-		log_out(key, LOG_WARN_);
+		log_out("Could not find property!", LOG_DBG_);
+		log_out(key, LOG_DBG_);
 		ini_free(cfg);
 		return 1;
 	}

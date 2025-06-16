@@ -115,7 +115,7 @@ uint64_t next_pow2(uint64_t x) {
 	return x == 1 ? 1 : 1<<(64-__builtin_clzl(x-1));
 }
 
-double lookup(uint64_t lookup, table *t, bool canonicalize){
+double lookup_shar(uint64_t lookup, table *t, bool canonicalize){
 	size_t length = t->key.size;
 	size_t begin = 0;
 	size_t end = t->key.size;
@@ -140,7 +140,7 @@ double lookup(uint64_t lookup, table *t, bool canonicalize){
 	return *((double*)&t->value.bp[begin + (t->key.bp[begin] < lookup)]);
 } 
 
-double lookup_old(uint64_t key, table *t, bool canonicalize){
+double lookup(uint64_t key, table *t, bool canonicalize){
 //	return lookup_shar(key, t, canonicalize);
 	if(t->key.size == 0){
 		log_out("Empty table!", LOG_TRACE_);
@@ -171,8 +171,8 @@ double lookup_old(uint64_t key, table *t, bool canonicalize){
 					return *(double*)(&(t->value.bp[i]));
 				}
 			}
-			log_out("Couldn't find board!", LOG_WARN_);
-			LOGIF(LOG_WARN_){
+			log_out("Couldn't find board!", LOG_TRACE_);
+			LOGIF(LOG_TRACE_){
 				printf("board: %016lx\n", key);
 			}
 			return 0.0;

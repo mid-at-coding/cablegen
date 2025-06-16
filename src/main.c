@@ -269,7 +269,12 @@ static void parsePlay(int argc, char **argv){
 		printf("\n");
 		snprintf(table_dir_str, table_dir_str_size, table_fmt, get_sum(board));
 		read_table(t, table_dir_str);
-		movedir(&board, best(board, t).d);
+		struct dirprob tmp = best(board, t);
+		movedir(&board, tmp.d);
+		if(tmp.prob == 1.0f){
+			log_out("AI won!", LOG_INFO_);
+			exit(0);
+		}
 		free(t->key.bp);
 		free(t->value.bp);
 	}
