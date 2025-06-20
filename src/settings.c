@@ -20,6 +20,7 @@ settings_t get_settings(void){
 		.free_formation = 0,
 		.cores = 1,
 		.nox = 0,
+		.mask = 0,
 		
 		.premove = false,
 		.bdir = "./boards/",
@@ -42,6 +43,7 @@ settings_t get_settings(void){
 	get_bool_setting("free_formation", &res.free_formation);
 	get_int_setting("cores", &res.cores); 
 	get_int_setting("nox", &res.nox); 
+	get_bool_setting("mask", &res.mask); 
 	get_bool_setting_section("premove", "Generate", &res.premove);
 	get_str_setting_section("dir", "Generate", &res.bdir);
 	get_str_setting_section("initial", "Generate", &res.initial);

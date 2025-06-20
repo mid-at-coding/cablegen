@@ -180,7 +180,7 @@ bool movedir(uint64_t* board, dir d){
 	return changed;
 }
 
-void rotate_clockwise(uint64_t* b){ // taken from game-difficult/2048EndgameTablebase (Calculator.py)
+inline void rotate_clockwise(uint64_t* b){ // taken from game-difficult/2048EndgameTablebase (Calculator.py)
     *b = (((*b) & 0xff00ff0000000000) >> 8 ) |
 		 (((*b) & 0x00ff00ff00000000) >> 32) |
          (((*b) & 0x00000000ff00ff00) << 32) | 
@@ -190,7 +190,7 @@ void rotate_clockwise(uint64_t* b){ // taken from game-difficult/2048EndgameTabl
          (((*b) & 0x0000f0f00000f0f0) << 16) |
 		 (((*b) & 0x00000f0f00000f0f) << 4 );
 }
-void rotate_counterclockwise(uint64_t* b){
+inline void rotate_counterclockwise(uint64_t* b){
     *b = (((*b) & 0xff00ff0000000000) >> 32) |
 		 (((*b) & 0x00ff00ff00000000) << 8 ) |
          (((*b) & 0x00000000ff00ff00) >> 8 ) |
@@ -200,7 +200,7 @@ void rotate_counterclockwise(uint64_t* b){
          (((*b) & 0x0000f0f00000f0f0) >> 4 ) |
 		 (((*b) & 0x00000f0f00000f0f) << 16);
 }
-void rotate_180(uint64_t* b){
+inline void rotate_180(uint64_t* b){
     (*b) = (((*b) & 0xffffffff00000000) >> 32) | 
 		   (((*b) & 0x00000000ffffffff) << 32);
     (*b) = (((*b) & 0xffff0000ffff0000) >> 16) | 
@@ -236,7 +236,7 @@ int get_sum(uint64_t b){
 	int res = 0;
 	for(int i = 0; i < 16; i++){
 		int curr = GET_TILE(b,i);
-		res += (curr == 0 || curr == 0xf) ? 0 : pow(2,curr);
+		res += (curr == 0 || curr == 0xf || curr == 0xe) ? 0 : pow(2,curr);
 	}
 	return res;
 }
@@ -303,7 +303,7 @@ void output_board(uint64_t board){
 		"2k \0",
 		"4k \0",
 		"8k \0",
-		"16k\0",
+		"m  \0",
 		"x  \0"
 	};
 	for(int i = 0; i < 4; i++){
@@ -312,4 +312,33 @@ void output_board(uint64_t board){
 		}
 		printf("\n");
 	}
+}
+
+dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, long remaining){
+	dynamic_arr_info res = init_darr(0,1);
+	dynamic_arr_info tmp;
+	const int MASKED_TILE = 0xe;
+	bool masked = false;
+	for(int i = 0; i < 16; i++){
+		if(GET_TILE(board, i) == MASKED_TILE){
+			masked = true;
+			for(short tile = smallest_large; remaining - (1 << tile) >= 0 && tile < MASKED_TILE; tile++){
+				SET_TILE(board, i, tile);
+				tmp = unmask_board(board, smallest_large, remaining - (1 << tile));
+				res = concat(&res, &tmp);
+			}
+		}
+	}
+	if(!masked && remaining == 0)
+		push_back(&res, board);
+	return res;
+}
+uint64_t mask_board(uint64_t board, const short smallest_large){
+	const short MASK = 0xe;
+	for(short tile = 0; tile < 16; tile++){
+		if(GET_TILE(board, tile) >= smallest_large && GET_TILE(board, tile) != 0xf){
+			SET_TILE(board, tile, MASK);
+		}
+	}
+	return board;
 }

@@ -165,6 +165,24 @@ void deduplicate(dynamic_arr_info *s){
 	return;
 }
 
+void deduplicate_qs(dynamic_arr_info *s){
+    if(s->sp == s->bp || s-> sp == s->bp + 1){
+		log_out("Can't sort one value!\n", LOG_DBG_);
+		return;
+	}
+	size_t size = s->sp - s->bp;
+    dynamic_arr_info res = init_darr(0, 0.7 * size); // assume it's around 30% dupes
+	uint64_quick_sort(s->bp, size);
+	push_back(&res, *s->bp);
+	for(uint64_t *curr = s->bp + 1; curr < s->sp; curr++){
+		if(*curr != *(curr - 1)){
+			push_back(&res, *curr);
+		}
+	}
+	destroy_darr(s);
+	*s = res;
+	return;
+}
 void* malloc_errcheck(size_t size){ // guaranteed to be non-null
 	void* res = malloc(size);
 	if(res == NULL){

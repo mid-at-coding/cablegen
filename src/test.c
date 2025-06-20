@@ -230,6 +230,50 @@ bool test_misc(void){
 			}
 		}
 	}
+	log_out("Testing masking and unmasking with one board", LOG_INFO_);
+	uint64_t board = 0x1eff2eff54ff2231;
+	log_out("Masked board:", LOG_INFO_);
+	output_board(board);
+	dynamic_arr_info tmp = unmask_board(board, 6, 128 + 64);
+	log_out("Unmasked boards:", LOG_INFO_);
+	for(uint64_t *curr = tmp.bp; curr < tmp.sp; curr++){
+		output_board(*curr);
+		if(curr + 1 != tmp.sp)
+			log_out("---", LOG_INFO_);
+	}
+	log_out("Testing masking and unmasking with random boards", LOG_INFO_);
+	destroy_darr(&tmp);
+	for(size_t i = 0; i < iterations / 500; i++){
+		uint64_t old;
+		board = rand();
+		old = board;
+		long long lts = 0;
+		if(!checkx(board, 0xe))
+			continue;
+		for(int tile = 0; tile < 16; tile++){
+			if(GET_TILE(board, tile) >= 6 && GET_TILE(board, tile) < 0xe){
+				lts += (1 << (GET_TILE(board, tile)));
+			}
+		}
+		board = mask_board(board, 6);
+		tmp = unmask_board(board, 6, lts);
+		bool found = false;
+		for(uint64_t *curr = tmp.bp; curr < tmp.sp; curr++){
+			if(*curr == old)
+				found = true;
+		}
+		if(!found){
+			log_out("Failed!", LOG_ERROR_);
+			log_out("Original board", LOG_ERROR_);
+			output_board(old);
+			log_out("Masked board", LOG_ERROR_);
+			output_board(board);
+			printf("Large tile sum: %lld\n", lts);
+			destroy_darr(&tmp);
+			return false;
+		}
+		destroy_darr(&tmp);
+	}
 	log_out("No errors reported", LOG_INFO_);
 	return res;
 }
@@ -246,7 +290,7 @@ static bool test_settings(void){
 	printf(".end_gen %lld\n", settings.end_gen);
 	printf(".stsl %lld\n", settings.stsl);
 	printf(".smallest_large %lld\n", settings.smallest_large);
-	printf(".advanced %d\n", settings.advanced);
+	printf(".prune %d\n", settings.prune);
 	printf(".tdir %s\n", settings.tdir);
 	printf(".winstates %s\n", settings.winstates);
 	printf(".end_solve %lld\n", settings.end_solve);

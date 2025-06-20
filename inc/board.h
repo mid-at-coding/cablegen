@@ -2,6 +2,7 @@
 #define BOARD_H
 #include <stdint.h>
 #include <stdbool.h>
+#include "array.h"
 #define BIT_MASK (0xf000000000000000)
 #define OFFSET(x) (x * 4)
 #define GET_TILE(b, x) (uint8_t)(((b << OFFSET(x)) & BIT_MASK) >> OFFSET(15))
@@ -33,5 +34,7 @@ void normalize(uint64_t*, dir); // make every direction left
 int get_sum(uint64_t);
 uint64_t *get_all_rots(uint64_t);
 void output_board(uint64_t);
+dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, long remaining);
+uint64_t mask_board(uint64_t, const short smallest_large);
 
 #endif

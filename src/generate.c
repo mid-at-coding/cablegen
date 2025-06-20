@@ -25,7 +25,8 @@ typedef struct {
 enum thread_op {
 	move,
 	spawn,
-	prune
+	prune,
+	mask
 };
 
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
@@ -108,7 +109,7 @@ bool prune_board(const uint64_t board, const long stsl, const long ltc, const lo
 	int smallest = 0xff;
 	int sts = 0; // small tile sum
 	for(short i = 0; i < 16; i++){
-		if((tmp = GET_TILE(board, i)) >= smallest_large && tmp < 0xf){
+		if((tmp = GET_TILE(board, i)) >= smallest_large && tmp < 0xe){
 			smallest = tmp > smallest ? smallest : tmp;
 			large_tiles++;
 		}
@@ -136,6 +137,22 @@ void *generation_thread_prune(void *vargs){
 	return NULL;
 }
 
+void *generation_thread_mask(void *vargs){
+	arguments *args = vargs;
+	uint64_t tmp = 0;
+	uint64_t tmp2 = 0;
+	for(size_t i = args->start; i < args->end; i++){
+		tmp = args->n.bp[i];
+		tmp2 = mask_board(tmp, args->smallest_large);
+		if(tmp != tmp2){
+			canonicalize_b(&tmp2);
+			push_back(&args->nret, tmp2);
+		}
+	}
+	deduplicate(&args->nret);
+	return NULL;
+}
+
 static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, enum thread_op op, arguments *cores, char nox){
 	void *(*fn)(void*);
 	switch(op){
@@ -148,6 +165,8 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 	case prune:
 		fn = generation_thread_prune;
 		break;
+	case mask:
+		fn = generation_thread_mask;
 	}
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = (static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp};
@@ -164,6 +183,10 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 			cores[i].nret = init_darr(0, 4 * (n->sp - n->bp));
 			cores[i].stsl = get_settings().stsl;
 			cores[i].ltc = get_settings().ltc;
+			cores[i].smallest_large = get_settings().smallest_large;
+			break;
+		case mask:
+			cores[i].nret = init_darr(0, 4 * (n->sp - n->bp));
 			cores[i].smallest_large = get_settings().smallest_large;
 			break;
 		}
@@ -198,10 +221,10 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 		const unsigned core_count, const char *fmt_dir, const int layer, arguments *cores, char nox){
 	if(get_settings().prune){
 		init_threads(n, core_count, prune, cores, nox);
-		wait(cores, core_count);
+		wait(cores, core_count); // TODO pull these lines out into a fn
 		destroy_darr(n);
-		*n = init_darr(0,0);
-		for(size_t i = 0; i < core_count; i++){
+		*n = cores[0].nret;
+		for(size_t i = 1; i < core_count; i++){
 			*n = concat(n, &cores[i].nret);
 		}
 	}
@@ -210,11 +233,21 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	// wait for moves to be done
 	wait(cores, core_count);
 	destroy_darr(n); // this array currently holds boards where we just spawned -- these are never our responsibility
-	*n = init_darr(0,0);
-	for(size_t i = 0; i < core_count; i++){
+	*n = cores[0].nret;
+	for(size_t i = 1; i < core_count; i++){
 		*n = concat(n, &cores[i].nret);
 	}
 	deduplicate(n);
+	if(get_settings().mask){
+		init_threads(n, core_count, mask, cores, nox);
+		wait(cores, core_count);
+		destroy_darr(n);
+		*n = cores[0].nret;
+		for(size_t i = 1; i < core_count; i++){
+			*n = concat(n, &cores[i].nret);
+		}
+		deduplicate(n);
+	}
 	// spawn
 	init_threads(n, core_count, spawn, cores, nox);
 	// write while waiting for spawns

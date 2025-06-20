@@ -115,7 +115,7 @@ uint64_t next_pow2(uint64_t x) {
 	return x == 1 ? 1 : 1<<(64-__builtin_clzl(x-1));
 }
 
-double lookup_shar(uint64_t lookup, table *t, bool canonicalize){
+double lookup(uint64_t lookup, table *t, bool canonicalize){
 	size_t length = t->key.size;
 	size_t begin = 0;
 	size_t end = t->key.size;
@@ -140,7 +140,7 @@ double lookup_shar(uint64_t lookup, table *t, bool canonicalize){
 	return *((double*)&t->value.bp[begin + (t->key.bp[begin] < lookup)]);
 } 
 
-double lookup(uint64_t key, table *t, bool canonicalize){
+double lookup_old(uint64_t key, table *t, bool canonicalize){
 //	return lookup_shar(key, t, canonicalize);
 	if(t->key.size == 0){
 		log_out("Empty table!", LOG_TRACE_);
@@ -150,8 +150,6 @@ double lookup(uint64_t key, table *t, bool canonicalize){
 	if(canonicalize)
 		canonicalize_b(&key);
 	static const int SEARCH_STOP = 50;
-//	int current_depth = 0;	
-//	int max_depth = (log(t->key.size) / log(2)) + 1; // add an extra iteration for safety
 	size_t top = t->key.size;
 	size_t bottom = 0;
 	size_t midpoint = (top + bottom) / 2;

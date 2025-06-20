@@ -12,6 +12,7 @@ typedef struct {
 	bool free_formation;
 	long long cores;
 	long long nox;
+	bool mask;
 
 	bool premove;
 	char *bdir;
