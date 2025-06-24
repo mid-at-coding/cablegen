@@ -144,7 +144,7 @@ void *generation_thread_mask(void *vargs){
 	for(size_t i = args->start; i < args->end; i++){
 		tmp = args->n.bp[i];
 		tmp2 = mask_board(tmp, args->smallest_large);
-		canonicalize_b(&tmp2);
+		canonicalize_b(&tmp2); // TODO: with all canonicalize_b calls: sometimes (when a big tile is on only one corner) the orientation never changes
 		push_back(&args->nret, tmp2);
 	}
 	deduplicate(&args->nret);

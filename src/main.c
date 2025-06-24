@@ -253,6 +253,11 @@ static void parsePlay(int argc, char **argv){
 			if(!GET_TILE(board, i))
 				spaces++;
 		}
+		if(spaces == 0){
+			log_out("No space!", LOG_INFO_);
+			output_board(board);
+			exit(0);
+		}
 		short position = rand() % spaces;
 		short tile = rand() % 10;
 		short curr = 0;
@@ -380,6 +385,7 @@ void newton_method(void){
 }
 
 int main(int argc, char **argv){
+	set_log_level(LOG_INFO_);
 	// parse arguments
 	if(argc > 1){
 		if(!strcmp(argv[1],"help")) {help();}

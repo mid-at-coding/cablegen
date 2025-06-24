@@ -234,7 +234,7 @@ bool test_misc(void){
 	uint64_t board = 0x1eff2eff54ff2231;
 	log_out("Masked board:", LOG_INFO_);
 	output_board(board);
-	dynamic_arr_info tmp = unmask_board_recursive(board, 6, 128 + 64, 0);
+	dynamic_arr_info tmp = unmask_board(board, get_settings().smallest_large, get_sum(board) + 64 + 128);
 	set_log_level(LOG_TRACE_);
 	unmask_board(board, 6, get_sum(board) + 64 + 128);
 	set_log_level(LOG_INFO_);

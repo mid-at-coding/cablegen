@@ -61,6 +61,8 @@ void read_table(table *t, const char *filename){
 	if(errno){
 		log_out("Failed getting size of table!", LOG_ERROR_);
 		fclose(fp);
+		t->key = init_sarr(0,0);
+		t->value = init_sarr(0,0);
 		return;
 	}
 	rewind(fp);
@@ -244,7 +246,7 @@ static inline bool cmpbrd(uint64_t board, uint64_t board2){
 	return true;
 }
 
-static bool satisfied(uint64_t *board, static_arr_info *winstates, char nox, bool score){
+bool satisfied(const uint64_t *board, const static_arr_info *winstates, const char nox, const bool score){
 	if(nox && !score)
 		return !checkx(*board, nox);
 	if(score)
@@ -328,14 +330,18 @@ void *solve_worker_thread_masking(void *args){
 		dynamic_arr_info boards = unmask_board(sargs->n->key.bp[curr], get_settings().smallest_large, sargs->layer);
 		for(uint64_t *currb = boards.bp; currb < boards.sp; currb++){
 			if(satisfied(currb, sargs->winstates, sargs->nox, sargs->score)){
-				prob += 1;
+				prob = 1;
 				log_out("Winstate!", LOG_TRACE_);
 			}
 			else
-				prob += expectimax(*currb, sargs->n2, sargs->n4, sargs->winstates, sargs->nox, sargs->score);
+				prob = MAX(prob, expectimax(*currb, sargs->n2, sargs->n4, sargs->winstates, sargs->nox, sargs->score));
 		}
-		prob /= boards.sp - boards.bp; // average the probability of all of the unmasked boards that the masked board could be
+		if(boards.sp == boards.bp)
+			prob = 0;
+/*		else
+			prob /= boards.sp - boards.bp; // average the probability of all of the unmasked boards that the masked board could be */
 		sargs->n->value.bp[curr] = *((uint64_t*)(&prob));
+		destroy_darr(&boards);
 	}
 	return NULL;
 }

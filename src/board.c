@@ -319,34 +319,37 @@ void output_board(uint64_t board){
 	}
 }
 
-dynamic_arr_info unmask_board_recursive(uint64_t board, const short smallest_large, long remaining, short start){
-	dynamic_arr_info res = init_darr(0,1);
-	dynamic_arr_info tmp;
-	const int MASKED_TILE = 0xe;
-	bool masked = false;
-	for(int i = start; i < 16; i++){
-		if(GET_TILE(board, i) == MASKED_TILE){
-			masked = true;
-			for(short tile = smallest_large; remaining - (1 << tile) >= 0 && tile < MASKED_TILE; tile++){
-				SET_TILE(board, i, tile);
-				tmp = unmask_board_recursive(board, smallest_large, remaining - (1 << tile), i);
-				res = concat(&res, &tmp);
-			}
-		}
-	}
-	if(!masked && remaining == 0)
-		push_back(&res, board);
-	return res;
+static void unmask_board_recursive(uint64_t board, const short smallest_large, long remaining, short start, dynamic_arr_info* result){
+    const int MASKED_TILE = 0xe;
+    bool masked = false;
+    
+    for(int i = start; i < 16; i++) {
+        if(GET_TILE(board, i) == MASKED_TILE) {
+            masked = true;
+            for(short tile = smallest_large; remaining - (1 << tile) >= 0 && tile < MASKED_TILE; tile++) {
+                uint64_t new_board = board;
+                SET_TILE(new_board, i, tile);
+                unmask_board_recursive(new_board, smallest_large, remaining - (1 << tile), i, result);
+            }
+            break; // Only process first masked position to avoid duplicates
+        }
+    }
+    
+    if(!masked && remaining == 0) {
+        push_back(result, board);
+    }
 }
 
-dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, long long sum){
-	short tmp;
-	for(int i = 0; i < 16; i++){
-		if((tmp = GET_TILE(board, i)) < smallest_large && tmp > 0){
-			sum -= (1 << tmp);
-		}
-	}
-	return unmask_board_recursive(board, smallest_large, sum, 0);
+dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, long long sum) {
+    for(int i = 0; i < 16; i++) {
+        short tmp = GET_TILE(board, i);
+        if(tmp < smallest_large && tmp > 0) {
+            sum -= (1 << tmp);
+        }
+    }
+    dynamic_arr_info result = init_darr(false, 1000);
+    unmask_board_recursive(board, smallest_large, sum, 0, &result);
+    return result;
 }
 
 uint64_t mask_board(uint64_t board, const short smallest_large){
