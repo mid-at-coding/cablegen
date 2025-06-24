@@ -21,9 +21,7 @@ typedef struct {
 	static_arr_info *winstates;
 	pthread_t thread;
 } solve_core_data;
-void write_table(const table *t, const char *filename){
-	static bool startup_init = 0;
-	static time_t old = 0;
+void write_table(const table *t, const char *filename){ // TODO fix the speed situation
 	LOGIF(LOG_INFO_){
 		printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", t->key.size, filename, 2 * sizeof(uint64_t) * t->key.size);  // lol
 	}
@@ -34,18 +32,6 @@ void write_table(const table *t, const char *filename){
 		log_out(buf, LOG_WARN_);
 		free(buf);
 		return;
-	}
-	if(!startup_init){
-		startup_init = true;
-		old = time(NULL);
-	}
-	else{
-		clock_t curr = clock();
-		size_t diff = curr - old;
-		old = curr;
-		LOGIF(LOG_INFO_){
-			printf("[INFO] Speed: %ld thousand boards per second\n", (long)((double)t->key.size / (double)((diff * 1000.0f) / (double)CLOCKS_PER_SEC)));
-		}
 	}
 	if(t->key.size != t->value.size){
 		log_out("Key and value size inequal, refusing to write!", LOG_WARN_);
@@ -103,7 +89,7 @@ void read_table(table *t, const char *filename){
 #endif
 }
 
-uint64_t next_pow2(uint64_t x) {
+inline static uint64_t next_pow2(uint64_t x) {
 #ifdef _WIN32
 	x--;
 	x |= x >> 1;
@@ -247,7 +233,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	destroy_table(n4);
 }
 
-static bool cmpbrd(uint64_t board, uint64_t board2){
+static inline bool cmpbrd(uint64_t board, uint64_t board2){
 	for(int i = 0; i < 16; i++){
 		if((GET_TILE(board2, i)) == 0) // 0s 
 			continue;
@@ -278,8 +264,12 @@ static double maxmove(uint64_t board, table *n, static_arr_info *winstates, char
 		if(movedir(&tmp, d)){
 			if(satisfied(&tmp, winstates, nox, score))
 				return 1.0;
-			if((nox && checkx(tmp,nox)) || !nox)
-				prob = fmax(prob, lookup(mask_board(tmp, get_settings().smallest_large), n, true));
+			if((nox && checkx(tmp,nox)) || !nox){
+				if(get_settings().mask)
+					prob = fmax(prob, lookup(mask_board(tmp, get_settings().smallest_large), n, true));
+				else
+					prob = fmax(prob, lookup(tmp, n, true));
+			}
 		}
 	}
 	return prob;
@@ -331,31 +321,20 @@ void *solve_worker_thread(void *args){
 	return NULL;
 }
 
-long getlts(char smallest_large, uint64_t board){
-	long res = 0;
-	char tmp;
-	for(int i = 0; i < 16; i++){
-		if((tmp = GET_TILE(board, i)) >= smallest_large){
-			res += (1 << tmp);
-		}
-	}
-	return res;
-}
-
 void *solve_worker_thread_masking(void *args){
 	solve_core_data *sargs = args;
 	for(size_t curr = sargs->start; curr < sargs->end; curr++){
 		double prob = 0;
-		dynamic_arr_info boards = unmask_board(sargs->n->key.bp[curr], get_settings().smallest_large, getlts(get_settings().smallest_large, sargs->n->key.bp[curr]));
+		dynamic_arr_info boards = unmask_board(sargs->n->key.bp[curr], get_settings().smallest_large, sargs->layer);
 		for(uint64_t *currb = boards.bp; currb < boards.sp; currb++){
-			if(satisfied(&sargs->n->key.bp[curr], sargs->winstates, sargs->nox, sargs->score)){
+			if(satisfied(currb, sargs->winstates, sargs->nox, sargs->score)){
 				prob += 1;
 				log_out("Winstate!", LOG_TRACE_);
 			}
 			else
-				prob += expectimax(sargs->n->key.bp[curr], sargs->n2, sargs->n4, sargs->winstates, sargs->nox, sargs->score); // we should not be moving -- we're reading moves
+				prob += expectimax(*currb, sargs->n2, sargs->n4, sargs->winstates, sargs->nox, sargs->score);
 		}
-		prob /= boards.sp - boards.bp; // average? idk what else you'd do
+		prob /= boards.sp - boards.bp; // average the probability of all of the unmasked boards that the masked board could be
 		sargs->n->value.bp[curr] = *((uint64_t*)(&prob));
 	}
 	return NULL;

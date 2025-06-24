@@ -113,7 +113,7 @@ bool prune_board(const uint64_t board, const long stsl, const long ltc, const lo
 			smallest = tmp > smallest ? smallest : tmp;
 			large_tiles++;
 		}
-		else if(tmp != 0xf){
+		else if(tmp < 0xe){
 			sts += 1 << tmp;
 		}
 	}
@@ -144,10 +144,8 @@ void *generation_thread_mask(void *vargs){
 	for(size_t i = args->start; i < args->end; i++){
 		tmp = args->n.bp[i];
 		tmp2 = mask_board(tmp, args->smallest_large);
-		if(tmp != tmp2){
-			canonicalize_b(&tmp2);
-			push_back(&args->nret, tmp2);
-		}
+		canonicalize_b(&tmp2);
+		push_back(&args->nret, tmp2);
 	}
 	deduplicate(&args->nret);
 	return NULL;

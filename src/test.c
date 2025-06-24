@@ -234,7 +234,10 @@ bool test_misc(void){
 	uint64_t board = 0x1eff2eff54ff2231;
 	log_out("Masked board:", LOG_INFO_);
 	output_board(board);
-	dynamic_arr_info tmp = unmask_board(board, 6, 128 + 64);
+	dynamic_arr_info tmp = unmask_board_recursive(board, 6, 128 + 64, 0);
+	set_log_level(LOG_TRACE_);
+	unmask_board(board, 6, get_sum(board) + 64 + 128);
+	set_log_level(LOG_INFO_);
 	log_out("Unmasked boards:", LOG_INFO_);
 	for(uint64_t *curr = tmp.bp; curr < tmp.sp; curr++){
 		output_board(*curr);
@@ -247,16 +250,10 @@ bool test_misc(void){
 		uint64_t old;
 		board = rand();
 		old = board;
-		long long lts = 0;
 		if(!checkx(board, 0xe))
 			continue;
-		for(int tile = 0; tile < 16; tile++){
-			if(GET_TILE(board, tile) >= 6 && GET_TILE(board, tile) < 0xe){
-				lts += (1 << (GET_TILE(board, tile)));
-			}
-		}
 		board = mask_board(board, 6);
-		tmp = unmask_board(board, 6, lts);
+		tmp = unmask_board(board, 6, get_sum(old));
 		bool found = false;
 		for(uint64_t *curr = tmp.bp; curr < tmp.sp; curr++){
 			if(*curr == old)
@@ -268,7 +265,6 @@ bool test_misc(void){
 			output_board(old);
 			log_out("Masked board", LOG_ERROR_);
 			output_board(board);
-			printf("Large tile sum: %lld\n", lts);
 			destroy_darr(&tmp);
 			return false;
 		}
@@ -284,6 +280,7 @@ static bool test_settings(void){
 	printf(".free_formation %d\n", settings.free_formation);
 	printf(".cores %lld\n", settings.cores);
 	printf(".nox %lld\n", settings.nox);
+	printf(".mask %b\n", settings.mask);
 	printf(".premove %d\n", settings.premove);
 	printf(".bdir %s\n", settings.bdir);
 	printf(".initial %s\n", settings.initial);

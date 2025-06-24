@@ -1,4 +1,5 @@
 #include "../inc/board.h"
+#include "../inc/logging.h"
 #include "../inc/array.h"
 #include <stdint.h>
 #include <sys/param.h>
@@ -61,7 +62,12 @@ static bool move(uint64_t *board, const static_arr_info positions){ // this shou
 		if(GET_TILE((*board), positions.bp[i])){
 			if(GET_TILE((*board), positions.bp[i]) == GET_TILE((*board), positions.bp[i + 1]) && GET_TILE((*board), positions.bp[i]) != 0xF){
 				res |= shift(board, positions, i);
-				SET_TILE((*board), positions.bp[i], (GET_TILE((*board), positions.bp[i]) + 1));
+				if((GET_TILE((*board), positions.bp[i])) != 0xE){
+					SET_TILE((*board), positions.bp[i], (GET_TILE((*board), positions.bp[i]) + 1));
+				}
+				else{
+					SET_TILE((*board), positions.bp[i], (GET_TILE((*board), positions.bp[i])));
+				}
 			}
 		}
 	}
@@ -126,7 +132,7 @@ void generate_lut(bool free_formation){
 	free(b.bp);
 }
 
-bool movedir_hori(uint64_t* board, dir direction){
+inline static bool movedir_hori(uint64_t* board, dir direction){
 	uint64_t premove = *board;
 	uint16_t lookup;
 	bool changed = false;
@@ -168,7 +174,7 @@ bool movedir(uint64_t* board, dir d){
 		case up:
 			rotate_clockwise(board);
 			changed = movedir_hori(board, right);
-			rotate_counterclockwise(board);
+			rotate_counterclockwise(board); // TODO minor perf improvement if you just.. dont?
 		break;
 		case down:
 			rotate_clockwise(board);
@@ -176,7 +182,6 @@ bool movedir(uint64_t* board, dir d){
 			rotate_counterclockwise(board);
 		break;
 	};
-	// split up board and look up
 	return changed;
 }
 
@@ -236,7 +241,7 @@ int get_sum(uint64_t b){
 	int res = 0;
 	for(int i = 0; i < 16; i++){
 		int curr = GET_TILE(b,i);
-		res += (curr == 0 || curr == 0xf || curr == 0xe) ? 0 : pow(2,curr);
+		res += (curr == 0 || curr == 0xf || curr == 0xe) ? 0 : (1 << curr);
 	}
 	return res;
 }
@@ -314,17 +319,17 @@ void output_board(uint64_t board){
 	}
 }
 
-dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, long remaining){
+dynamic_arr_info unmask_board_recursive(uint64_t board, const short smallest_large, long remaining, short start){
 	dynamic_arr_info res = init_darr(0,1);
 	dynamic_arr_info tmp;
 	const int MASKED_TILE = 0xe;
 	bool masked = false;
-	for(int i = 0; i < 16; i++){
+	for(int i = start; i < 16; i++){
 		if(GET_TILE(board, i) == MASKED_TILE){
 			masked = true;
 			for(short tile = smallest_large; remaining - (1 << tile) >= 0 && tile < MASKED_TILE; tile++){
 				SET_TILE(board, i, tile);
-				tmp = unmask_board(board, smallest_large, remaining - (1 << tile));
+				tmp = unmask_board_recursive(board, smallest_large, remaining - (1 << tile), i);
 				res = concat(&res, &tmp);
 			}
 		}
@@ -333,6 +338,17 @@ dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, long r
 		push_back(&res, board);
 	return res;
 }
+
+dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, long long sum){
+	short tmp;
+	for(int i = 0; i < 16; i++){
+		if((tmp = GET_TILE(board, i)) < smallest_large && tmp > 0){
+			sum -= (1 << tmp);
+		}
+	}
+	return unmask_board_recursive(board, smallest_large, sum, 0);
+}
+
 uint64_t mask_board(uint64_t board, const short smallest_large){
 	const short MASK = 0xe;
 	for(short tile = 0; tile < 16; tile++){

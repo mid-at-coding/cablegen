@@ -34,7 +34,8 @@ void normalize(uint64_t*, dir); // make every direction left
 int get_sum(uint64_t);
 uint64_t *get_all_rots(uint64_t);
 void output_board(uint64_t);
-dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, long remaining);
+dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, long long sum);
+dynamic_arr_info unmask_board_recursive(uint64_t board, const short smallest_large, long remaining, short start);
 uint64_t mask_board(uint64_t, const short smallest_large);
 
 #endif
