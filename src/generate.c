@@ -151,7 +151,8 @@ void *generation_thread_mask(void *vargs){
 	return NULL;
 }
 
-static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, enum thread_op op, arguments *cores, char nox){
+static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, enum thread_op op, arguments *cores, char nox){ 
+	// TODO make these ops work with solving too?
 	void *(*fn)(void*);
 	switch(op){
 	case move:

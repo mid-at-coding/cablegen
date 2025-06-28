@@ -6,6 +6,7 @@
 #include <math.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
@@ -13,6 +14,7 @@ typedef struct {
 	long layer;
 	char nox;
 	bool score;
+	dynamic_arr_info nret;
 	table *n;
 	table *n2;
 	table *n4;
@@ -105,7 +107,7 @@ inline static uint64_t next_pow2(uint64_t x) {
 	return x == 1 ? 1 : 1<<(64-__builtin_clzl(x-1));
 }
 
-double lookup(uint64_t lookup, table *t, bool canonicalize){
+double lookup_shar(uint64_t lookup, table *t, bool canonicalize){
 	size_t length = t->key.size;
 	size_t begin = 0;
 	size_t end = t->key.size;
@@ -130,7 +132,7 @@ double lookup(uint64_t lookup, table *t, bool canonicalize){
 	return *((double*)&t->value.bp[begin + (t->key.bp[begin] < lookup)]);
 } 
 
-double lookup_old(uint64_t key, table *t, bool canonicalize){
+double lookup(uint64_t key, table *t, bool canonicalize){
 	if(t->key.size == 0){
 		log_out("Empty table!", LOG_TRACE_);
 		return 0.0;
@@ -267,10 +269,7 @@ static double maxmove(uint64_t board, table *n, static_arr_info *winstates, char
 			if(satisfied(&tmp, winstates, nox, score))
 				return 1.0;
 			if((nox && checkx(tmp,nox)) || !nox){
-				if(get_settings().mask)
-					prob = fmax(prob, lookup(mask_board(tmp, get_settings().smallest_large), n, true));
-				else
-					prob = fmax(prob, lookup(tmp, n, true));
+				prob = fmax(prob, lookup(tmp, n, true));
 			}
 		}
 	}
@@ -308,6 +307,16 @@ static void wait(solve_core_data *cores, size_t core_count){
 	}
 }
 
+void *solve_unmask_worker_thread(void *args){
+	solve_core_data *sargs = args;
+	dynamic_arr_info tmp;
+	for(size_t curr = sargs->start; curr < sargs->end; curr++){
+		tmp = unmask_board(sargs->n->key.bp[curr], get_settings().smallest_large, sargs->layer);
+		sargs->nret = concat(&sargs->nret, &tmp);
+	}
+	return NULL;
+}
+
 void *solve_worker_thread(void *args){
 	solve_core_data *sargs = args;
 	for(size_t curr = sargs->start; curr < sargs->end; curr++){
@@ -318,44 +327,34 @@ void *solve_worker_thread(void *args){
 		}
 		else
 			prob = expectimax(sargs->n->key.bp[curr], sargs->n2, sargs->n4, sargs->winstates, sargs->nox, sargs->score); // we should not be moving -- we're reading moves
+		if(prob != 1 && prob != 0)
+			log_out("Fun!", LOG_INFO_);
 		sargs->n->value.bp[curr] = *((uint64_t*)(&prob));
 	}
 	return NULL;
 }
 
-void *solve_worker_thread_masking(void *args){
-	solve_core_data *sargs = args;
-	for(size_t curr = sargs->start; curr < sargs->end; curr++){
-		double prob = 0;
-		dynamic_arr_info boards = unmask_board(sargs->n->key.bp[curr], get_settings().smallest_large, sargs->layer);
-		for(uint64_t *currb = boards.bp; currb < boards.sp; currb++){
-			if(satisfied(currb, sargs->winstates, sargs->nox, sargs->score)){
-				prob = 1;
-				log_out("Winstate!", LOG_TRACE_);
-			}
-			else
-				prob = MAX(prob, expectimax(*currb, sargs->n2, sargs->n4, sargs->winstates, sargs->nox, sargs->score));
-		}
-		if(boards.sp == boards.bp)
-			prob = 0;
-/*		else
-			prob /= boards.sp - boards.bp; // average the probability of all of the unmasked boards that the masked board could be */
-		sargs->n->value.bp[curr] = *((uint64_t*)(&prob));
-		destroy_darr(&boards);
-	}
-	return NULL;
-}
+enum solve_op{
+	op_solve,
+	op_unmask,
+	op_prune
+};
 
-void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, char nox, bool score, long layer){
-	solve_core_data *cores = malloc_errcheck(sizeof(solve_core_data) * core_count);
+void init_threads(table *n, table *n2, table *n4, static_arr_info *winstates, unsigned core_count, char nox, bool score, 
+		long layer, solve_core_data *cores, enum solve_op op){
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = n;
-		cores[i].n2 = n2;
-		cores[i].n4 = n4;
-		cores[i].nox = nox;
-		cores[i].score = score;
-		cores[i].winstates = winstates;
-		cores[i].layer = layer;
+		if(op == op_solve){
+			cores[i].n2 = n2;
+			cores[i].n4 = n4;
+			cores[i].nox = nox;
+			cores[i].score = score;
+			cores[i].winstates = winstates;
+		}
+		if(op == op_unmask){
+			cores[i].nret = init_darr(0, 10 * n->key.size / core_count);
+			cores[i].layer = layer;
+		}
 		// divide up [0,n.size)
 		// cores work in [start,end)
 		int block_size = (n->key.size) / core_count;
@@ -366,11 +365,29 @@ void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, uns
 		if(i + 1 == core_count){
 			cores[i].end = n->key.size;
 		}
-		if(!get_settings().mask)
+		if(op == op_solve)
 			pthread_create(&cores[i].thread, NULL, solve_worker_thread, (void*)(cores + i));
-		else
-			pthread_create(&cores[i].thread, NULL, solve_worker_thread_masking, (void*)(cores + i));
+		else if(op == op_unmask)
+			pthread_create(&cores[i].thread, NULL, solve_unmask_worker_thread, (void*)(cores + i));
 	}
+}
+
+void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, char nox, bool score, long layer){
+	solve_core_data *cores = malloc_errcheck(sizeof(solve_core_data) * core_count);
+	if(get_settings().mask){
+		init_threads(n, n2, n4, winstates, core_count, nox, score, layer, cores, op_unmask);
+		wait(cores, core_count);
+		free(n->value.bp);
+		free(n->key.bp); // these are masked boards that are not our responsibility
+		dynamic_arr_info n_d;
+		n_d = cores[0].nret;
+		for(size_t i = 1; i < core_count; i++){
+			n_d = concat(&n_d, &cores[i].nret);
+		}
+		n->key = (static_arr_info){n_d.valid, n_d.bp, n_d.sp - n_d.bp};
+		n->value = init_sarr(false, n->key.size);
+	}
+	init_threads(n, n2, n4, winstates, core_count, nox, score, layer, cores, op_solve);
 	wait(cores, core_count);
 	free(cores);
 }

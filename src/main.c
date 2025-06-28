@@ -111,8 +111,6 @@ static char* dirtos(dir d){
 }
 
 static struct dirprob best(uint64_t board, table *n){
-	if(get_settings().mask)
-		board = mask_board(board, get_settings().smallest_large);
 	uint64_t tmp = board;
 	dir maxd = left;
 	double maxp = 0;
@@ -154,8 +152,6 @@ static void parseLookup(int argc, char **argv){
 	table *t2 = malloc_errcheck(sizeof(table));
 	table *t4 = malloc_errcheck(sizeof(table));
 	read_table(t, tablestr);
-	if(get_settings().mask)
-		board = mask_board(board, get_settings().smallest_large);
 	double res = lookup(board, t, true);
 	snprintf(tablestr, table_fmt_size, table_fmt, sum + 2);
 	read_table(t2, tablestr);
@@ -197,7 +193,7 @@ static void parseExplore(int argc, char **argv){
 	table *t = malloc_errcheck(sizeof(table));
 	read_table(t, argv[2]);
 	for(size_t i = 0; i < t->key.size; i++){
-		printf("Board(%0.10lf):\n", *(double*)(t->value.bp + i));
+		printf("Board(%0.20lf):\n", *(double*)(t->value.bp + i));
 		output_board(t->key.bp[i]);
 	}
 	free(t->key.bp);

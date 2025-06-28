@@ -34,9 +34,9 @@ static bool test_searching(void){
 			LOGIF(LOG_TRACE_){
 				printf("Index: %ld, key: %ld, value: %lf\n", i, t.key.bp[i], lookup((uint64_t)i, &t, false));
 			}
-//			free(t.key.bp);
-//			free(t.value.bp);
-//			return false;
+			free(t.key.bp);
+			free(t.value.bp);
+			return false;
 		}
 	}
 	log_out("Search test passed", LOG_INFO_);
@@ -246,7 +246,7 @@ bool test_misc(void){
 	}
 	log_out("Testing masking and unmasking with random boards", LOG_INFO_);
 	destroy_darr(&tmp);
-	for(size_t i = 0; i < iterations / 500; i++){
+	for(size_t i = 0; i < iterations; i++){
 		uint64_t old;
 		board = rand();
 		old = board;

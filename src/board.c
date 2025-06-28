@@ -140,19 +140,25 @@ inline static bool movedir_hori(uint64_t* board, dir direction){
 	for(int i = 0; i < 4; i++){ // 4 rows
 		lookup = ((*board) >> BITS_PER_ROW * i) & 0xFFFF; // get a row
 #ifdef DBG
-		printf("Lookup: %04x\n", lookup);
+		LOGIF(LOG_TRACE_){
+			printf("Lookup: %04x\n", lookup);
+		}
 #endif
 		if(_move_lut[direction][lookup] != lookup){
 			changed = true;
 			(*board) &= ~((uint64_t)0x000000000000FFFF << BITS_PER_ROW * i); // set the bits we want to set to zero
 			(*board) |= ((uint64_t)_move_lut[direction][lookup]) << BITS_PER_ROW * i ; // set them
 #ifdef DBG
-			printf("Res: %04x\n", _move_lut[direction][lookup]);
+			LOGIF(LOG_TRACE_){
+				printf("Res: %04x\n", _move_lut[direction][lookup]);
+			}
 #endif
 		}
 		if(!_locked_lut[direction][lookup]){ // not allowed!!
 #ifdef DBG
-			printf("Lookup: %04x, %b not allowed!\n", lookup, direction);
+			LOGIF(LOG_TRACE_){
+				printf("Lookup: %04x, %b not allowed!\n", lookup, direction);
+			}
 #endif
 			*board = premove;
 			return false;
@@ -327,17 +333,15 @@ static void unmask_board_recursive(uint64_t board, const short smallest_large, l
         if(GET_TILE(board, i) == MASKED_TILE) {
             masked = true;
             for(short tile = smallest_large; remaining - (1 << tile) >= 0 && tile < MASKED_TILE; tile++) {
-                uint64_t new_board = board;
-                SET_TILE(new_board, i, tile);
-                unmask_board_recursive(new_board, smallest_large, remaining - (1 << tile), i, result);
+                SET_TILE(board, i, tile);
+                unmask_board_recursive(board, smallest_large, remaining - (1 << tile), i, result);
             }
             break; // Only process first masked position to avoid duplicates
         }
     }
     
-    if(!masked && remaining == 0) {
+    if(!masked && remaining == 0)
         push_back(result, board);
-    }
 }
 
 dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, long long sum) {
@@ -347,7 +351,7 @@ dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, long l
             sum -= (1 << tmp);
         }
     }
-    dynamic_arr_info result = init_darr(false, 1000);
+    dynamic_arr_info result = init_darr(false, 100);
     unmask_board_recursive(board, smallest_large, sum, 0, &result);
     return result;
 }
