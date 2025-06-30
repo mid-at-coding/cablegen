@@ -26,7 +26,6 @@ enum thread_op {
 	move,
 	spawn,
 	prune,
-	mask
 };
 
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
@@ -137,20 +136,6 @@ void *generation_thread_prune(void *vargs){
 	return NULL;
 }
 
-void *generation_thread_mask(void *vargs){
-	arguments *args = vargs;
-	uint64_t tmp = 0;
-	uint64_t tmp2 = 0;
-	for(size_t i = args->start; i < args->end; i++){
-		tmp = args->n.bp[i];
-		tmp2 = mask_board(tmp, args->smallest_large);
-		canonicalize_b(&tmp2); // TODO: with all canonicalize_b calls: sometimes (when a big tile is on only one corner) the orientation never changes
-		push_back(&args->nret, tmp2);
-	}
-	deduplicate(&args->nret);
-	return NULL;
-}
-
 static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, enum thread_op op, arguments *cores, char nox){ 
 	// TODO make these ops work with solving too?
 	void *(*fn)(void*);
@@ -164,8 +149,6 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 	case prune:
 		fn = generation_thread_prune;
 		break;
-	case mask:
-		fn = generation_thread_mask;
 	}
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = (static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp};
@@ -182,10 +165,6 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 			cores[i].nret = init_darr(0, 4 * (n->sp - n->bp));
 			cores[i].stsl = get_settings().stsl;
 			cores[i].ltc = get_settings().ltc;
-			cores[i].smallest_large = get_settings().smallest_large;
-			break;
-		case mask:
-			cores[i].nret = init_darr(0, 4 * (n->sp - n->bp));
 			cores[i].smallest_large = get_settings().smallest_large;
 			break;
 		}
@@ -237,16 +216,6 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 		*n = concat(n, &cores[i].nret);
 	}
 	deduplicate(n);
-	if(get_settings().mask){
-		init_threads(n, core_count, mask, cores, nox);
-		wait(cores, core_count);
-		destroy_darr(n);
-		*n = cores[0].nret;
-		for(size_t i = 1; i < core_count; i++){
-			*n = concat(n, &cores[i].nret);
-		}
-		deduplicate(n);
-	}
 	// spawn
 	init_threads(n, core_count, spawn, cores, nox);
 	// write while waiting for spawns
@@ -263,7 +232,7 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, 
 		const unsigned core_count, bool prespawn, char nox, bool free_formation){
 	// GENERATE: write all sub-boards where it is the computer's move	
-	generate_lut(free_formation);
+	generate_lut();
 	static const size_t DARR_INITIAL_SIZE = 100;
 	dynamic_arr_info n  = init_darr(false, 0);
 	free(n.bp);

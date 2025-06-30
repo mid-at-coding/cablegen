@@ -22,7 +22,7 @@ typedef struct {
 extern uint16_t _move_lut[2][UINT16_MAX + 1]; // store every possible row move
 extern bool   _locked_lut[2][UINT16_MAX + 1]; // true for all rows that shift: could be 4 bits per lookup but that's probably slower
 
-void generate_lut(bool free_formation);
+void generate_lut(void);
 void rotate_clockwise(uint64_t*);
 void rotate_counterclockwise(uint64_t*);
 void rotate_180(uint64_t*);

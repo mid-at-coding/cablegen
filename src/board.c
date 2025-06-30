@@ -1,11 +1,11 @@
 #include "../inc/board.h"
-#include "../inc/logging.h"
 #include "../inc/array.h"
+#include "../inc/logging.h"
+#include "../inc/settings.h"
 #include <stdint.h>
 #include <sys/param.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
 //#define DBG
 //#define TRACE
 #ifdef _WIN32
@@ -14,6 +14,11 @@
 
 uint16_t _move_lut[2][UINT16_MAX + 1];
 bool   _locked_lut[2][UINT16_MAX + 1];
+
+struct _move_res{
+	bool changed;
+	bool new_masked_tile;
+};
 
 static bool shifted(uint64_t board, uint64_t board2, bool free_formation){
 	if(!free_formation){
@@ -50,18 +55,21 @@ static bool shiftable(uint64_t *board, const static_arr_info positions, const in
 	return false;
 }
 
-static bool move(uint64_t *board, const static_arr_info positions){ // this should not be used directly
+static struct _move_res move(uint64_t *board, const static_arr_info positions){ // this should not be used directly
 	// [ board[pos[0]], board[pos[1]] board[pos[2]] ... board[pos[n]] ] -(left)>
-	bool res = false;
+	struct _move_res res = { 0, 0 };
 	for(size_t i = 0; i < positions.size; i++){ // "compress" everything
 		while(GET_TILE((*board), positions.bp[i]) == 0 && shiftable(board, positions, i)){
-			res |= shift(board, positions, i);
+			res.changed |= shift(board, positions, i);
 		}
 	}
 	for(size_t i = 0; i + 1 < positions.size; i++){ // merge greedily
 		if(GET_TILE((*board), positions.bp[i])){
 			if(GET_TILE((*board), positions.bp[i]) == GET_TILE((*board), positions.bp[i + 1]) && GET_TILE((*board), positions.bp[i]) != 0xF){
-				res |= shift(board, positions, i);
+				res.changed |= shift(board, positions, i);
+				if(GET_TILE((*board), positions.bp[i]) == get_settings().smallest_large - 1){
+					res.new_masked_tile = true;
+				}
 				if((GET_TILE((*board), positions.bp[i])) != 0xE){
 					SET_TILE((*board), positions.bp[i], (GET_TILE((*board), positions.bp[i]) + 1));
 				}
@@ -73,32 +81,26 @@ static bool move(uint64_t *board, const static_arr_info positions){ // this shou
 	}
 	for(size_t i = 0; i < positions.size; i++){ // compress everything again
 		while(GET_TILE((*board), positions.bp[i]) == 0 && shiftable(board, positions, i)){
-			res |= shift(board, positions, i);
+			res.changed |= shift(board, positions, i);
 		}
 	}
 	return res;
 }
 
-void generate_lut(bool free_formation){
+void generate_lut(void){
 	static_arr_info a; // the tile positions to move; here they are hardcoded to 0,1,2,3 which is moves toward 0(left)
-	static_arr_info b; // the tile positions to move; here they are hardcoded to 3,2,1,0 which is moves toward 3(right)
+	static_arr_info b; // hardcoded right
 	a = init_sarr(false, 4);
-	a.bp[0] = 0;
-	a.bp[1] = 1;
-	a.bp[2] = 2;
-	a.bp[3] = 3;
 	b = init_sarr(false, 4);
-	b.bp[0] = 3;
-	b.bp[1] = 2;
-	b.bp[2] = 1;
-	b.bp[3] = 0;
+	for(int i = 0; i < 4; i++)
+		a.bp[i] = b.bp[3 - i] = i;
 	for(uint16_t i = 0; true; i++){
 		uint64_t tmp_board = 0;
 		uint64_t premove = 0;
 		SET_TILE(tmp_board, 0, ((i & 0xF000) >> 12));
 		SET_TILE(tmp_board, 1, ((i & 0x0F00) >> 8));
 		SET_TILE(tmp_board, 2, ((i & 0x00F0) >> 4));
-		SET_TILE(tmp_board, 3, (i & 0x000F));
+		SET_TILE(tmp_board, 3,  (i & 0x000F));
 #ifdef TRACE
 		printf("Lookup: %016lx\n", tmp_board);
 #endif	
@@ -108,7 +110,7 @@ void generate_lut(bool free_formation){
 		printf("Res: %016lx\n", tmp_board);
 #endif
 		_move_lut[left][i] = tmp_board >> 12 * 4;
-		_locked_lut[left][i] = !shifted(premove, tmp_board, free_formation);
+		_locked_lut[left][i] = !shifted(premove, tmp_board, get_settings().free_formation);
 #ifdef TRACE
 		printf("Res: %04x\n", _move_lut[left][i]);
 #endif
@@ -119,7 +121,7 @@ void generate_lut(bool free_formation){
 		premove = tmp_board;
 		move(&tmp_board, b);
 		_move_lut[right][i] = tmp_board >> 12 * 4;
-		_locked_lut[right][i] = !shifted(premove, tmp_board, free_formation);
+		_locked_lut[right][i] = !shifted(premove, tmp_board, get_settings().free_formation);
 		if(i == UINT16_MAX)
 			break;
 	}

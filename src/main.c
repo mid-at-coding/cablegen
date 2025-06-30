@@ -137,7 +137,7 @@ static void parseLookup(int argc, char **argv){
 	}
 	uint64_t board = strtoull(argv[2], NULL, 16); // interpret as hex string
 	set_log_level(LOG_INFO_);
-	generate_lut(settings.free_formation); 
+	generate_lut();
 	uint64_t sum = get_sum(board);
 
 	char* default_table_postfix = "%d.tables";
@@ -231,7 +231,7 @@ static void parsePlay(int argc, char **argv){
 		tdir = argv[3];
 	}
 	uint64_t board = strtoull(argv[2], NULL, 16); // interpret as hex string
-	generate_lut(settings.free_formation);
+	generate_lut();
 
 	char* default_table_postfix = "%d.tables";
 	size_t table_fmt_size = strlen(default_table_postfix) + strlen(tdir) + 1;

@@ -298,7 +298,7 @@ static bool test_settings(void){
 bool test(void){
 	set_log_level(LOG_INFO_);
 	bool passed = true;
-	generate_lut(true);
+	generate_lut();
 	passed &= test_dynamic_arr();
 	passed &= test_searching();
 	passed &= test_dedupe();
