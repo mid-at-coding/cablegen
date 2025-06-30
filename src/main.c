@@ -361,27 +361,9 @@ void print_binary(uint16_t num) {
     }
 }
 
-void newton_method(void){
-	generate_lut(true);
-	printf(".i 16\n.o 16\n");
-	printf(".ild I0 I1 I2 I3 I4 I5 I6 I7 I8 I9 I10 I11 I12 I13 I14 I15\n");
-	printf(".ob O0 O1 O2 O3 O4 O5 O6 O7 O8 O9 O10 O11 O12 O13 O14 O15\n");
-	for(int i = 0; i <= UINT16_MAX; i++){
-		print_binary(i);
-		printf(" ");
-		if(i != _move_lut[left][i]){
-			print_binary(_move_lut[left][i]);
-		}
-		else{
-			printf("0000------------");
-		}
-		printf("\n");
-	}
-	return;
-}
-
 int main(int argc, char **argv){
 	set_log_level(LOG_INFO_);
+	init_settings();
 	// parse arguments
 	if(argc > 1){
 		if(!strcmp(argv[1],"help")) {help();}
@@ -394,7 +376,6 @@ int main(int argc, char **argv){
 		else if(!strcmp(strlwr_(argv[1]), "explore")) {parseExplore(argc, argv);}
 		else if(!strcmp(strlwr_(argv[1]), "play")) {parsePlay(argc, argv);}
 		else if(!strcmp(strlwr_(argv[1]), "benchmark")) {benchmark();}
-		else if(!strcmp(strlwr_(argv[1]), "newton")) {newton_method();}
 		else{
 			log_out("Unrecognized command!", LOG_WARN_);
 			help();

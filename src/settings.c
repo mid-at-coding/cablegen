@@ -5,6 +5,13 @@
 #include "../inc/array.h"
 #include <string.h>
 #include <ctype.h>
+#ifdef WINDOWS
+#include <direct.h>
+#define getcwd_ _getcwd
+#else
+#include <unistd.h>
+#define getcwd_ getcwd
+#endif
 bool settings_read = false;
 bool custom_path = false;
 static int get_bool_setting(const char *key, bool*);
@@ -82,7 +89,7 @@ ini_t* get_cfg(void){
 	return ini_load(cfgdir);
 }
 void change_config(char *cfg){	
-	if(cfg == NULL || strlen(cfg) > MAX_PATH){
+	if(cfg == NULL || strlen(cfg) >= MAX_PATH){
 		log_out("Invalid config file location!", LOG_WARN_);
 		return;
 	}
@@ -91,6 +98,21 @@ void change_config(char *cfg){
 	memcpy(cfgdir, cfg, strlen(cfg) + 1);
 	log_out("New config dir: ", LOG_DBG_);
 	log_out(cfgdir, LOG_DBG_);
+}
+void init_settings(void){
+	char buf[MAX_PATH];
+	getcwd_(buf, MAX_PATH);
+	if(strlen(buf) + strlen("cablegen.conf") >= MAX_PATH || errno){
+		log_out("Invalid config file location!", LOG_WARN_);
+		return;
+	}
+	log_out("Reading settings from conf dir", LOG_TRACE_);
+	get_settings();
+	strcat(buf, "/cablegen.conf");
+	log_out("Reading settings from local dir", LOG_TRACE_);
+	log_out(buf, LOG_TRACE_);
+	change_config(buf);
+	get_settings();
 }
 static int get_str_setting(const char *key, char **str){
 	int e = get_str_setting_section(key, "Cablegen", str);

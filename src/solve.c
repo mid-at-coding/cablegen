@@ -327,8 +327,6 @@ void *solve_worker_thread(void *args){
 		}
 		else
 			prob = expectimax(sargs->n->key.bp[curr], sargs->n2, sargs->n4, sargs->winstates, sargs->nox, sargs->score); // we should not be moving -- we're reading moves
-		if(prob != 1 && prob != 0)
-			log_out("Fun!", LOG_INFO_);
 		sargs->n->value.bp[curr] = *((uint64_t*)(&prob));
 	}
 	return NULL;

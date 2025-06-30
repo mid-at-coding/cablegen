@@ -19,7 +19,7 @@ A high speed 2048 generator and solver, entirely in C
 
 ## Configuration
 
-Configuration is stored in an INI file and defines many properties of a table
+Configuration is stored in an INI file and defines many properties of a table. Cablegen will try to read first from `~/.config/cablegen.conf`(on linux) or `C:\Users\[name]\AppData\Roaming\cablegen.ini`(on windows), and then from `cablegen.conf` in the directory it is run.
 
 ```
 ; example configuration
