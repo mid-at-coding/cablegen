@@ -237,7 +237,6 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	// move
 	init_threads(n, core_count, move, cores, nox, layer);
 	// wait for moves to be done
-	wait(cores, core_count);
 	replace_n(n, cores, core_count);// this array currently holds boards where we just spawned -- these are never our responsibility
 	deduplicate(n);
 	// spawn
