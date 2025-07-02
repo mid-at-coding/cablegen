@@ -10,6 +10,7 @@ char *strlwr_(char *str);
 void change_config(char *cfg);
 typedef struct {
 	bool free_formation;
+	bool ignore_f;
 	long long cores;
 	long long nox;
 	bool mask;

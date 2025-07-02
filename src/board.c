@@ -29,8 +29,10 @@ static bool shifted(uint64_t board, uint64_t board2, bool free_formation){
 
 static bool shift(uint64_t *board, const static_arr_info positions, const int i){
 	bool res = 0;
+	char v = 0;
 	for(size_t j = i; j + 1 < positions.size; j++){ 
-		SET_TILE((*board), positions.bp[j], GET_TILE((*board), positions.bp[j + 1])); 
+		v = GET_TILE((*board), positions.bp[j + 1]);
+		SET_TILE((*board), positions.bp[j], v);
 		if(GET_TILE((*board), positions.bp[j+1])){
 			res = true;
 		}
@@ -47,8 +49,19 @@ static bool shiftable(uint64_t *board, const static_arr_info positions, const in
 	return false;
 }
 
-static struct _move_res move(uint64_t *board, const static_arr_info positions){ // this should not be used directly
+static struct _move_res move(uint64_t *board, static_arr_info positions){ // this should not be used directly
 	// [ board[pos[0]], board[pos[1]] board[pos[2]] ... board[pos[n]] ] -(left)>
+	size_t positions_size_new = positions.size;
+	if(get_settings().ignore_f){
+		for(int i = positions.size - 1; i >= 0; i--){
+			if(GET_TILE((*board), positions.bp[i]) == 0xf){
+				positions_size_new--;
+			}
+			else
+				break;
+		}
+		positions.size = positions_size_new;
+	}
 	struct _move_res res = { 0, 0 };
 	for(size_t i = 0; i < positions.size; i++){ // "compress" everything
 		while(GET_TILE((*board), positions.bp[i]) == 0 && shiftable(board, positions, i)){
@@ -93,26 +106,13 @@ void generate_lut(void){
 		SET_TILE(tmp_board, 1, ((i & 0x0F00) >> 8));
 		SET_TILE(tmp_board, 2, ((i & 0x00F0) >> 4));
 		SET_TILE(tmp_board, 3,  (i & 0x000F));
-#ifdef TRACE
-		printf("Lookup: %016lx\n", tmp_board);
-#endif	
 		premove = tmp_board;
-		_merge_lut[left][i] = move(&tmp_board, a).merged;
-#ifdef TRACE
-		printf("Res: %016lx\n", tmp_board);
-#endif
-		_move_lut[left][i] = tmp_board >> 12 * 4;
+		_merge_lut [left][i] = move(&tmp_board, a).merged;
+		_move_lut  [left][i] = tmp_board >> 12 * 4;
 		_locked_lut[left][i] = !shifted(premove, tmp_board, get_settings().free_formation);
-#ifdef TRACE
-		printf("Res: %04x\n", _move_lut[left][i]);
-#endif
-		SET_TILE(tmp_board, 0, ((i & 0xF000) >> 12));
-		SET_TILE(tmp_board, 1, ((i & 0x0F00) >> 8));
-		SET_TILE(tmp_board, 2, ((i & 0x00F0) >> 4));
-		SET_TILE(tmp_board, 3, (i & 0x000F));
-		premove = tmp_board;
-		move(&tmp_board, b);
-		_move_lut[right][i] = tmp_board >> 12 * 4;
+		tmp_board = premove;
+		_merge_lut [right][i] = move(&tmp_board, b).merged;
+		_move_lut  [right][i] = tmp_board >> 12 * 4;
 		_locked_lut[right][i] = !shifted(premove, tmp_board, get_settings().free_formation);
 		if(i == UINT16_MAX)
 			break;

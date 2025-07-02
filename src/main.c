@@ -25,6 +25,7 @@ static void help(void){
 	log_out("read [FILE] -- read board(s) from a file", LOG_INFO_);
 	log_out("write [FILE] [BOARD] (BOARD) ... -- write board(s) to a file", LOG_INFO_);
 	log_out("lookup [BOARD] (TDIR) -- look a board up, optionally specifying an alternate directory to look in", LOG_INFO_);
+	log_out("lookup_spawn [BOARD] (TDIR) -- look a board up, optionally specifying an alternate directory to look in", LOG_INFO_);
 	log_out("explore [TABLE] -- show all the solved boards in TABLE", LOG_INFO_);
 	log_out("play [BOARD] (TDIR) -- simulate an optimal game of BOARD with random spawns", LOG_INFO_);
 	log_out("benchmark -- benchmark cablegen", LOG_INFO_);
@@ -127,7 +128,7 @@ static struct dirprob best(uint64_t board, table *n){
 	return (struct dirprob){maxd, maxp};
 }
 
-static void parseLookup(int argc, char **argv){
+static void parseLookup(int argc, char **argv, bool spawn){ // TODO refactor
 	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	char *tabledir;
 	settings_t settings = get_settings();
@@ -136,7 +137,16 @@ static void parseLookup(int argc, char **argv){
 		tabledir = argv[3];
 	}
 	uint64_t board = strtoull(argv[2], NULL, 16); // interpret as hex string
+	uint64_t original = board;
 	set_log_level(LOG_INFO_);
+	if(spawn){ // this board has a spawn on it
+		for(int i = 0; i < 16; i++){
+			if(GET_TILE(board, i) <= 2){
+				SET_TILE(board, i, 0);
+				break;
+			}
+		}
+	}
 	generate_lut();
 	uint64_t sum = get_sum(board);
 
@@ -160,19 +170,29 @@ static void parseLookup(int argc, char **argv){
 
 
 	printf("Board(%0.10lf):\n", res);
-	output_board(board);
-	printf("Spawns:\n");
+	if(spawn)
+		output_board(original);
+	else{
+		output_board(board);
+		printf("Spawns:\n");
+	}
 	for(int i = 0; i < 16; i++){
 		if(GET_TILE(board, i))
 			continue;
 		SET_TILE(board, i, 1);
 		struct dirprob pb = best(board, t2);
-		printf("Best move: %s (%.10lf)\n", dirtos(pb.d), pb.prob);
-		output_board(board);
+		if(!spawn || original == board){
+			printf("Best move: %s (%.10lf)\n", dirtos(pb.d), pb.prob);
+			if(!spawn)
+				output_board(board);
+		}
 		SET_TILE(board, i, 2);
 		pb = best(board, t4);
-		printf("Best move: %s (%.10lf)\n", dirtos(pb.d), pb.prob);
-		output_board(board);
+		if(!spawn || original == board){
+			printf("Best move: %s (%.10lf)\n", dirtos(pb.d), pb.prob);
+			if(!spawn)
+				output_board(board);
+		}
 		SET_TILE(board, i, 0);
 	}
 	free(table_fmt);
@@ -372,7 +392,8 @@ int main(int argc, char **argv){
 		else if(!strcmp(strlwr_(argv[1]), "test")) {test();}
 		else if(!strcmp(strlwr_(argv[1]), "read")) {parseRead(argc, argv);}
 		else if(!strcmp(strlwr_(argv[1]), "write")) {parseWrite(argc, argv);}
-		else if(!strcmp(strlwr_(argv[1]), "lookup")) {parseLookup(argc, argv);}
+		else if(!strcmp(strlwr_(argv[1]), "lookup")) {parseLookup(argc, argv, false);}
+		else if(!strcmp(strlwr_(argv[1]), "lookup_spawn")) {parseLookup(argc, argv, true);}
 		else if(!strcmp(strlwr_(argv[1]), "explore")) {parseExplore(argc, argv);}
 		else if(!strcmp(strlwr_(argv[1]), "play")) {parsePlay(argc, argv);}
 		else if(!strcmp(strlwr_(argv[1]), "benchmark")) {benchmark();}
