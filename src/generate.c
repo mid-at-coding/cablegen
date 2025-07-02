@@ -20,10 +20,12 @@ typedef struct {
 	long smallest_large; 
 	long ltc;
 	char nox;
+	long layer;
 	pthread_t thread;
 } arguments;
 enum thread_op {
 	move,
+	move_masked,
 	spawn,
 	prune,
 };
@@ -60,6 +62,24 @@ bool checkx(uint64_t board, char x){
 	return true;
 }
 
+void *generation_thread_move_masked(void* data){
+	arguments *args = data;
+	uint64_t tmp;
+	uint64_t old;
+	for(size_t i = args->start; i < args->end; i++){
+		old = args->n.bp[i];
+		tmp = old;
+		for(dir d = left; d <= down; d++){
+			if(movedir(&tmp, d)){
+				canonicalize_b(&tmp); // TODO it's not necessary to gen *all* boards in nox
+				push_back(&args->nret, tmp);
+				tmp = old;
+			}
+		}
+	}
+	deduplicate(&args->nret);
+	return NULL;
+}
 void *generation_thread_move(void* data){
 	arguments *args = data;
 	uint64_t tmp;
@@ -136,10 +156,12 @@ void *generation_thread_prune(void *vargs){
 	return NULL;
 }
 
-static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, enum thread_op op, arguments *cores, char nox){ 
+static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, enum thread_op op, arguments *cores, char nox, long layer){ 
 	// TODO make these ops work with solving too?
 	void *(*fn)(void*);
 	switch(op){
+	case move_masked:
+		fn = generation_thread_move_masked;
 	case move:
 		fn = generation_thread_move;
 		break;
@@ -153,6 +175,8 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = (static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp};
 		switch(op){
+		case move_masked:
+			cores[i].layer = layer;
 		case move:
 			cores[i].nret = init_darr(0, 4 * (n->sp - n->bp));
 			break;
@@ -195,29 +219,29 @@ static void wait(arguments *cores, size_t core_count){
 	}
 }
 
-void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, 
-		const unsigned core_count, const char *fmt_dir, const int layer, arguments *cores, char nox){
-	if(get_settings().prune){
-		init_threads(n, core_count, prune, cores, nox);
-		wait(cores, core_count); // TODO pull these lines out into a fn
-		destroy_darr(n);
-		*n = cores[0].nret;
-		for(size_t i = 1; i < core_count; i++){
-			*n = concat(n, &cores[i].nret);
-		}
-	}
-	// move
-	init_threads(n, core_count, move, cores, nox);
-	// wait for moves to be done
+static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int core_count){
 	wait(cores, core_count);
-	destroy_darr(n); // this array currently holds boards where we just spawned -- these are never our responsibility
+	destroy_darr(n);
 	*n = cores[0].nret;
 	for(size_t i = 1; i < core_count; i++){
 		*n = concat(n, &cores[i].nret);
 	}
+}
+
+void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, 
+		const unsigned core_count, const char *fmt_dir, const int layer, arguments *cores, char nox){
+	if(get_settings().prune){
+		init_threads(n, core_count, prune, cores, nox, layer);
+		replace_n(n, cores, core_count);
+	}
+	// move
+	init_threads(n, core_count, move, cores, nox, layer);
+	// wait for moves to be done
+	wait(cores, core_count);
+	replace_n(n, cores, core_count);// this array currently holds boards where we just spawned -- these are never our responsibility
 	deduplicate(n);
 	// spawn
-	init_threads(n, core_count, spawn, cores, nox);
+	init_threads(n, core_count, spawn, cores, nox, layer);
 	// write while waiting for spawns
 	write_boards((static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp}, fmt_dir, layer);
 	wait(cores,core_count);

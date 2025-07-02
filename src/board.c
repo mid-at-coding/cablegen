@@ -13,12 +13,8 @@
 #endif
 
 uint16_t _move_lut[2][UINT16_MAX + 1];
+bool    _merge_lut[2][UINT16_MAX + 1];
 bool   _locked_lut[2][UINT16_MAX + 1];
-
-struct _move_res{
-	bool changed;
-	bool new_masked_tile;
-};
 
 static bool shifted(uint64_t board, uint64_t board2, bool free_formation){
 	if(!free_formation){
@@ -28,10 +24,6 @@ static bool shifted(uint64_t board, uint64_t board2, bool free_formation){
 		    }
 		}
 	}
-	return false;
-}
-
-bool flat_move(uint64_t *board, dir d){ // unimplemented
 	return false;
 }
 
@@ -68,7 +60,7 @@ static struct _move_res move(uint64_t *board, const static_arr_info positions){ 
 			if(GET_TILE((*board), positions.bp[i]) == GET_TILE((*board), positions.bp[i + 1]) && GET_TILE((*board), positions.bp[i]) != 0xF){
 				res.changed |= shift(board, positions, i);
 				if(GET_TILE((*board), positions.bp[i]) == get_settings().smallest_large - 1){
-					res.new_masked_tile = true;
+					res.merged = GET_TILE((*board), positions.bp[i]) + 1;
 				}
 				if((GET_TILE((*board), positions.bp[i])) != 0xE){
 					SET_TILE((*board), positions.bp[i], (GET_TILE((*board), positions.bp[i]) + 1));
@@ -105,7 +97,7 @@ void generate_lut(void){
 		printf("Lookup: %016lx\n", tmp_board);
 #endif	
 		premove = tmp_board;
-		move(&tmp_board, a);
+		_merge_lut[left][i] = move(&tmp_board, a).merged;
 #ifdef TRACE
 		printf("Res: %016lx\n", tmp_board);
 #endif
@@ -134,36 +126,22 @@ void generate_lut(void){
 	free(b.bp);
 }
 
-inline static bool movedir_hori(uint64_t* board, dir direction){
+inline static struct _move_res movedir_hori(uint64_t* board, dir direction){
 	uint64_t premove = *board;
 	uint16_t lookup;
-	bool changed = false;
+	struct _move_res changed = {false, false};
 	const short BITS_PER_ROW = 16;
 	for(int i = 0; i < 4; i++){ // 4 rows
 		lookup = ((*board) >> BITS_PER_ROW * i) & 0xFFFF; // get a row
-#ifdef DBG
-		LOGIF(LOG_TRACE_){
-			printf("Lookup: %04x\n", lookup);
-		}
-#endif
 		if(_move_lut[direction][lookup] != lookup){
-			changed = true;
+			changed.changed = true;
+			changed.merged = _merge_lut[direction][lookup];
 			(*board) &= ~((uint64_t)0x000000000000FFFF << BITS_PER_ROW * i); // set the bits we want to set to zero
 			(*board) |= ((uint64_t)_move_lut[direction][lookup]) << BITS_PER_ROW * i ; // set them
-#ifdef DBG
-			LOGIF(LOG_TRACE_){
-				printf("Res: %04x\n", _move_lut[direction][lookup]);
-			}
-#endif
 		}
 		if(!_locked_lut[direction][lookup]){ // not allowed!!
-#ifdef DBG
-			LOGIF(LOG_TRACE_){
-				printf("Lookup: %04x, %b not allowed!\n", lookup, direction);
-			}
-#endif
 			*board = premove;
-			return false;
+			return (struct _move_res){false, false};
 		}
 	}
 	return changed;
@@ -171,6 +149,30 @@ inline static bool movedir_hori(uint64_t* board, dir direction){
 
 bool movedir(uint64_t* board, dir d){
 	bool changed = false;
+	// make every direction left
+	switch(d){
+		case left:
+			changed = movedir_hori(board, left).changed;
+		break;
+		case right:
+			changed = movedir_hori(board, right).changed;
+		break;
+		case up:
+			rotate_clockwise(board);
+			changed = movedir_hori(board, right).changed;
+			rotate_counterclockwise(board); // TODO minor perf improvement if you just.. dont?
+		break;
+		case down:
+			rotate_clockwise(board);
+			changed = movedir_hori(board, left).changed;
+			rotate_counterclockwise(board);
+		break;
+	};
+	return changed;
+}
+
+move_res movedir_mask(uint64_t* board, dir d){
+	move_res changed = {false, false};
 	// make every direction left
 	switch(d){
 		case left:
@@ -192,7 +194,6 @@ bool movedir(uint64_t* board, dir d){
 	};
 	return changed;
 }
-
 inline void rotate_clockwise(uint64_t* b){ // taken from game-difficult/2048EndgameTablebase (Calculator.py)
     *b = (((*b) & 0xff00ff0000000000) >> 8 ) |
 		 (((*b) & 0x00ff00ff00000000) >> 32) |
