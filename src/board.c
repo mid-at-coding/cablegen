@@ -330,15 +330,39 @@ void swap(uint64_t *board, char pos1, char pos2){
 	SET_TILE((*board), pos2, tmp);
 }
 
-void permutations(dynamic_arr_info *d, uint64_t *board, uint16_t n, int i, const static_arr_info *masked_tiles){
-	if(i == n){
+void permutations(dynamic_arr_info *d, uint64_t *board, size_t size){
+	if(size == 1){
 		push_back(d, *board);
+		return;
 	}
-	else{
-		for(int j = i; j < n; j++){
-			swap(board, masked_tiles->bp[i], masked_tiles->bp[j]);
-			permutations(d, board, n, i + 1, masked_tiles);
-			swap(board, masked_tiles->bp[i], masked_tiles->bp[j]);
+	for(int i = 0; i < size; i++){
+		permutations(d, board, size - 1);
+		if(size % 2)
+			swap(board, 0, size - 1);
+		else
+			swap(board, i, size - 1);
+	}
+}
+
+void get_permutations(dynamic_arr_info *d, uint64_t board, size_t size, const static_arr_info *masked_tiles){
+	static dynamic_arr_info cached_arrs[16];
+	static bool cached[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	if(!cached[size]){
+		size_t fac = size;
+		for(size_t i = 2; i < size; i++)
+			fac *= i;
+		cached_arrs[size] = init_darr(1, fac);
+		uint64_t base_board = 0;
+		for(int i = 0; i < size; i++)
+			SET_TILE(base_board, i, i);
+		permutations(cached_arrs + size, &base_board, size);
+		cached[size] = true;
+	}
+	// the tiles in cached_arr[size] refer to the indices into masked tiles, which itself contains indicies, so we must convert every board first
+	for(size_t curr = 0; curr < cached_arrs[size].sp - cached_arrs[size].bp; curr++){
+		d->bp[curr] = board;
+		for(int i = 0; i < size; i++){
+			SET_TILE(d->bp[curr], masked_tiles->bp[size], masked_tiles->bp[GET_TILE(cached_arrs[size].bp[curr], size)]);
 		}
 	}
 }
@@ -377,8 +401,8 @@ dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, unsign
 			}
 		}
 	}
-	// recursively find every permutation
-	permutations(&result, &base, masked_tiles.size, 0, &masked_tiles);
+	// find every permutation
+	get_permutations(&result, base, masked_tiles.size, &masked_tiles);
 	free(masked_tiles.bp);
     return result;
 }
