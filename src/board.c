@@ -390,7 +390,8 @@ dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, unsign
     return result;
 }
 
-uint64_t mask_board(uint64_t board, const short smallest_large){
+uint64_t mask_board(uint64_t board_old, const short smallest_large){
+	uint64_t board = board_old;
 	const short MASK = 0xe;
 	uint16_t tiles = 0;
 	char tmp = 0;
@@ -399,6 +400,11 @@ uint64_t mask_board(uint64_t board, const short smallest_large){
 			if(!GETBIT(tiles, tmp)){
 				SETBIT(tiles, tmp);
 				SET_TILE(board, tile, MASK);
+			}
+			else{ // this tile is already masked somewhere between 0 and tile, which we don't want
+				for(int i = 0; i < tile; i++)
+					if(GET_TILE(board_old, i) == tmp)
+						SET_TILE(board, i, tmp);
 			}
 		}
 	}
