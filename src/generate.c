@@ -25,9 +25,10 @@ typedef struct {
 } arguments;
 enum thread_op {
 	move,
-	mask,
+	movep,
+	movepm,
+	movem,
 	spawn,
-	prune,
 };
 
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
@@ -62,7 +63,42 @@ bool checkx(uint64_t board, char x){
 	return true;
 }
 
-void *generation_thread_move(void* data){
+bool prune_board(const uint64_t board, const long stsl, const long ltc, const long smallest_large){
+	short tmp = 0;
+	short large_tiles = 0;
+	int smallest = 0xff;
+	int sts = 0; // small tile sum
+	uint16_t tiles = 0;
+	uint16_t tiles2 = 0;
+	char c64 = 0;
+	for(short i = 0; i < 16; i++){
+		if((tmp = GET_TILE(board, i)) >= smallest_large && tmp < 0xe){
+			smallest = tmp > smallest ? smallest : tmp;
+			large_tiles++;
+			if (tmp == smallest_large && c64 < 3)
+				c64++;
+			else if (tmp == smallest_large && c64 == 2)
+				return true;
+			else if(!GETBIT(tiles, tmp))
+				SETBIT(tiles, tmp);
+			else if(!GETBIT(tiles2, tmp))
+				SETBIT(tiles2, tmp);
+			else
+				return true;
+		}
+		else if(tmp < 0xe){
+			sts += 1 << tmp;
+		}
+	}
+	if(sts > stsl + 64)
+		return true;
+	if(large_tiles > ltc)
+		return true;
+	// condition number three seems impossible??
+	return false;
+}
+
+void *generation_thread_move(void* data){ // n, nret
 	arguments *args = data;
 	uint64_t tmp;
 	uint64_t old;
@@ -80,6 +116,74 @@ void *generation_thread_move(void* data){
 	deduplicate(&args->nret);
 	return NULL;
 }
+
+void *generation_thread_movep(void* data){ // n, nret, stsl, ltc, smallest_large
+	arguments *args = data;
+	uint64_t tmp;
+	uint64_t old;
+	for(size_t i = args->start; i < args->end; i++){
+		old = args->n.bp[i];
+		if(prune_board(old, args->stsl, args->ltc, args->smallest_large))
+			continue;
+		tmp = old;
+		for(dir d = left; d <= down; d++){
+			if(movedir(&tmp, d)){
+				if(prune_board(tmp, args->stsl, args->ltc, args->smallest_large))
+					continue;
+				canonicalize_b(&tmp);
+				push_back(&args->nret, tmp);
+				tmp = old;
+			}
+		}
+	}
+	deduplicate(&args->nret);
+	return NULL;
+}
+
+void *generation_thread_movepm(void* data){ // n, nret, stsl, ltc, smallest_large
+	arguments *args = data;
+	uint64_t tmp;
+	uint64_t old;
+	for(size_t i = args->start; i < args->end; i++){
+		old = args->n.bp[i];
+		if(prune_board(old, args->stsl, args->ltc, args->smallest_large))
+			continue;
+		tmp = old;
+		for(dir d = left; d <= down; d++){
+			if(movedir(&tmp, d)){
+				if(prune_board(tmp, args->stsl, args->ltc, args->smallest_large))
+					continue;
+				tmp = mask_board(tmp, args->smallest_large);
+				canonicalize_b(&tmp);
+				push_back(&args->nret, tmp);
+				tmp = old;
+			}
+		}
+	}
+	deduplicate(&args->nret);
+	return NULL;
+}
+
+void *generation_thread_movem(void* data){ // n, nret, smallest_large
+	arguments *args = data;
+	uint64_t tmp;
+	uint64_t old;
+	for(size_t i = args->start; i < args->end; i++){
+		old = args->n.bp[i];
+		tmp = old;
+		for(dir d = left; d <= down; d++){
+			if(movedir(&tmp, d)){
+				tmp = mask_board(tmp, args->smallest_large);
+				canonicalize_b(&tmp);
+				push_back(&args->nret, tmp);
+				tmp = old;
+			}
+		}
+	}
+	deduplicate(&args->nret);
+	return NULL;
+}
+
 void *generation_thread_spawn(void* data){
 	arguments *args = data;
 	uint64_t tmp;
@@ -104,59 +208,18 @@ void *generation_thread_spawn(void* data){
 	return NULL;
 }
 
-bool prune_board(const uint64_t board, const long stsl, const long ltc, const long smallest_large){
-	short tmp = 0;
-	short large_tiles = 0;
-	int smallest = 0xff;
-	int sts = 0; // small tile sum
-	for(short i = 0; i < 16; i++){
-		if((tmp = GET_TILE(board, i)) >= smallest_large && tmp < 0xe){
-			smallest = tmp > smallest ? smallest : tmp;
-			large_tiles++;
-		}
-		else if(tmp < 0xe){
-			sts += 1 << tmp;
-		}
-	}
-	if(sts > stsl + 64)
-		return true;
-	if(large_tiles > ltc)
-		return true;
-	// condition number three seems impossible??
-	return false;
-}
-
-void *generation_thread_prune(void *vargs){
-	arguments *args = vargs;
-	uint64_t tmp = 0;
-	for(size_t i = args->start; i < args->end; i++){
-		tmp = args->n.bp[i];
-		if(!prune_board(tmp, args->stsl, args->ltc, args->smallest_large)){ // TODO: may be faster to unconditionally push and pop if it's pruned
-			push_back(&args->nret, tmp);
-		}
-	}
-	return NULL;
-}
-
-void *generation_thread_mask(void *vargs){
-	arguments *args = vargs;
-	uint64_t tmp = 0;
-	for(size_t i = args->start; i < args->end; i++){
-		tmp = mask_board(args->n.bp[i], args->smallest_large); // TODO: make the selection of which tile to mask nonambiguous when there are 
-															   // multiple
-		canonicalize_b(&tmp);
-		push_back(&args->nret, tmp);
-	}
-	deduplicate(&args->nret);
-	return NULL;
-}
-
 static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, enum thread_op op, arguments *cores, char nox, long layer){ 
 	// TODO make these ops work with solving too?
 	void *(*fn)(void*);
 	switch(op){
-	case mask:
-		fn = generation_thread_mask;
+	case movep:
+		fn = generation_thread_movep;
+		break;
+	case movem:
+		fn = generation_thread_movem;
+		break;
+	case movepm:
+		fn = generation_thread_movepm;
 		break;
 	case move:
 		fn = generation_thread_move;
@@ -164,13 +227,16 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 	case spawn:
 		fn = generation_thread_spawn;
 		break;
-	case prune:
-		fn = generation_thread_prune;
-		break;
 	}
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = (static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp};
 		switch(op){
+		case movepm:
+		case movep:
+			cores[i].stsl = get_settings().stsl;
+			cores[i].ltc = get_settings().ltc;
+		case movem:
+			cores[i].smallest_large = get_settings().smallest_large;
 		case move:
 			cores[i].nret = init_darr(0, 3 * (n->sp - n->bp) / core_count);
 			break;
@@ -178,13 +244,6 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 			cores[i].n2 = init_darr(0, 4 * (n->sp - n->bp) / core_count);
 			cores[i].n4 = init_darr(0, 4 * (n->sp - n->bp) / core_count);
 			cores[i].nox = nox;
-			break;
-		case prune:
-			cores[i].stsl = get_settings().stsl;
-			cores[i].ltc = get_settings().ltc;
-		case mask:
-			cores[i].nret = init_darr(0, (n->sp - n->bp) / core_count);
-			cores[i].smallest_large = get_settings().smallest_large;
 			break;
 		}
 		// divide up [0,n.size)
@@ -225,17 +284,15 @@ static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int 
 
 void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, 
 		const unsigned core_count, const char *fmt_dir, const int layer, arguments *cores, char nox){
-	if(get_settings().prune){
-		init_threads(n, core_count, prune, cores, nox, layer);
-		replace_n(n, cores, core_count);
-	}
-	if(get_settings().mask){
-		init_threads(n, core_count, mask, cores, nox, layer);
-		replace_n(n, cores, core_count);
-		deduplicate(n);
-	}
 	// move
-	init_threads(n, core_count, move, cores, nox, layer);
+	if(get_settings().prune && get_settings().mask)
+		init_threads(n, core_count, movepm, cores, nox, layer);
+	else if(get_settings().prune)
+		init_threads(n, core_count, movep, cores, nox, layer);
+	else if(get_settings().mask)
+		init_threads(n, core_count, movem, cores, nox, layer);
+	else
+		init_threads(n, core_count, move, cores, nox, layer);
 	// wait for moves to be done
 	replace_n(n, cores, core_count); // this array currently holds boards where we just spawned -- these are never our responsibility
 	deduplicate(n);

@@ -514,5 +514,6 @@ int main(int argc, char **argv){
 	else{
 		help();
 	}
+	exit(0);
 	return 0;
 }

@@ -3,6 +3,7 @@
 #include "../inc/ini.h"
 #include "../inc/logging.h"
 #include "../inc/array.h"
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #ifdef WINDOWS
@@ -22,7 +23,15 @@ static int get_bool_setting_section(const char *key, char *section, bool*);
 static int get_str_setting_section (const char *key, char *section, char**);
 static int get_int_setting_section (const char *key, char *section, long long*);
 
+void free_str_settings(void){
+	free(get_settings().bdir);
+	free(get_settings().initial);
+	free(get_settings().tdir);
+	free(get_settings().winstates);
+}
+
 settings_t get_settings(void){
+	static bool registered = false;
 	static settings_t res = { // set sane defaults
 		.free_formation = 0,
 		.ignore_f = 0,
@@ -65,6 +74,12 @@ settings_t get_settings(void){
 	get_str_setting_section("winstates", "Solve", &res.winstates);
 	get_int_setting_section("end", "Solve", &res.end_solve); 
 	get_bool_setting_section("score", "Solve", &res.score);
+	if(!registered){
+		registered = true;
+		if(atexit(free_str_settings)){
+			log_out("Could not register str setting freeing on exit!", LOG_INFO_);
+		}
+	}
 	return res;
 }
 

@@ -3,6 +3,7 @@
 #include "../inc/logging.h"
 #include "../inc/board.h"
 #include "../inc/settings.h"
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -240,6 +241,27 @@ bool test_misc(void){
 		output_board(*curr);
 		if(curr + 1 != tmp.sp)
 			log_out("---", LOG_INFO_);
+	}
+	log_out("Testing masking with rotations", LOG_INFO_);
+	for(size_t i = 0; i < iterations; i++){
+		board = rand();
+		uint64_t *boards = get_all_rots(board);
+		for(int j = 0; j < 8; j++){
+			boards[j] = mask_board(boards[j], get_settings().smallest_large);
+			canonicalize_b(boards + j);
+		}
+		for(int j = 1; j < 8; j++){
+			if(boards[j] != boards[0]){
+				log_out("Failed!", LOG_ERROR_);
+				log_out("Original board:", LOG_ERROR_);
+				output_board(board);
+				log_out("Masked + canonicalized:", LOG_ERROR_);
+				output_board(boards[0]);
+				log_out("Rotation + masked + canonicalized:", LOG_ERROR_);
+				output_board(boards[j]);
+			}
+		}
+		free(boards);
 	}
 	log_out("Testing masking and unmasking with random boards", LOG_INFO_);
 	destroy_darr(&tmp);

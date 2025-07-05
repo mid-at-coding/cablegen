@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "array.h"
+#define SETBIT(x, y) (x |= (1 << y))
+#define GETBIT(x, y) (x & (1 << y))
 #define BIT_MASK (0xf000000000000000)
 #define OFFSET(x) (x * 4)
 #define GET_TILE(b, x) (uint8_t)(((b << OFFSET(x)) & BIT_MASK) >> OFFSET(15))

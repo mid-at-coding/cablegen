@@ -71,17 +71,12 @@ static struct _move_res move(uint64_t *board, static_arr_info positions){ // thi
 	}
 	for(size_t i = 0; i + 1 < positions.size; i++){ // merge greedily
 		if(GET_TILE((*board), positions.bp[i])){
-			if(GET_TILE((*board), positions.bp[i]) == GET_TILE((*board), positions.bp[i + 1]) && GET_TILE((*board), positions.bp[i]) != 0xF){
+			if(GET_TILE((*board), positions.bp[i]) == GET_TILE((*board), positions.bp[i + 1]) && GET_TILE((*board), positions.bp[i]) < 0xE){
 				res.changed |= shift(board, positions, i);
 				if(GET_TILE((*board), positions.bp[i]) == get_settings().smallest_large - 1){
 					res.merged = GET_TILE((*board), positions.bp[i]) + 1;
 				}
-				if((GET_TILE((*board), positions.bp[i])) != 0xE){
-					SET_TILE((*board), positions.bp[i], (GET_TILE((*board), positions.bp[i]) + 1));
-				}
-				else{
-					SET_TILE((*board), positions.bp[i], (GET_TILE((*board), positions.bp[i])));
-				}
+				SET_TILE((*board), positions.bp[i], (GET_TILE((*board), positions.bp[i]) + 1));
 			}
 		}
 	}
@@ -329,8 +324,6 @@ void output_board(uint64_t board){
 	}
 }
 
-#define SETBIT(x, y) (x |= (1 << y))
-#define GETBIT(x, y) (x & (1 << y))
 void swap(uint64_t *board, char pos1, char pos2){
 	char tmp = GET_TILE((*board), pos1);
 	SET_TILE((*board), pos1, GET_TILE((*board), pos2));
