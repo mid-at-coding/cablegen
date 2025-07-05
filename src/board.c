@@ -6,6 +6,7 @@
 #include <sys/param.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/types.h>
 //#define DBG
 //#define TRACE
 #ifdef _WIN32
@@ -328,42 +329,77 @@ void output_board(uint64_t board){
 	}
 }
 
-static void unmask_board_recursive(uint64_t board, const short smallest_large, long remaining, short start, dynamic_arr_info* result){
-    const int MASKED_TILE = 0xe;
-    bool masked = false;
-    
-    for(int i = start; i < 16; i++) {
-        if(GET_TILE(board, i) == MASKED_TILE) {
-            masked = true;
-            for(short tile = smallest_large; remaining - (1 << tile) >= 0 && tile < MASKED_TILE; tile++) {
-                SET_TILE(board, i, tile);
-                unmask_board_recursive(board, smallest_large, remaining - (1 << tile), i, result);
-            }
-            break; // Only process first masked position to avoid duplicates
-        }
-    }
-    
-    if(!masked && remaining == 0)
-        push_back(result, board);
+#define SETBIT(x, y) (x |= (1 << y))
+#define GETBIT(x, y) (x & (1 << y))
+void swap(uint64_t *board, char pos1, char pos2){
+	char tmp = GET_TILE((*board), pos1);
+	SET_TILE((*board), pos1, GET_TILE((*board), pos2));
+	SET_TILE((*board), pos2, tmp);
 }
 
-dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, long long sum) {
+void permutations(dynamic_arr_info *d, uint64_t *board, uint16_t n, int i, const static_arr_info *masked_tiles){
+	if(i == n){
+		push_back(d, *board);
+	}
+	else{
+		for(int j = i; j < n; j++){
+			swap(board, masked_tiles->bp[i], masked_tiles->bp[j]);
+			permutations(d, board, n, i + 1, masked_tiles);
+			swap(board, masked_tiles->bp[i], masked_tiles->bp[j]);
+		}
+	}
+}
+
+dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, unsigned long long sum) {
+	const char MASKED_TILE = 0xe;
+	uint16_t masked_tile_c = 0;
+	static_arr_info masked_tiles = init_sarr(1, 16); // a list of all the indices of the masked tiles
     for(int i = 0; i < 16; i++) {
         short tmp = GET_TILE(board, i);
-        if(tmp < smallest_large && tmp > 0) {
-            sum -= (1 << tmp);
-        }
-    }
-    dynamic_arr_info result = init_darr(false, 100);
-    unmask_board_recursive(board, smallest_large, sum, 0, &result);
+		if(tmp < MASKED_TILE && tmp > 0) {
+			sum -= (1 << tmp);
+		}
+		else if(tmp == MASKED_TILE){
+			masked_tiles.bp[masked_tile_c++] = i;
+		}
+    } // the sum is guaranteed to be below a 16 bit integer because at most one of each tile is masked, so we can
+	  // directly use the sum as a packed bit array of the tiles that are available
+	uint16_t set_tiles = sum;
+	masked_tiles.size = masked_tile_c;
+
+    size_t fac = 1;
+	for(uint16_t i = masked_tile_c; i > 0; i--)
+		fac *= i;
+    // calculate the factorial of the number of masked tiles: this is the amount of permutations and thus the size of our return array
+	dynamic_arr_info result = init_darr(false, fac);
+	// generate the base board
+	uint64_t base = board;
+	uint16_t used = 0;
+	for(uint16_t i = 0; i < masked_tiles.size; i++){
+		for(int tile = 1; tile < 16; tile++){
+			if(GETBIT(set_tiles, tile) && !GETBIT(used, tile)){
+				SETBIT(used, tile);
+				SET_TILE(base, masked_tiles.bp[i], tile);
+				break;
+			}
+		}
+	}
+	// recursively find every permutation
+	permutations(&result, &base, masked_tiles.size, 0, &masked_tiles);
+	free(masked_tiles.bp);
     return result;
 }
 
 uint64_t mask_board(uint64_t board, const short smallest_large){
 	const short MASK = 0xe;
+	uint16_t tiles = 0;
+	char tmp = 0;
 	for(short tile = 0; tile < 16; tile++){
-		if(GET_TILE(board, tile) >= smallest_large && GET_TILE(board, tile) != 0xf){
-			SET_TILE(board, tile, MASK);
+		if((tmp = GET_TILE(board, tile)) >= smallest_large && tmp != 0xf){
+			if(!GETBIT(tiles, tmp)){
+				SETBIT(tiles, tmp);
+				SET_TILE(board, tile, MASK);
+			}
 		}
 	}
 	return board;

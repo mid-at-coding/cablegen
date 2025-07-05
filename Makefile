@@ -1,7 +1,7 @@
 CC=clang
-CCFLAGS= -Wall -g -O0 -pg -pthread -lc -Wpedantic -Wextra -Wno-unused-parameter \
+CCFLAGS= -Wall -g -O2 -pg -pthread -lc -Wpedantic -Wextra -Wno-unused-parameter \
 		 -fno-strict-aliasing -std=c99 -Wno-unused-command-line-argument \
-		 -Wuninitialized -fcolor-diagnostics -Wno-unused-function -DDBG
+		 -Wuninitialized -fcolor-diagnostics -Wno-unused-function -DDBG -fsanitize=address
 CCFLAGS_PROD=-Wall -O2 -pthread -DPROD -fno-strict-aliasing -Wno-format \
 			  -std=c99
 EXEC_FILE=cablegen

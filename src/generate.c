@@ -25,7 +25,7 @@ typedef struct {
 } arguments;
 enum thread_op {
 	move,
-	move_masked,
+	mask,
 	spawn,
 	prune,
 };
@@ -62,24 +62,6 @@ bool checkx(uint64_t board, char x){
 	return true;
 }
 
-void *generation_thread_move_masked(void* data){
-	arguments *args = data;
-	uint64_t tmp;
-	uint64_t old;
-	for(size_t i = args->start; i < args->end; i++){
-		old = args->n.bp[i];
-		tmp = old;
-		for(dir d = left; d <= down; d++){
-			if(movedir(&tmp, d)){
-				canonicalize_b(&tmp); // TODO it's not necessary to gen *all* boards in nox
-				push_back(&args->nret, tmp);
-				tmp = old;
-			}
-		}
-	}
-	deduplicate(&args->nret);
-	return NULL;
-}
 void *generation_thread_move(void* data){
 	arguments *args = data;
 	uint64_t tmp;
@@ -156,12 +138,26 @@ void *generation_thread_prune(void *vargs){
 	return NULL;
 }
 
+void *generation_thread_mask(void *vargs){
+	arguments *args = vargs;
+	uint64_t tmp = 0;
+	for(size_t i = args->start; i < args->end; i++){
+		tmp = mask_board(args->n.bp[i], args->smallest_large); // TODO: make the selection of which tile to mask nonambiguous when there are 
+															   // multiple
+		canonicalize_b(&tmp);
+		push_back(&args->nret, tmp);
+	}
+	deduplicate(&args->nret);
+	return NULL;
+}
+
 static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, enum thread_op op, arguments *cores, char nox, long layer){ 
 	// TODO make these ops work with solving too?
 	void *(*fn)(void*);
 	switch(op){
-	case move_masked:
-		fn = generation_thread_move_masked;
+	case mask:
+		fn = generation_thread_mask;
+		break;
 	case move:
 		fn = generation_thread_move;
 		break;
@@ -175,20 +171,19 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = (static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp};
 		switch(op){
-		case move_masked:
-			cores[i].layer = layer;
 		case move:
-			cores[i].nret = init_darr(0, 4 * (n->sp - n->bp));
+			cores[i].nret = init_darr(0, 3 * (n->sp - n->bp) / core_count);
 			break;
 		case spawn:
-			cores[i].n2 = init_darr(0, 4 * (n->sp - n->bp));
-			cores[i].n4 = init_darr(0, 4 * (n->sp - n->bp));
+			cores[i].n2 = init_darr(0, 4 * (n->sp - n->bp) / core_count);
+			cores[i].n4 = init_darr(0, 4 * (n->sp - n->bp) / core_count);
 			cores[i].nox = nox;
 			break;
 		case prune:
-			cores[i].nret = init_darr(0, 4 * (n->sp - n->bp));
 			cores[i].stsl = get_settings().stsl;
 			cores[i].ltc = get_settings().ltc;
+		case mask:
+			cores[i].nret = init_darr(0, (n->sp - n->bp) / core_count);
 			cores[i].smallest_large = get_settings().smallest_large;
 			break;
 		}
@@ -234,10 +229,15 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 		init_threads(n, core_count, prune, cores, nox, layer);
 		replace_n(n, cores, core_count);
 	}
+	if(get_settings().mask){
+		init_threads(n, core_count, mask, cores, nox, layer);
+		replace_n(n, cores, core_count);
+		deduplicate(n);
+	}
 	// move
 	init_threads(n, core_count, move, cores, nox, layer);
 	// wait for moves to be done
-	replace_n(n, cores, core_count);// this array currently holds boards where we just spawned -- these are never our responsibility
+	replace_n(n, cores, core_count); // this array currently holds boards where we just spawned -- these are never our responsibility
 	deduplicate(n);
 	// spawn
 	init_threads(n, core_count, spawn, cores, nox, layer);

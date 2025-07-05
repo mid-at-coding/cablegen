@@ -231,13 +231,10 @@ bool test_misc(void){
 		}
 	}
 	log_out("Testing masking and unmasking with one board", LOG_INFO_);
-	uint64_t board = 0x1eff2eff54ff2231;
+	uint64_t board = 0x167f26ff54ff2231;
 	log_out("Masked board:", LOG_INFO_);
-	output_board(board);
-	dynamic_arr_info tmp = unmask_board(board, get_settings().smallest_large, get_sum(board) + 64 + 128);
-	set_log_level(LOG_TRACE_);
-	unmask_board(board, 6, get_sum(board) + 64 + 128);
-	set_log_level(LOG_INFO_);
+	output_board(mask_board(board, get_settings().smallest_large));
+	dynamic_arr_info tmp = unmask_board(mask_board(board, get_settings().smallest_large), get_settings().smallest_large, get_sum(board));
 	log_out("Unmasked boards:", LOG_INFO_);
 	for(uint64_t *curr = tmp.bp; curr < tmp.sp; curr++){
 		output_board(*curr);
@@ -265,11 +262,49 @@ bool test_misc(void){
 			output_board(old);
 			log_out("Masked board", LOG_ERROR_);
 			output_board(board);
+			log_out("Unmasked boards", LOG_ERROR_);
+			for(uint64_t *curr = tmp.bp; curr < tmp.sp; curr++){
+				printf("----");
+				output_board(*curr);
+			}
 			destroy_darr(&tmp);
 			return false;
 		}
 		destroy_darr(&tmp);
 	}
+	log_out("Testing bit operations", LOG_INFO_);
+#define SETBIT(x, y) (x |= (1 << y))
+#define GETBIT(x, y) (x & (1 << y))
+	uint16_t test = 0;
+	for(int i = 0; i < 16; i++){
+		if(GETBIT(test, i)){
+			log_out("Wrong!", LOG_ERROR_);
+			return false;
+		}
+	}
+	for(int i = 0; i < 16; i++){
+		SETBIT(test, i);
+		for(int j = 0; j <= i; j++){
+			if(!GETBIT(test, j)){
+				log_out("Wrong!", LOG_ERROR_);
+				return false;
+			}
+		}
+		for(int j = i + 1; j < 16; j++){
+			if(GETBIT(test, j)){
+				log_out("Wrong!", LOG_ERROR_);
+				return false;
+			}
+		}
+	}
+	for(int i = 0; i < 16; i++){
+		if(!GETBIT(test, i)){
+			log_out("Wrong!", LOG_ERROR_);
+			return false;
+		}
+	}
+#undef SETBIT
+#undef GETBIT
 	log_out("No errors reported", LOG_INFO_);
 	return res;
 }
@@ -280,7 +315,7 @@ static bool test_settings(void){
 	printf(".free_formation %d\n", settings.free_formation);
 	printf(".cores %lld\n", settings.cores);
 	printf(".nox %lld\n", settings.nox);
-	printf(".mask %b\n", settings.mask);
+	printf(".mask %d\n", settings.mask);
 	printf(".premove %d\n", settings.premove);
 	printf(".bdir %s\n", settings.bdir);
 	printf(".initial %s\n", settings.initial);

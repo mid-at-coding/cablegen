@@ -3,6 +3,7 @@
 #include "../inc/board.h"
 #include "../inc/generate.h"
 #include "../inc/settings.h"
+#include <assert.h>
 #include <math.h>
 #include <errno.h>
 #include <pthread.h>
@@ -150,7 +151,7 @@ double lookup(uint64_t key, table *t, bool canonicalize){
 		}
 		if(top - bottom < SEARCH_STOP){
 			log_out("Switching to linear search", LOG_TRACE_);
-			for(size_t i = bottom; i <= top; i++){
+			for(size_t i = bottom; i < top; i++){
 				LOGIF(LOG_TRACE_){
 					printf("Current board: %ld, %016lx(%ld)\n", i, t->key.bp[i], t->key.bp[i]);
 				}
@@ -202,6 +203,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 		for(int j = 0; j < 8; j++){ // loop over all 8 symmetries
 			push_back(&winstates_d, rots[j]);
 		}
+		free(rots);
 	}
 	static_arr_info winstates = shrink_darr(&winstates_d);
 	for(size_t i = 0; i < winstates.size; i++){
@@ -235,6 +237,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	}
 	destroy_table(n2);
 	destroy_table(n4);
+	free(filename);
 }
 
 static inline bool cmpbrd(uint64_t board, uint64_t board2){
@@ -322,8 +325,17 @@ void *solve_worker_thread(void *args){
 	return NULL;
 }
 
+void *solve_worker_thread_unmask(void *args){
+	solve_core_data *sargs = args;
+	for(size_t curr = sargs->start; curr < sargs->end; curr++){
+		dynamic_arr_info tmp = unmask_board(sargs->n->key.bp[curr], get_settings().smallest_large, sargs->layer);
+		sargs->nret = concat(&sargs->nret, &tmp);
+	}
+	return NULL;
+}
 enum solve_op{
 	op_solve,
+	op_unmask,
 	op_prune
 };
 
@@ -338,6 +350,10 @@ void init_threads(table *n, table *n2, table *n4, static_arr_info *winstates, un
 			cores[i].score = score;
 			cores[i].winstates = winstates;
 		}
+		else if(op == op_unmask){
+			cores[i].nret = init_darr(0, 10 * n->key.size / core_count);
+			cores[i].layer = layer;
+		}
 		// divide up [0,n.size)
 		// cores work in [start,end)
 		int block_size = (n->key.size) / core_count;
@@ -350,11 +366,27 @@ void init_threads(table *n, table *n2, table *n4, static_arr_info *winstates, un
 		}
 		if(op == op_solve)
 			pthread_create(&cores[i].thread, NULL, solve_worker_thread, (void*)(cores + i));
+		else if(op == op_unmask)
+			pthread_create(&cores[i].thread, NULL, solve_worker_thread_unmask, (void*)(cores + i));
 	}
 }
 
 void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, char nox, bool score, long layer){
 	solve_core_data *cores = malloc_errcheck(sizeof(solve_core_data) * core_count);
+	if(get_settings().mask){
+		printf("n size preunmask: %ld\n", n->key.size);
+		init_threads(n, n2, n4, winstates, core_count, nox, score, layer, cores, op_unmask);
+		wait(cores, core_count);
+		free(n->key.bp);
+		free(n->value.bp);
+		dynamic_arr_info tmp = cores[0].nret;
+		for(size_t i = 1; i < core_count; i++){
+			tmp = concat(&tmp, &cores[i].nret);
+		}
+		n->key = shrink_darr(&tmp);
+		n->value = init_sarr(0, n->key.size);
+		printf("n size post unmask: %ld\n", n->key.size);
+	}
 	init_threads(n, n2, n4, winstates, core_count, nox, score, layer, cores, op_solve);
 	wait(cores, core_count);
 	free(cores);

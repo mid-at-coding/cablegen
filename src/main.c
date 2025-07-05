@@ -12,6 +12,7 @@
 #include "../inc/board.h"
 #include "../inc/settings.h"
 #include <string.h>
+#include <termios.h>
 #include <errno.h>
 #include <time.h>
 
@@ -27,6 +28,7 @@ static void help(void){
 	log_out("lookup [BOARD] (TDIR) -- look a board up, optionally specifying an alternate directory to look in", LOG_INFO_);
 	log_out("lookup_spawn [BOARD] (TDIR) -- look a board up, optionally specifying an alternate directory to look in", LOG_INFO_);
 	log_out("explore [TABLE] -- show all the solved boards in TABLE", LOG_INFO_);
+	log_out("train [BOARD] (CONFIG) -- play a game starting with BOARD, optionally specifying CONFIG, with live feedback", LOG_INFO_);
 	log_out("play [BOARD] (TDIR) -- simulate an optimal game of BOARD with random spawns", LOG_INFO_);
 	log_out("benchmark -- benchmark cablegen", LOG_INFO_);
 }
@@ -169,10 +171,10 @@ static void parseLookup(int argc, char **argv, bool spawn){ // TODO refactor
 	read_table(t4, tablestr);
 
 
-	printf("Board(%0.10lf):\n", res);
 	if(spawn)
 		output_board(original);
 	else{
+		printf("Board(%0.10lf):\n", res);
 		output_board(board);
 		printf("Spawns:\n");
 	}
@@ -241,6 +243,134 @@ static bool canMove(uint64_t board){
 	return false;
 }
 
+static void spawn(uint64_t *board){
+	short spaces = 0;
+	for(int i = 0; i < 16; i++){
+		if(!GET_TILE((*board), i))
+			spaces++;
+	}
+	if(spaces == 0){
+		log_out("No space!", LOG_INFO_);
+		output_board(*board);
+		exit(0);
+	}
+	short position = rand() % spaces;
+	short tile = rand() % 10;
+	short curr = 0;
+	for(int i = 0; i < 16; i++){
+		if(!GET_TILE((*board), i) && curr++ == position){
+			if(tile == 9){
+				SET_TILE((*board), i, 2);
+			}
+			else
+				SET_TILE((*board), i, 1);
+		}
+	}
+}
+char getch__(void) // https://stackoverflow.com/a/7469410 
+{
+	bool echo = false;
+	static struct termios current, old;
+	tcgetattr(0, &old); /* grab old terminal i/o settings */
+	current = old; /* make new settings same as old settings */
+	current.c_lflag &= ~ICANON; /* disable buffered i/o */
+	if (echo) {
+	  current.c_lflag |= ECHO; /* set echo mode */
+	} else {
+	  current.c_lflag &= ~ECHO; /* set no echo mode */
+	}
+	tcsetattr(0, TCSANOW, &current); /* use these new terminal i/o settings now */
+	char res = getchar();
+	tcsetattr(0, TCSANOW, &old);
+	return res;
+}
+static void parseTrain(int argc, char **argv){
+	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
+	set_log_level(LOG_INFO_);
+	if(argc > 3)
+		change_config(argv[3]);
+	srand(time(0));
+	generate_lut();
+	double cumacc = 1;
+	bool validMove = 0;
+	char inp;
+
+	char* default_table_postfix = "%d.tables"; // TODO pull out
+	size_t table_fmt_size = strlen(default_table_postfix) + strlen(get_settings().tdir) + 1;
+	char* table_fmt = malloc_errcheck(table_fmt_size);
+	snprintf(table_fmt, table_fmt_size, "%s%s", get_settings().tdir, default_table_postfix);
+
+	size_t table_dir_str_size = strlen(table_fmt) + 10;
+	char *table_dir_str = malloc_errcheck(table_dir_str_size);
+	table *t  = malloc_errcheck(sizeof(table));
+	uint64_t board = strtoull(argv[2], NULL, 16);
+
+	struct dirprob res;
+	double tmp;
+	log_out("Welcome to cablegen training mode! Move with WASD or HJKL", LOG_INFO_);
+	while(canMove(board)){
+		printf("-------------\n");
+		output_board(board);
+		validMove = true;
+		uint64_t premove = board;
+		dir move = 0;
+		do{
+			inp = getch__();
+			switch(inp){
+			case 'w':
+			case 'k':
+				move = up;
+				validMove = true;
+				break;
+			case 'a':
+			case 'h':
+				move = left;
+				validMove = true;
+				break;
+			case 's':
+			case 'j':
+				move = down;
+				validMove = true;
+				break;
+			case 'd':
+			case 'l':
+				move = right;
+				validMove = true;
+				break;
+			default:
+				validMove = false;
+			}
+			if(validMove)
+				validMove = movedir(&board, move);
+			if(validMove == false)
+				log_out("Invalid move!", LOG_INFO_);
+		}while(!validMove);
+		snprintf(table_dir_str, table_dir_str_size, table_fmt, get_sum(board));
+		read_table(t, table_dir_str);
+		res = best(premove, t);
+		if(tmp == 1){
+			log_out("You Win!", LOG_INFO_);
+			printf("[INFO] Cumulative accuracy: %lf\n", cumacc);
+			exit(0);
+		}
+		if((res.prob - (tmp = lookup(board, t, true))) > 0.005){ // TODO setting?
+			log_out("Suboptimal move!", LOG_INFO_);
+			printf("[INFO] Table: %lf(%s), You %lf(%s)\n", res.prob, dirtos(res.d), tmp, dirtos(move));
+			printf("[INFO] Cumulative accuracy: %lf\n", cumacc *= (tmp/res.prob));
+			printf("[INFO] One step loss: %lf\n", 1 - (tmp/res.prob));
+		}
+		else
+			cumacc *= (tmp/res.prob);
+		spawn(&board);
+		free(t->key.bp);
+		free(t->value.bp);
+	}
+	output_board(board);
+	log_out("You Died!", LOG_INFO_);
+	printf("[INFO] Cumulative accuracy: %lf\n", cumacc);
+	exit(0);
+}
+
 static void parsePlay(int argc, char **argv){
 	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	set_log_level(LOG_INFO_);
@@ -253,7 +383,7 @@ static void parsePlay(int argc, char **argv){
 	uint64_t board = strtoull(argv[2], NULL, 16); // interpret as hex string
 	generate_lut();
 
-	char* default_table_postfix = "%d.tables";
+	char* default_table_postfix = "%d.tables"; // TODO pull out
 	size_t table_fmt_size = strlen(default_table_postfix) + strlen(tdir) + 1;
 	char* table_fmt = malloc_errcheck(table_fmt_size);
 	snprintf(table_fmt, table_fmt_size, "%s%s", tdir, default_table_postfix);
@@ -263,29 +393,7 @@ static void parsePlay(int argc, char **argv){
 	table *t  = malloc_errcheck(sizeof(table));
 
 	do{
-		// spawn
-		short spaces = 0;
-		for(int i = 0; i < 16; i++){
-			if(!GET_TILE(board, i))
-				spaces++;
-		}
-		if(spaces == 0){
-			log_out("No space!", LOG_INFO_);
-			output_board(board);
-			exit(0);
-		}
-		short position = rand() % spaces;
-		short tile = rand() % 10;
-		short curr = 0;
-		for(int i = 0; i < 16; i++){
-			if(!GET_TILE(board, i) && curr++ == position){
-				if(tile == 9){
-					SET_TILE(board, i, 2);
-				}
-				else
-					SET_TILE(board, i, 1);
-			}
-		}
+		spawn(&board);
 		output_board(board);
 		if(!canMove(board)){
 			log_out("AI died :(", LOG_INFO_);
@@ -396,6 +504,7 @@ int main(int argc, char **argv){
 		else if(!strcmp(strlwr_(argv[1]), "lookup_spawn")) {parseLookup(argc, argv, true);}
 		else if(!strcmp(strlwr_(argv[1]), "explore")) {parseExplore(argc, argv);}
 		else if(!strcmp(strlwr_(argv[1]), "play")) {parsePlay(argc, argv);}
+		else if(!strcmp(strlwr_(argv[1]), "train")) {parseTrain(argc, argv);}
 		else if(!strcmp(strlwr_(argv[1]), "benchmark")) {benchmark();}
 		else{
 			log_out("Unrecognized command!", LOG_WARN_);
