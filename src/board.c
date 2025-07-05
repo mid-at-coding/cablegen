@@ -330,17 +330,16 @@ void swap(uint64_t *board, char pos1, char pos2){
 	SET_TILE((*board), pos2, tmp);
 }
 
-void permutations(dynamic_arr_info *d, uint64_t *board, size_t size){
-	if(size == 1){
+void permutations(dynamic_arr_info *d, uint64_t *board, uint16_t n, int i){
+	if(i == n){
 		push_back(d, *board);
-		return;
 	}
-	for(int i = 0; i < size; i++){
-		permutations(d, board, size - 1);
-		if(size % 2)
-			swap(board, 0, size - 1);
-		else
-			swap(board, i, size - 1);
+	else{
+		for(int j = i; j < n; j++){
+			swap(board, i, j);
+			permutations(d, board, n, i + 1);
+			swap(board, i, j);
+		}
 	}
 }
 
@@ -353,16 +352,18 @@ void get_permutations(dynamic_arr_info *d, uint64_t board, size_t size, const st
 			fac *= i;
 		cached_arrs[size] = init_darr(1, fac);
 		uint64_t base_board = 0;
-		for(int i = 0; i < size; i++)
+		for(size_t i = 0; i < size; i++)
 			SET_TILE(base_board, i, i);
-		permutations(cached_arrs + size, &base_board, size);
+		permutations(cached_arrs + size, &base_board, size, 0);
 		cached[size] = true;
 	}
 	// the tiles in cached_arr[size] refer to the indices into masked tiles, which itself contains indicies, so we must convert every board first
-	for(size_t curr = 0; curr < cached_arrs[size].sp - cached_arrs[size].bp; curr++){
-		d->bp[curr] = board;
-		for(int i = 0; i < size; i++){
-			SET_TILE(d->bp[curr], masked_tiles->bp[size], masked_tiles->bp[GET_TILE(cached_arrs[size].bp[curr], size)]);
+	size_t cached_size = cached_arrs[size].sp - cached_arrs[size].bp;
+	for(size_t curr = 0; curr < cached_size; curr++){
+		push_back(d, board);
+		for(size_t i = 0; i < size; i++){
+			SET_TILE(d->sp[-1], masked_tiles->bp[i], 
+				GET_TILE(board, masked_tiles->bp[GET_TILE(cached_arrs[size].bp[curr], i)]));
 		}
 	}
 }
