@@ -23,4 +23,4 @@ build/%.o: src/%.c
 	$(CC) $< $(CCFLAGS) $(LDFLAGS) -c -o $@ 
 
 cablegen: $(FILES)
-	$(CC) $(wildcard build/*.o) libz4.o $(CCFLAGS) $(LDFLAGS) -o cablegen
+	$(CC) $(wildcard build/*.o) $(CCFLAGS) $(LDFLAGS) -o cablegen
