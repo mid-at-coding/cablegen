@@ -31,6 +31,10 @@ free_formation = false
 cores = 1
 ; generate and solve as if merging to this tile will lead to death
 nox = 0
+; treat 0xf tiles as if they were walls -- free formation must be true for this setting to have an effect (generally only used for variants)
+ignore_f = false
+; compress boards and positions while generating and solving
+compress = true
 
 ; generation specific settings
 [Generate]
@@ -51,16 +55,19 @@ ltc = 5
 ; defines the smallest large tile, below which a tile is "small"
 smallest_large = 6
 
-[Solve]   
 ; solving specific settings
-dir = ./tables/       
+[Solve]   
 ; where solved boards will go, relative to where cablegen is run
-winstates = ./winstate
+dir = ./tables/       
 ; where the winstates for solving are
-end = 14              
+winstates = ./winstate
 ; the lowest tile sum, where solving ends
-score = false         
+end = 14              
 ; use score instead of win percentage
+score = false         
+; delete board files while solving to save space
+delete_boards = false
+
 ```
 
 ## Note
@@ -79,3 +86,5 @@ development, and as of right now, is more robust than cablegen.
 [sort](https://github.com/swenson/sort) -- MIT License
 
 [ini](https://github.com/rxi/ini/) -- MIT License
+
+[lz4](https://github.com/lz4/lz4/) -- BSD 2-Clause License

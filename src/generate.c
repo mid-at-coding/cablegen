@@ -9,6 +9,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <time.h>
+#include <lz4file.h>
 typedef struct {
 	static_arr_info n; 
 	dynamic_arr_info nret;
@@ -30,7 +31,13 @@ enum thread_op {
 	movem,
 	spawn,
 };
-
+static void checkLZ4FE(LZ4F_errorCode_t ret){
+	if(LZ4F_isError(ret)){
+		log_out("Unrecoverable LZ4 error!", LOG_ERROR_);
+		log_out(LZ4F_getErrorName(ret), LOG_ERROR_);
+		exit(ret);
+	}
+}
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
 	size_t filename_size = strlen(fmt) + 10; // if there are more than 10 digits of layers i'll eat my shoe
 	char* filename = malloc_errcheck(sizeof(char) * filename_size);
@@ -39,6 +46,7 @@ void write_boards(const static_arr_info n, const char* fmt, const int layer){
 		printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", n.size, filename, sizeof(uint64_t) * n.size);  // lol
 	}	
 	FILE *file = fopen(filename, "wb");
+	LZ4F_errorCode_t ret = LZ4F_OK_NoError;
 	if(file == NULL){
 		char *buf = malloc_errcheck(100);
 		snprintf(buf, 100, "Couldn't write to %s!\n", filename);
@@ -47,9 +55,19 @@ void write_boards(const static_arr_info n, const char* fmt, const int layer){
 		free(filename);
 		return;
 	}
-	fwrite(n.bp, n.size, sizeof(uint64_t), file);
+	if(get_settings().compress){
+		LZ4_writeFile_t *lz4fWrite;
+		ret = LZ4F_writeOpen(&lz4fWrite, file, NULL);
+		checkLZ4FE(ret);
+		LZ4F_write(lz4fWrite, n.bp, n.size * sizeof(double));
+		checkLZ4FE(ret);
+		LZ4F_writeClose(lz4fWrite);
+	}
+	else{
+		fwrite(n.bp, n.size, sizeof(uint64_t), file);
+		free(filename);
+	}
 	fclose(file);
-	free(filename);
 }
 
 bool checkx(uint64_t board, char x){
@@ -345,6 +363,8 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 }
 static_arr_info read_boards(const char *dir){
 	FILE *fp = fopen(dir, "rb");
+	LZ4F_errorCode_t ret = LZ4F_OK_NoError;
+	LZ4_readFile_t *lz4fRead;
 	if(fp == NULL){
 		char *buf = malloc_errcheck(100);
 		snprintf(buf, 100, "Couldn't read %s!\n", dir);
@@ -358,7 +378,15 @@ static_arr_info read_boards(const char *dir){
 	if(sz % 8 != 0)
 		log_out("sz %%8 != 0, this is probably not a real table!\n", LOG_WARN_);
 	uint64_t* data = malloc_errcheck(sz);
-	fread(data, 1, sz, fp);
+	if(get_settings().compress){
+		ret = LZ4F_readOpen(&lz4fRead, fp);
+		checkLZ4FE(ret);
+		ret = LZ4F_read(lz4fRead, data, sz * sizeof(uint64_t));
+		checkLZ4FE(ret);
+	}
+	else{
+		fread(data, 1, sz, fp);
+	}
 	char *buf = malloc_errcheck(100);
 	snprintf(buf, 100, "Read %ld bytes (%ld boards) from %s\n", sz, sz / 8, dir);
 	log_out(buf, LOG_DBG_);

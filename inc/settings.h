@@ -14,6 +14,7 @@ typedef struct {
 	long long cores;
 	long long nox;
 	bool mask;
+	bool compress;
 
 	bool premove;
 	char *bdir;
@@ -28,6 +29,7 @@ typedef struct {
 	char *winstates;
 	long long end_solve;
 	bool score;
+	bool delete_boards;
 } settings_t;
 
 settings_t get_settings(void);

@@ -5,6 +5,7 @@
 #include "../inc/settings.h"
 #include <assert.h>
 #include <math.h>
+#include <lz4file.h>
 #include <errno.h>
 #include <pthread.h>
 #include <stddef.h>
@@ -24,11 +25,19 @@ typedef struct {
 	static_arr_info *winstates;
 	pthread_t thread;
 } solve_core_data;
+static void checkLZ4FE(LZ4F_errorCode_t ret){
+	if(LZ4F_isError(ret)){
+		log_out("Unrecoverable LZ4 error!", LOG_ERROR_);
+		log_out(LZ4F_getErrorName(ret), LOG_ERROR_);
+		exit(ret);
+	}
+}
 void write_table(const table *t, const char *filename){ // TODO fix the speed situation
 	LOGIF(LOG_INFO_){
 		printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", t->key.size, filename, 2 * sizeof(uint64_t) * t->key.size);  // lol
 	}
 	FILE *file = fopen(filename, "wb");
+	LZ4F_errorCode_t ret = LZ4F_OK_NoError;
 	if(file == NULL){
 		char *buf = malloc_errcheck(100);
 		snprintf(buf, 100, "Couldn't write to %s!\n", filename);
@@ -42,8 +51,20 @@ void write_table(const table *t, const char *filename){ // TODO fix the speed si
 		fclose(file);
 		return;
 	}
-	fwrite(t->key.bp,   sizeof(uint64_t), t->key.size,   file);
-	fwrite(t->value.bp, sizeof(double),   t->value.size, file);
+	if(get_settings().compress){
+		LZ4_writeFile_t *lz4fWrite;
+		ret = LZ4F_writeOpen(&lz4fWrite, file, NULL);
+		checkLZ4FE(ret);
+		LZ4F_write(lz4fWrite, t->key.bp,   t->key.size * sizeof(uint64_t));
+		checkLZ4FE(ret);
+		LZ4F_write(lz4fWrite, t->value.bp, t->value.size * sizeof(double));
+		checkLZ4FE(ret);
+		LZ4F_writeClose(lz4fWrite);
+	}
+	else{
+		fwrite(t->key.bp,   sizeof(uint64_t), t->key.size,   file);
+		fwrite(t->value.bp, sizeof(double),   t->value.size, file);
+	}
 	fclose(file);
 }
 
@@ -59,6 +80,8 @@ void read_table(table *t, const char *filename){
 		return;
 	}
 	errno = 0;
+	LZ4F_errorCode_t ret = LZ4F_OK_NoError;
+	LZ4_readFile_t *lz4fRead;
 	fseek(fp, 0L, SEEK_END);
 	size_t sz = ftell(fp);
 	if(errno){
@@ -73,17 +96,27 @@ void read_table(table *t, const char *filename){
 		log_out("sz %%16 != 0, this is probably not a real table!\n", LOG_WARN_);
 	t->key =   init_sarr(0, sz / 16);
 	t->value = init_sarr(0, sz / 16);
-	fread(t->key.bp, sizeof(uint64_t), sz / 16, fp);
-	if(ferror(fp)){
-		log_out("Error reading file!", LOG_WARN_);
-		fclose(fp);
-		return;
+	if(get_settings().compress){
+		ret = LZ4F_readOpen(&lz4fRead, fp);
+		checkLZ4FE(ret);
+		ret = LZ4F_read(lz4fRead, t->key.bp, sz / 2);
+		checkLZ4FE(ret);
+		ret = LZ4F_read(lz4fRead, t->value.bp, sz / 2);
+		checkLZ4FE(ret);
 	}
-	fread(t->value.bp, sizeof(double), sz / 16, fp);
-	if(ferror(fp) || feof(fp)){
-		log_out("Error reading file!", LOG_WARN_);
-		fclose(fp);
-		return;
+	else{
+		fread(t->key.bp, sizeof(uint64_t), sz / 16, fp);
+		if(ferror(fp)){
+			log_out("Error reading file!", LOG_WARN_);
+			fclose(fp);
+			return;
+		}
+		fread(t->value.bp, sizeof(double), sz / 16, fp);
+		if(ferror(fp) || feof(fp)){
+			log_out("Error reading file!", LOG_WARN_);
+			fclose(fp);
+			return;
+		}
 	}
 	char *buf = malloc_errcheck(100);
 	snprintf(buf, 100, "Read %ld bytes (%ld boards) from %s\n", sz, sz / 16, filename);
@@ -223,6 +256,8 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	for(unsigned int i = start; i >= end; i -= 2){
 		snprintf(filename, FILENAME_SIZE, posfmt, i);
 		n->key = read_boards(filename);
+		if(get_settings().delete_boards)
+			remove(filename);
 		n->value = init_sarr(0,n->key.size);
 		solve_layer(n4, n2, n, &winstates, cores, nox, score, i);
 		snprintf(filename, FILENAME_SIZE, tablefmt, i);

@@ -286,7 +286,7 @@ bool test_misc(void){
 			output_board(board);
 			log_out("Unmasked boards", LOG_ERROR_);
 			for(uint64_t *curr = tmp.bp; curr < tmp.sp; curr++){
-				printf("----");
+				printf("----\n");
 				output_board(*curr);
 			}
 			destroy_darr(&tmp);

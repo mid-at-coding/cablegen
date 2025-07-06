@@ -23,7 +23,7 @@ static int get_bool_setting_section(const char *key, char *section, bool*);
 static int get_str_setting_section (const char *key, char *section, char**);
 static int get_int_setting_section (const char *key, char *section, long long*);
 
-void free_str_settings(void){
+void free_str_settings(void){ // was an attempt to make asan happy but did not work
 	free(get_settings().bdir);
 	free(get_settings().initial);
 	free(get_settings().tdir);
@@ -38,6 +38,7 @@ settings_t get_settings(void){
 		.cores = 1,
 		.nox = 0,
 		.mask = 0,
+		.compress = false,
 		
 		.premove = false,
 		.bdir = "./boards/",
@@ -51,7 +52,8 @@ settings_t get_settings(void){
 		.tdir = "./tables/",
 		.winstates = "./winstates",
 		.end_solve = 0,
-		.score = false
+		.score = false,
+		.delete_boards = false
 	};
 	if(settings_read)
 		return res;
@@ -62,6 +64,7 @@ settings_t get_settings(void){
 	get_int_setting("cores", &res.cores); 
 	get_int_setting("nox", &res.nox); 
 	get_bool_setting("mask", &res.mask); 
+	get_bool_setting("compress", &res.compress); 
 	get_bool_setting_section("premove", "Generate", &res.premove);
 	get_str_setting_section("dir", "Generate", &res.bdir);
 	get_str_setting_section("initial", "Generate", &res.initial);
@@ -74,6 +77,7 @@ settings_t get_settings(void){
 	get_str_setting_section("winstates", "Solve", &res.winstates);
 	get_int_setting_section("end", "Solve", &res.end_solve); 
 	get_bool_setting_section("score", "Solve", &res.score);
+	get_bool_setting_section("delete_boards", "Solve", &res.delete_boards);
 	if(!registered){
 		registered = true;
 		if(atexit(free_str_settings)){
