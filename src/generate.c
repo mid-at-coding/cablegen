@@ -26,8 +26,6 @@ typedef struct {
 enum thread_op {
 	move,
 	movep,
-	movepm,
-	movem,
 	spawn,
 };
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
@@ -139,50 +137,6 @@ void *generation_thread_movep(void* data){ // n, nret, stsl, ltc, smallest_large
 	return NULL;
 }
 
-void *generation_thread_movepm(void* data){ // n, nret, stsl, ltc, smallest_large
-	arguments *args = data;
-	uint64_t tmp;
-	uint64_t old;
-	for(size_t i = args->start; i < args->end; i++){
-		old = args->n.bp[i];
-		if(prune_board(old, args->stsl, args->ltc, args->smallest_large))
-			continue;
-		tmp = old;
-		for(dir d = left; d <= down; d++){
-			if(movedir(&tmp, d)){
-				if(prune_board(tmp, args->stsl, args->ltc, args->smallest_large))
-					continue;
-				tmp = mask_board(tmp, args->smallest_large);
-				canonicalize_b(&tmp);
-				push_back(&args->nret, tmp);
-				tmp = old;
-			}
-		}
-	}
-	deduplicate(&args->nret);
-	return NULL;
-}
-
-void *generation_thread_movem(void* data){ // n, nret, smallest_large
-	arguments *args = data;
-	uint64_t tmp;
-	uint64_t old;
-	for(size_t i = args->start; i < args->end; i++){
-		old = args->n.bp[i];
-		tmp = old;
-		for(dir d = left; d <= down; d++){
-			if(movedir(&tmp, d)){
-				tmp = mask_board(tmp, args->smallest_large);
-				canonicalize_b(&tmp);
-				push_back(&args->nret, tmp);
-				tmp = old;
-			}
-		}
-	}
-	deduplicate(&args->nret);
-	return NULL;
-}
-
 void *generation_thread_spawn(void* data){
 	arguments *args = data;
 	uint64_t tmp;
@@ -214,12 +168,6 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 	case movep:
 		fn = generation_thread_movep;
 		break;
-	case movem:
-		fn = generation_thread_movem;
-		break;
-	case movepm:
-		fn = generation_thread_movepm;
-		break;
 	case move:
 		fn = generation_thread_move;
 		break;
@@ -230,12 +178,9 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = (static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp};
 		switch(op){
-		case movepm:
 		case movep:
 			cores[i].stsl = get_settings().stsl;
 			cores[i].ltc = get_settings().ltc;
-		case movem:
-			cores[i].smallest_large = get_settings().smallest_large;
 		case move:
 			cores[i].nret = init_darr(0, 3 * (n->sp - n->bp) / core_count);
 			break;
@@ -284,12 +229,8 @@ static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int 
 void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, 
 		const unsigned core_count, const char *fmt_dir, const int layer, arguments *cores, char nox){
 	// move
-	if(get_settings().prune && get_settings().mask)
-		init_threads(n, core_count, movepm, cores, nox, layer);
-	else if(get_settings().prune)
+	if(get_settings().prune)
 		init_threads(n, core_count, movep, cores, nox, layer);
-	else if(get_settings().mask)
-		init_threads(n, core_count, movem, cores, nox, layer);
 	else
 		init_threads(n, core_count, move, cores, nox, layer);
 	// wait for moves to be done

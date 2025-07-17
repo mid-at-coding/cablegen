@@ -323,108 +323,160 @@ void output_board(uint64_t board){
 		printf("\n");
 	}
 }
-
-void swap(uint64_t *board, char pos1, char pos2){
-	char tmp = GET_TILE((*board), pos1);
-	SET_TILE((*board), pos1, GET_TILE((*board), pos2));
-	SET_TILE((*board), pos2, tmp);
+inline static uint64_t log2_(uint64_t x) {
+#ifdef _WIN32
+	x--;
+	x |= x >> 1;
+	x |= x >> 2;
+	x |= x >> 4;
+	x |= x >> 8;
+	x |= x >> 16;
+	x |= x >> 32;
+	return ++x;
+#endif
+	return x == 1 ? 1 : (64-__builtin_clzl(x-1));
 }
 
-void permutations(dynamic_arr_info *d, uint64_t *board, uint16_t n, int i){
-	if(i == n){
-		push_back(d, *board);
+uint64_t get_buf(uint64_t inp, uint16_t offset, uint16_t len){
+	uint64_t res = 0;
+	char head = 0;
+	for(uint16_t i = 0; i < len; i++){
+		SET_TILE(res, head, (GET_TILE(inp, (offset + i))));
+		head++;
 	}
-	else{
-		for(int j = i; j < n; j++){
-			swap(board, i, j);
-			permutations(d, board, n, i + 1);
-			swap(board, i, j);
-		}
-	}
+	return res;
 }
 
-void get_permutations(dynamic_arr_info *d, uint64_t board, size_t size, const static_arr_info *masked_tiles){
-	static dynamic_arr_info cached_arrs[16];
-	static bool cached[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-	if(!cached[size]){
-		size_t fac = size;
-		for(size_t i = 2; i < size; i++)
-			fac *= i;
-		cached_arrs[size] = init_darr(1, fac);
-		uint64_t base_board = 0;
-		for(size_t i = 0; i < size; i++)
-			SET_TILE(base_board, i, i);
-		permutations(cached_arrs + size, &base_board, size, 0);
-		cached[size] = true;
-	}
-	// the tiles in cached_arr[size] refer to the indices into masked tiles, which itself contains indicies, so we must convert every board first
-	size_t cached_size = cached_arrs[size].sp - cached_arrs[size].bp;
-	for(size_t curr = 0; curr < cached_size; curr++){
-		push_back(d, board);
-		for(size_t i = 0; i < size; i++){
-			SET_TILE(d->sp[-1], masked_tiles->bp[i], 
-				GET_TILE(board, masked_tiles->bp[GET_TILE(cached_arrs[size].bp[curr], i)]));
+dynamic_arr_info unmask_board(masked_board_sorted masked, uint16_t sum){ // TODO surely can be faster
+	uint16_t used_tiles = sum; // TODO refactor this mess
+	dynamic_arr_info res;
+	unsigned char positions[16];
+	short count = 0;
+	// loop over the masked board to see where the masked tiles are (and incidentally find the count and the tiles used)
+	for(short i = 0; i < 16; i++){
+		if(GET_TILE(masked.masked, i) == 0xe){
+			positions[count++] = i;
+		}
+		else if(GET_TILE(masked.masked, i) != 0xf){
+			used_tiles -= 1 << (GET_TILE(masked.masked, i));
 		}
 	}
-}
-
-dynamic_arr_info unmask_board(uint64_t board, const short smallest_large, unsigned long long sum) {
-	const char MASKED_TILE = 0xe;
-	uint16_t masked_tile_c = 0;
-	static_arr_info masked_tiles = init_sarr(1, 16); // a list of all the indices of the masked tiles
-    for(int i = 0; i < 16; i++) {
-        short tmp = GET_TILE(board, i);
-		if(tmp < MASKED_TILE && tmp > 0) {
-			sum -= (1 << tmp);
-		}
-		else if(tmp == MASKED_TILE){
-			masked_tiles.bp[masked_tile_c++] = i;
-		}
-    } // the sum is guaranteed to be below a 16 bit integer because at most one of each tile is masked, so we can
-	  // directly use the sum as a packed bit array of the tiles that are available
-	uint16_t set_tiles = sum;
-	masked_tiles.size = masked_tile_c;
-
-    size_t fac = 1;
-	for(uint16_t i = masked_tile_c; i > 0; i--)
-		fac *= i;
-    // calculate the factorial of the number of masked tiles: this is the amount of permutations and thus the size of our return array
-	dynamic_arr_info result = init_darr(false, fac);
-	// generate the base board
-	uint64_t base = board;
-	uint16_t used = 0;
-	for(uint16_t i = 0; i < masked_tiles.size; i++){
-		for(int tile = 1; tile < 16; tile++){
-			if(GETBIT(set_tiles, tile) && !GETBIT(used, tile)){
-				SETBIT(used, tile);
-				SET_TILE(base, masked_tiles.bp[i], tile);
-				break;
+	if(count == 0){ // nothing to do
+		res = init_darr(0, 0);
+		push_back(&res, masked.masked);
+		return res;
+	}
+	uint16_t len = count;
+	// preallocate masked.unmasked size * floor(16 / len) boards
+	res = init_darr(0, (masked.unmasked.sp - masked.unmasked.bp) * (16 / len));
+	uint64_t buffer;
+	uint16_t curr_tile = 0;
+	for(uint64_t *curr = masked.unmasked.bp; curr < masked.unmasked.sp; curr++){
+		uint64_t res_board = masked.masked;
+		for(uint16_t i = 0; i < 16; i += len){
+			curr_tile = 0;
+			buffer = get_buf(*curr, i, len);
+			for(uint16_t pos = 0; pos < len; pos++){
+				// get the first tile we haven't used yet
+				while(curr_tile < 16){
+					if(GETBIT(used_tiles, curr_tile))
+						break;
+					curr_tile++;
+				}
+				SET_TILE(res_board, GET_TILE(buffer, pos), curr_tile);
+				curr_tile++;
 			}
+			if(!buffer)
+				break;
+			push_back(&res, res_board);
 		}
+		if(!buffer) // we should return now. If curr + 1 < masked.unmasked.sp, we can assume that it's a mistake.
+			return res;
 	}
-	// find every permutation
-	get_permutations(&result, base, masked_tiles.size, &masked_tiles);
-	free(masked_tiles.bp);
-    return result;
+	return res;
 }
 
-uint64_t mask_board(uint64_t board_old, const short smallest_large){
+masked_board mask_board(uint64_t board_old, const short smallest_large){ // TODO refactor + optimize
 	uint64_t board = board_old;
+	masked_board res;
 	const short MASK = 0xe;
 	uint16_t tiles = 0;
+	uint16_t tiles2 = 0;
+	char mask_n = 0;
 	char tmp = 0;
 	for(short tile = 0; tile < 16; tile++){
 		if((tmp = GET_TILE(board, tile)) >= smallest_large && tmp != 0xf){
 			if(!GETBIT(tiles, tmp)){
 				SETBIT(tiles, tmp);
+				SETBIT(tiles2, tmp);
 				SET_TILE(board, tile, MASK);
+				mask_n++;
 			}
 			else{ // this tile is already masked somewhere between 0 and tile, which we don't want
-				for(int i = 0; i < tile; i++)
-					if(GET_TILE(board_old, i) == tmp)
+				for(int i = 0; i < tile; i++){
+					if(GET_TILE(board_old, i) == tmp){
+						CLEARBIT(tiles2, tmp);
 						SET_TILE(board, i, tmp);
+						mask_n--;
+					}
+				}
 			}
 		}
 	}
-	return board;
+	res.masked = board;
+	res.unmasked = 0;
+	if(!mask_n) // nothing to do
+		return res;
+	// TODO optimize: this is just for testing
+	char head = 0;
+	for(char tile = smallest_large; tile < 16; tile++){
+		if(!GETBIT(tiles2, tile))
+			continue;
+		for(int i = 0; i < 16; i++){ // find the position of the tile in the real board
+			if(GET_TILE(board_old, i) == tile)
+				SET_TILE(res.unmasked, head, i);
+		}
+		head++;
+	}
+	return res;
+}
+
+void concat_masked_single(masked_board *masked, masked_board_sorted *res, uint16_t len){
+	uint64_t *curr;
+	if(res->unmasked.sp == res->unmasked.bp)
+		push_back(&res->unmasked, 0);
+
+	curr = res->unmasked.sp - 1;
+	uint16_t base = 0;
+	bool flag_found = 0;
+	for(; base < 16; base += len){
+		if(!get_buf(*curr, base, len)){ // we're looking for the first open buffer
+			flag_found = true;
+			break;
+		}
+	}
+	if(!flag_found || base + len >= 16){ // if we don't have space or don't have space xp
+		base = 0;
+		push_back(&res->unmasked, 0);
+		curr = res->unmasked.sp - 1;
+	}
+	for(uint16_t i = 0; i < len; i++){
+		SET_TILE((*curr), (base + i), (GET_TILE(masked->unmasked, i)));
+	}
+}
+masked_board_sorted concat_masked(masked_board *boards, const size_t boards_len){ 
+	// ASSUMPTION: all unmasked boards are distinct
+	// ASSUMPTION: all boards in boards mask to the same board (i.e. boards->masked == (boards + 1)->masked)
+	masked_board_sorted res = {boards->masked, init_darr(0, 0)};
+	push_back(&res.unmasked, boards->unmasked);
+
+	uint16_t len = 0;
+	// see how many masked tiles there are
+	for(int i = 0; i < 16; i++)
+		if(GET_TILE(res.masked, i) == 0xe)
+			len++;
+	for(masked_board *curr_masked = boards + 1; curr_masked < boards + boards_len; curr_masked++){
+		concat_masked_single(curr_masked, &res, len);
+	}
+	return res;
 }

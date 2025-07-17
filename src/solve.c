@@ -328,18 +328,8 @@ void *solve_worker_thread(void *args){
 	return NULL;
 }
 
-void *solve_worker_thread_unmask(void *args){
-	solve_core_data *sargs = args;
-	for(size_t curr = sargs->start; curr < sargs->end; curr++){
-		dynamic_arr_info tmp = unmask_board(sargs->n->key.bp[curr], get_settings().smallest_large, sargs->layer);
-		sargs->nret = concat(&sargs->nret, &tmp);
-	}
-	deduplicate(&sargs->nret);
-	return NULL;
-}
 enum solve_op{
 	op_solve,
-	op_unmask,
 	op_prune
 };
 
@@ -354,10 +344,6 @@ void init_threads(table *n, table *n2, table *n4, static_arr_info *winstates, un
 			cores[i].score = score;
 			cores[i].winstates = winstates;
 		}
-		else if(op == op_unmask){
-			cores[i].nret = init_darr(0, 10 * n->key.size / core_count);
-			cores[i].layer = layer;
-		}
 		// divide up [0,n.size)
 		// cores work in [start,end)
 		int block_size = (n->key.size) / core_count;
@@ -370,26 +356,11 @@ void init_threads(table *n, table *n2, table *n4, static_arr_info *winstates, un
 		}
 		if(op == op_solve)
 			pthread_create(&cores[i].thread, NULL, solve_worker_thread, (void*)(cores + i));
-		else if(op == op_unmask)
-			pthread_create(&cores[i].thread, NULL, solve_worker_thread_unmask, (void*)(cores + i));
 	}
 }
 
 void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, unsigned core_count, char nox, bool score, long layer){
 	solve_core_data *cores = malloc_errcheck(sizeof(solve_core_data) * core_count);
-	if(get_settings().mask){
-		init_threads(n, n2, n4, winstates, core_count, nox, score, layer, cores, op_unmask);
-		wait(cores, core_count);
-		free(n->key.bp);
-		free(n->value.bp);
-		dynamic_arr_info tmp = cores[0].nret;
-		for(size_t i = 1; i < core_count; i++){
-			tmp = concat(&tmp, &cores[i].nret);
-		}
-		deduplicate(&tmp);
-		n->key = shrink_darr(&tmp);
-		n->value = init_sarr(0, n->key.size);
-	}
 	init_threads(n, n2, n4, winstates, core_count, nox, score, layer, cores, op_solve);
 	wait(cores, core_count);
 	free(cores);

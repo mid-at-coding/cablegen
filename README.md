@@ -50,7 +50,7 @@ premove = false
 prune = true
 ; small tile sum limit for pruning
 stsl = 58
-; large tile count for pruning
+; large tile count for pruning -- this should AT MOST be the number of free spaces minus smallest_large
 ltc = 5
 ; defines the smallest large tile, below which a tile is "small"
 smallest_large = 6

@@ -11,6 +11,12 @@
 #define SORT_TYPE uint64_t
 #include "../inc/sort.h"
 
+#include "../inc/board.h"
+#define SORT_NAME masked
+#define SORT_TYPE masked_board
+#define SORT_CMP(x, y) (((x).masked) - ((y).masked))
+#include "../inc/sort.h"
+
 bool push_back(dynamic_arr_info *info, uint64_t v){
 	bool res = false;
 	if(info->sp == NULL){
@@ -135,17 +141,6 @@ dynamic_arr_info concat_unique(dynamic_arr_info * restrict arr1, dynamic_arr_inf
 	return arr1_dynamic;
 }
 
-struct qsort_args {
-	uint64_t* bp;
-	size_t size;
-	size_t index;
-};
-
-void deduplicate_wt(void *vargs){
-	deduplicate_args *args = vargs;
-	deduplicate(args->d);
-}
-
 void deduplicate(dynamic_arr_info *s){
     if(s->sp == s->bp || s-> sp == s->bp + 1){
 		log_out("Can't sort one value!\n", LOG_DBG_);
@@ -165,14 +160,14 @@ void deduplicate(dynamic_arr_info *s){
 	return;
 }
 
-void deduplicate_qs(dynamic_arr_info *s){
+void deduplicate_masked(dynamic_arr_info *s){
     if(s->sp == s->bp || s-> sp == s->bp + 1){
 		log_out("Can't sort one value!\n", LOG_DBG_);
 		return;
 	}
 	size_t size = s->sp - s->bp;
     dynamic_arr_info res = init_darr(0, 0.7 * size); // assume it's around 30% dupes
-	uint64_quick_sort(s->bp, size);
+	uint64_tim_sort(s->bp, size);
 	push_back(&res, *s->bp);
 	for(uint64_t *curr = s->bp + 1; curr < s->sp; curr++){
 		if(*curr != *(curr - 1)){
@@ -183,6 +178,7 @@ void deduplicate_qs(dynamic_arr_info *s){
 	*s = res;
 	return;
 }
+
 void* malloc_errcheck(size_t size){ // guaranteed to be non-null
 	void* res = malloc(size);
 	if(res == NULL){
