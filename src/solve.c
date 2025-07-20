@@ -45,6 +45,7 @@ void write_table(const table *t, const char *filename){ // TODO fix the speed si
 	fwrite(t->key.bp,   sizeof(uint64_t), t->key.size,   file);
 	fwrite(t->value.bp, sizeof(double),   t->value.size, file);
 	fclose(file);
+	print_speed(t->key.size);
 }
 
 void read_table(table *t, const char *filename){
@@ -108,7 +109,7 @@ inline static uint64_t next_pow2(uint64_t x) {
 	return x == 1 ? 1 : 1<<(64-__builtin_clzl(x-1));
 }
 
-double lookup_shar(uint64_t lookup, table *t, bool canonicalize){
+double lookup(uint64_t lookup, table *t, bool canonicalize){
 	size_t length = t->key.size;
 	size_t begin = 0;
 	size_t end = t->key.size;
@@ -133,7 +134,7 @@ double lookup_shar(uint64_t lookup, table *t, bool canonicalize){
 	return *((double*)&t->value.bp[begin + (t->key.bp[begin] < lookup)]);
 } 
 
-double lookup(uint64_t key, table *t, bool canonicalize){
+double lookup_old(uint64_t key, table *t, bool canonicalize){
 	if(t->key.size == 0){
 		log_out("Empty table!", LOG_TRACE_);
 		return 0.0;
@@ -197,10 +198,13 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	const size_t FILENAME_SIZE = 100;
 	dynamic_arr_info winstates_d = init_darr(0,0);
 	generate_lut(); // if we don't gen a lut we can't move
-	// generate all rotations of the winstates
+	// generate all required rotations of the winstates
+	bool *rots_required = required_symmetries(initial_winstates);
 	for(size_t i = 0; i < initial_winstates->size; i++){
 		uint64_t *rots = get_all_rots(initial_winstates->bp[i]);
 		for(int j = 0; j < 8; j++){ // loop over all 8 symmetries
+			if(!rots_required[j])
+				continue;
 			push_back(&winstates_d, rots[j]);
 		}
 		free(rots);
@@ -275,7 +279,10 @@ static double maxmove(uint64_t board, table *n, static_arr_info *winstates, char
 			if(satisfied(&tmp, winstates, nox, score))
 				return 1.0;
 			if((nox && checkx(tmp,nox)) || !nox){
-				prob = fmax(prob, lookup(tmp, n, true));
+				if(tmp < board)
+					prob = fmax(prob, lookup(tmp, n, true));
+				else
+					prob = fmax(prob, lookup(tmp, n, false));
 			}
 		}
 	}

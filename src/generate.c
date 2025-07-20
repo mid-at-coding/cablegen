@@ -28,6 +28,44 @@ enum thread_op {
 	movep,
 	spawn,
 };
+
+void print_speed(uint64_t size){
+	/*static uint64_t old_size = 0;
+	static bool init = false;
+	static bool enabled = true;
+	static struct timespec old_time;
+	struct timespec time;
+	static clockid_t clock;
+	if(!enabled)
+		return;
+	if(clock_gettime(clock, &time)){
+		log_out("Could not get system time!", LOG_WARN_);
+		return;
+	}
+	if(!init){
+		if(clock_getcpuclockid(0, &clock)){
+			log_out("Could not get system time, speed information will be disabled!", LOG_WARN_);
+			enabled = false;
+			return;
+		}
+		if(clock_gettime(clock, &old_time)){
+			log_out("Could not get system time, speed information will be disabled!", LOG_WARN_);
+			enabled = false;
+			return;
+		}
+		return; // dont need to display on the first layer bc we don't know when startup was
+	}
+	struct timespec diff = { 
+		.tv_sec  = time.tv_sec - old_time.tv_sec,
+		.tv_nsec = time.tv_nsec - old_time.tv_nsec };
+	long totalns = 1000000000 * diff.tv_sec + diff.tv_nsec;
+	LOGIF(LOG_INFO_){
+		printf("Speed: %ld thousand boards per second\n", size / (totalns / 1000000));
+		printf("Layer multiplied: %ld\n", size/old_size);
+	}
+	old_size = size; */
+};
+
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
 	size_t filename_size = strlen(fmt) + 10; // if there are more than 10 digits of layers i'll eat my shoe
 	char* filename = malloc_errcheck(sizeof(char) * filename_size);
@@ -47,6 +85,7 @@ void write_boards(const static_arr_info n, const char* fmt, const int layer){
 	fwrite(n.bp, n.size, sizeof(uint64_t), file);
 	free(filename);
 	fclose(file);
+	print_speed(n.size);
 }
 
 bool checkx(uint64_t board, char x){

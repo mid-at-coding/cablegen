@@ -199,7 +199,7 @@ move_res movedir_mask(uint64_t* board, dir d){
 		case up:
 			rotate_clockwise(board);
 			changed = movedir_hori(board, right);
-			rotate_counterclockwise(board); // TODO minor perf improvement if you just.. dont?
+			rotate_counterclockwise(board);
 		break;
 		case down:
 			rotate_clockwise(board);
@@ -209,7 +209,7 @@ move_res movedir_mask(uint64_t* board, dir d){
 	};
 	return changed;
 }
-inline void rotate_clockwise(uint64_t* b){ // taken from game-difficult/2048EndgameTablebase (Calculator.py)
+void rotate_clockwise(uint64_t* b){ // taken from game-difficult/2048EndgameTablebase (Calculator.py)
     *b = (((*b) & 0xff00ff0000000000) >> 8 ) |
 		 (((*b) & 0x00ff00ff00000000) >> 32) |
          (((*b) & 0x00000000ff00ff00) << 32) | 
@@ -249,7 +249,7 @@ void canonicalize_b(uint64_t* board){ // turn a board into it's canonical versio
 	max = MAX(max, b);
 	rotate_clockwise(&b);
 	max = MAX(max, b);
-	rotate_clockwise(&b);
+	b = *board;
 	flip(&b);
 	max = MAX(max, b);
 	rotate_clockwise(&b);
@@ -354,5 +354,31 @@ inline static uint64_t log2_(uint64_t x) {
 	return ++x;
 #endif
 	return x == 1 ? 1 : (64-__builtin_clzl(x-1));
+}
+
+bool *required_symmetries(static_arr_info *winstates){ // TODO make JIT optimization w this
+	bool *res = malloc_errcheck(8);
+	for(int i = 0; i < 8; i++){
+		res[i] = 1;
+	}
+	for(size_t i = 0; i < winstates->size; i++){
+		uint64_t curr = winstates->bp[i];
+		// remove all tiles that aren't 0xf
+		for(uint8_t tile = 0; tile < 16; tile++){
+			if(GET_TILE(curr, tile) != 0xf){
+				SET_TILE(curr, tile, 0);
+			}
+		}
+		// check if it doesn't match any of its symmetries, in which case generating that symmetry is not required
+		uint64_t *rots = get_all_rots(curr);
+		for(uint8_t rot = 1; rot < 8; rot++){ // the 0th element is the board itself
+			for(uint8_t tile = 0; tile < 16; tile++){
+				if(GET_TILE(curr, tile) != GET_TILE(rots[rot], tile)){
+					res[rot] = 0;
+				}
+			}
+		}
+	}
+	return res;
 }
 

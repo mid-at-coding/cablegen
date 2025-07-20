@@ -18,10 +18,6 @@ typedef enum {
 	down
 } dir;
 
-typedef struct {
-	uint64_t board[8];
-} symmetries;
-
 typedef struct _move_res{
 	bool changed;
 	bool merged;
@@ -49,4 +45,5 @@ void normalize(uint64_t*, dir); // make every direction left
 int get_sum(uint64_t);
 uint64_t *get_all_rots(uint64_t);
 void output_board(uint64_t);
+bool *required_symmetries(static_arr_info *winstates);
 #endif

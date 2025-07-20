@@ -306,7 +306,7 @@ static void parseTrain(int argc, char **argv){
 	uint64_t board = strtoull(argv[2], NULL, 16);
 
 	struct dirprob res;
-	double tmp;
+	double tmp = 0;
 	log_out("Welcome to cablegen training mode! Move with WASD or HJKL", LOG_INFO_);
 	while(canMove(board)){
 		printf("-------------\n");
