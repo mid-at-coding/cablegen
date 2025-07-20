@@ -32,11 +32,6 @@ typedef struct {
 	uint64_t unmasked;
 } masked_board;
 
-typedef struct {
-	uint64_t masked;
-	dynamic_arr_info unmasked;
-} masked_board_sorted;
-
 extern uint16_t _move_lut[2][UINT16_MAX + 1]; // store every possible row move
 extern bool    _merge_lut[2][UINT16_MAX + 1]; // if a move merged a tile
 extern bool   _locked_lut[2][UINT16_MAX + 1]; // true for all rows that shift: could be 4 bits per lookup but that's probably slower
@@ -47,6 +42,7 @@ void rotate_counterclockwise(uint64_t*);
 void rotate_180(uint64_t*);
 void flip(uint64_t*);
 bool movedir(uint64_t*, dir);
+bool movedir_unstable(uint64_t*, dir); // does not guarantee that the resulting board has the same orientation as the input
 move_res movedir_mask(uint64_t*, dir);
 void canonicalize_b(uint64_t*);
 void normalize(uint64_t*, dir); // make every direction left
@@ -54,6 +50,6 @@ int get_sum(uint64_t);
 uint64_t *get_all_rots(uint64_t);
 void output_board(uint64_t);
 masked_board mask_board(uint64_t, const short smallest_large);
-masked_board_sorted concat_masked(masked_board *boards, const size_t boards_len);
-dynamic_arr_info unmask_board(masked_board_sorted masked, uint16_t sum);
+dynamic_arr_info concat_masked(masked_board *boards, const size_t boards_len);
+dynamic_arr_info unmask_board(static_arr_info masked, uint16_t sum);
 #endif

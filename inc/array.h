@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #define REALLOC_MULT 3
 
-typedef struct{
+typedef struct{ // TODO might be worthwile to use the biggest bit in size instead of valid for packing purposes, especially for masked boards
 	bool valid;
 	uint64_t* bp;
 	uint64_t* sp;

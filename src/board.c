@@ -156,7 +156,7 @@ bool movedir(uint64_t* board, dir d){
 		case up:
 			rotate_clockwise(board);
 			changed = movedir_hori(board, right).changed;
-			rotate_counterclockwise(board); // TODO minor perf improvement if you just.. dont?
+			rotate_counterclockwise(board);
 		break;
 		case down:
 			rotate_clockwise(board);
@@ -165,6 +165,26 @@ bool movedir(uint64_t* board, dir d){
 		break;
 	};
 	return changed;
+}
+
+bool movedir_unstable(uint64_t* board, dir d){
+	// make every direction left
+	switch(d){
+		case left:
+			return movedir_hori(board, left).changed;
+		break;
+		case right:
+			return movedir_hori(board, right).changed;
+		break;
+		case up:
+			rotate_clockwise(board);
+			return movedir_hori(board, right).changed;
+		break;
+		case down:
+			rotate_clockwise(board);
+			return movedir_hori(board, left).changed;
+		break;
+	};
 }
 
 move_res movedir_mask(uint64_t* board, dir d){
@@ -347,32 +367,36 @@ uint64_t get_buf(uint64_t inp, uint16_t offset, uint16_t len){
 	return res;
 }
 
-dynamic_arr_info unmask_board(masked_board_sorted masked, uint16_t sum){ // TODO surely can be faster
+dynamic_arr_info unmask_board(static_arr_info masked, uint16_t sum){ // TODO surely can be faster
+	if(masked.size < 2){
+		log_out("Nothing to unmask!", LOG_TRACE_);
+		return init_darr(0, 0);
+	}
 	uint16_t used_tiles = sum; // TODO refactor this mess
 	dynamic_arr_info res;
 	unsigned char positions[16];
 	short count = 0;
 	// loop over the masked board to see where the masked tiles are (and incidentally find the count and the tiles used)
 	for(short i = 0; i < 16; i++){
-		if(GET_TILE(masked.masked, i) == 0xe){
+		if(GET_TILE(masked.bp[0], i) == 0xe){
 			positions[count++] = i;
 		}
-		else if(GET_TILE(masked.masked, i) != 0xf){
-			used_tiles -= 1 << (GET_TILE(masked.masked, i));
+		else if(GET_TILE(masked.bp[0], i) != 0xf){
+			used_tiles -= 1 << (GET_TILE(masked.bp[0], i));
 		}
 	}
 	if(count == 0){ // nothing to do
 		res = init_darr(0, 0);
-		push_back(&res, masked.masked);
+		push_back(&res, masked.bp[0]);
 		return res;
 	}
 	uint16_t len = count;
 	// preallocate masked.unmasked size * floor(16 / len) boards
-	res = init_darr(0, (masked.unmasked.sp - masked.unmasked.bp) * (16 / len));
+	res = init_darr(0, (masked.size - 1) * (16 / len));
 	uint64_t buffer;
 	uint16_t curr_tile = 0;
-	for(uint64_t *curr = masked.unmasked.bp; curr < masked.unmasked.sp; curr++){
-		uint64_t res_board = masked.masked;
+	for(uint64_t *curr = masked.bp + 1; curr < masked.size + masked.bp; curr++){
+		uint64_t res_board = masked.bp[0];
 		for(uint16_t i = 0; i < 16; i += len){
 			curr_tile = 0;
 			buffer = get_buf(*curr, i, len);
@@ -427,7 +451,6 @@ masked_board mask_board(uint64_t board_old, const short smallest_large){ // TODO
 	res.unmasked = 0;
 	if(!mask_n) // nothing to do
 		return res;
-	// TODO optimize: this is just for testing
 	char head = 0;
 	for(char tile = smallest_large; tile < 16; tile++){
 		if(!GETBIT(tiles2, tile))
@@ -441,12 +464,12 @@ masked_board mask_board(uint64_t board_old, const short smallest_large){ // TODO
 	return res;
 }
 
-void concat_masked_single(masked_board *masked, masked_board_sorted *res, uint16_t len){
+void concat_masked_single(masked_board *masked, dynamic_arr_info *res, uint16_t len){
 	uint64_t *curr;
-	if(res->unmasked.sp == res->unmasked.bp)
-		push_back(&res->unmasked, 0);
+	if(res->sp == res->bp)
+		push_back(res, 0);
 
-	curr = res->unmasked.sp - 1;
+	curr = res->sp - 1;
 	uint16_t base = 0;
 	bool flag_found = 0;
 	for(; base < 16; base += len){
@@ -455,25 +478,29 @@ void concat_masked_single(masked_board *masked, masked_board_sorted *res, uint16
 			break;
 		}
 	}
-	if(!flag_found || base + len >= 16){ // if we don't have space or don't have space xp
+	if(!flag_found || base + len >= 16){ // make sure curr + base is pointing to a valid buffer
 		base = 0;
-		push_back(&res->unmasked, 0);
-		curr = res->unmasked.sp - 1;
+		push_back(res, 0);
+		curr = res->sp - 1;
 	}
 	for(uint16_t i = 0; i < len; i++){
 		SET_TILE((*curr), (base + i), (GET_TILE(masked->unmasked, i)));
 	}
 }
-masked_board_sorted concat_masked(masked_board *boards, const size_t boards_len){ 
+dynamic_arr_info concat_masked(masked_board *boards, const size_t boards_len){ 
 	// ASSUMPTION: all unmasked boards are distinct
 	// ASSUMPTION: all boards in boards mask to the same board (i.e. boards->masked == (boards + 1)->masked)
-	masked_board_sorted res = {boards->masked, init_darr(0, 0)};
-	push_back(&res.unmasked, boards->unmasked);
+	if(!boards_len){
+		log_out("Nothing to concatenate!", LOG_TRACE_);
+		return init_darr(0, 0);
+	}
+	dynamic_arr_info res = init_darr(0, 0);
+	push_back(&res, boards->unmasked); // this dereference is safe unless the caller is lying to us
 
 	uint16_t len = 0;
 	// see how many masked tiles there are
 	for(int i = 0; i < 16; i++)
-		if(GET_TILE(res.masked, i) == 0xe)
+		if(GET_TILE((boards->masked), i) == 0xe)
 			len++;
 	for(masked_board *curr_masked = boards + 1; curr_masked < boards + boards_len; curr_masked++){
 		concat_masked_single(curr_masked, &res, len);

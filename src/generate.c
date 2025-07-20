@@ -103,7 +103,7 @@ void *generation_thread_move(void* data){ // n, nret
 		old = args->n.bp[i];
 		tmp = old;
 		for(dir d = left; d <= down; d++){
-			if(movedir(&tmp, d)){
+			if(movedir_unstable(&tmp, d)){
 				canonicalize_b(&tmp); // TODO it's not necessary to gen *all* boards in nox
 				push_back(&args->nret, tmp);
 				tmp = old;
@@ -124,7 +124,7 @@ void *generation_thread_movep(void* data){ // n, nret, stsl, ltc, smallest_large
 			continue;
 		tmp = old;
 		for(dir d = left; d <= down; d++){
-			if(movedir(&tmp, d)){
+			if(movedir_unstable(&tmp, d)){
 				if(prune_board(tmp, args->stsl, args->ltc, args->smallest_large))
 					continue;
 				canonicalize_b(&tmp);

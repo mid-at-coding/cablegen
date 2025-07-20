@@ -1,8 +1,11 @@
 # Cablegen
 A high speed 2048 generator and solver, entirely in C
+
 ## Known issues:
 - libwinpthread missing dll error on windows -- a copy is provided here, just drop it into the same directory or your PATH
+
 ## Usage
+
 `generate (CONFIG)` -- Generate boards, optionally specifiying an alternate config file
 
 `solve (CONFIG)` -- Solve positions, optionally specifying an alternate config file
@@ -69,6 +72,33 @@ score = false
 delete_boards = false
 
 ```
+
+## Wishlist
+
+- GUI
+- Replay analysis
+- Constant time unmasking
+- Pruning while solving
+- GPU solving
+- Option for rational probabilities
+- Branchless moving without a move4 LUT
+- Compression
+- In-RAM compression
+- Proper symmetry generation for variants
+- More customizable pruning
+- Cross-compatible tablegen API 
+- Proper unit testing
+
+## Contributing
+
+Contributions are welcome, but here are some guidelines
+
+- If a function is only used internally, declare it as static (or static inline if appropriate)
+- Name functions in snake_case
+- Name local variables however you'd like
+- Keep the API as simple as possible
+- Use globals in favor of static variables, and if they are only used internally, preface them with an underscore
+- Try to keep all the tests passing :-)
 
 ## Note
 

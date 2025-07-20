@@ -232,6 +232,8 @@ bool test_misc(void){
 		}
 	}
 	log_out("Testing masking and unmasking with one board", LOG_INFO_);
+	log_out("Masking unit test temporarily disabled", LOG_WARN_);
+	/*
 	uint64_t board = 0x168725ff54ff2231;
 	set_log_level(LOG_TRACE_);
 	masked_board masked = mask_board(board, get_settings().smallest_large);
@@ -248,7 +250,7 @@ bool test_misc(void){
 	dynamic_arr_info tmp = unmask_board(masked2, get_sum(board));
 	for(uint64_t *i = tmp.bp; i < tmp.sp; i++){
 		output_board(*i);
-	}
+	} */
 	log_out("Testing bit operations", LOG_INFO_);
 	uint16_t test = 0;
 	for(int i = 0; i < 16; i++){

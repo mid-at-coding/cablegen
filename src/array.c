@@ -189,11 +189,10 @@ void* malloc_errcheck(size_t size){ // guaranteed to be non-null
 	return res;
 }
 dynamic_arr_info sarrtodarr(static_arr_info *s){
-	dynamic_arr_info tmp = init_darr(0,1);
-	free(tmp.bp); // hacky
+	dynamic_arr_info tmp;
 	tmp.bp = s->bp;
 	tmp.sp = s->bp + s->size;
-	tmp.valid = s->valid && tmp.valid;
+	tmp.valid = s->valid;
 	tmp.size = s->size;
 	return tmp;
 }
