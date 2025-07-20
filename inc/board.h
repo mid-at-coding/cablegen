@@ -49,7 +49,4 @@ void normalize(uint64_t*, dir); // make every direction left
 int get_sum(uint64_t);
 uint64_t *get_all_rots(uint64_t);
 void output_board(uint64_t);
-masked_board mask_board(uint64_t, const short smallest_large);
-dynamic_arr_info concat_masked(masked_board *boards, const size_t boards_len);
-dynamic_arr_info unmask_board(static_arr_info masked, uint16_t sum);
 #endif
