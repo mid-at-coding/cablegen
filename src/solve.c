@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
+#include <CL/cl.h>
 typedef struct {
 	long layer;
 	char nox;
@@ -193,8 +194,7 @@ void destroy_table(table* t){
 	free(t);
 }
 
-void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *initial_winstates, unsigned cores, char nox, 
-		bool score, bool free_formation){
+static_arr_info get_real_winstates(static_arr_info *initial_winstates){
 	const size_t FILENAME_SIZE = 100;
 	dynamic_arr_info winstates_d = init_darr(0,0);
 	generate_lut(); // if we don't gen a lut we can't move
@@ -209,12 +209,23 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 		}
 		free(rots);
 	}
-	static_arr_info winstates = shrink_darr(&winstates_d);
-	for(size_t i = 0; i < winstates.size; i++){
-		LOGIF(LOG_DBG_){
-			printf("winstates %ld: %016lx\n", i, winstates.bp[i]);
-		}
+	return shrink_darr(&winstates_d);
+}
+
+void solve_gpu_setup(cl_device_id *device_id, cl_context *context, cl_command_queue *commands, cl_program *program, cl_kernel *kernel);
+
+void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *initial_winstates, unsigned cores, char nox, 
+		bool score, bool free_formation){
+	cl_device_id device_id;
+	cl_context context;
+	cl_command_queue commands;
+	cl_program program;
+	cl_kernel kernel;
+	if(get_settings().gpu_solve){
+		solve_gpu_setup(&device_id, &context, &commands, &program, &kernel);
 	}
+	const size_t FILENAME_SIZE = 100;
+	static_arr_info winstates = get_real_winstates(initial_winstates);
 	table *n4 = malloc_errcheck(sizeof(table));
 	table *n2 = malloc_errcheck(sizeof(table));
 	table *n  = malloc_errcheck(sizeof(table));
@@ -278,11 +289,10 @@ static double maxmove(uint64_t board, table *n, static_arr_info *winstates, char
 		if(movedir(&tmp, d)){
 			if(satisfied(&tmp, winstates, nox, score))
 				return 1.0;
+			if(prob == 1)
+				return 1;
 			if((nox && checkx(tmp,nox)) || !nox){
-				if(tmp < board)
-					prob = fmax(prob, lookup(tmp, n, true));
-				else
-					prob = fmax(prob, lookup(tmp, n, false));
+				prob = fmax(prob, lookup(tmp, n, true));
 			}
 		}
 	}
@@ -371,4 +381,85 @@ void solve_layer(table *n4, table *n2, table *n, static_arr_info *winstates, uns
 	init_threads(n, n2, n4, winstates, core_count, nox, score, layer, cores, op_solve);
 	wait(cores, core_count);
 	free(cores);
+}
+// https://github.com/rsnemmen/OpenCL-examples/blob/master/add_numbers/add_numbers.c
+cl_program build_program(cl_context ctx, cl_device_id dev, const char* filename) {
+
+   cl_program program;
+   FILE *program_handle;
+   char *program_buffer, *program_log;
+   size_t program_size, log_size;
+   int err;
+
+   /* Read program file and place content into buffer */
+   program_handle = fopen(filename, "r");
+   if(program_handle == NULL) {
+      perror("Couldn't find the program file");
+      exit(1);
+   }
+   fseek(program_handle, 0, SEEK_END);
+   program_size = ftell(program_handle);
+   rewind(program_handle);
+   program_buffer = (char*)malloc(program_size + 1);
+   program_buffer[program_size] = '\0';
+   fread(program_buffer, sizeof(char), program_size, program_handle);
+   fclose(program_handle);
+
+   /* Create program from file 
+
+   Creates a program from the source code in the given file. 
+   Specifically, the code reads the file's content into a char array 
+   called program_buffer, and then calls clCreateProgramWithSource.
+   */
+   program = clCreateProgramWithSource(ctx, 1, 
+      (const char**)&program_buffer, &program_size, &err);
+   if(err < 0) {
+      perror("Couldn't create the program");
+      exit(1);
+   }
+   free(program_buffer);
+
+   /* Build program 
+
+   The fourth parameter accepts options that configure the compilation. 
+   These are similar to the flags used by gcc. For example, you can 
+   define a macro with the option -DMACRO=VALUE and turn off optimization 
+   with -cl-opt-disable.
+   */
+   err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+   if(err < 0) {
+
+      /* Find size of log and print to std output */
+      clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, 
+            0, NULL, &log_size);
+      program_log = (char*) malloc(log_size + 1);
+      program_log[log_size] = '\0';
+      clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, 
+            log_size + 1, program_log, NULL);
+      printf("%s\n", program_log);
+      free(program_log);
+      exit(1);
+   }
+
+   return program;
+}
+
+void solve_gpu_setup(cl_device_id *device_id, cl_context *context, cl_command_queue *commands, cl_program *program, cl_kernel *kernel){
+	int err = 0;
+	err = clGetDeviceIDs(NULL, CL_DEVICE_TYPE_GPU, 1, device_id, NULL);
+	if(err != CL_SUCCESS){
+		log_out("Could not create OpenCL device!", LOG_ERROR_);
+		exit(EXIT_FAILURE);
+	}
+	*context = clCreateContext(0, 1, device_id, NULL, NULL, &err);
+	if(!context || err != CL_SUCCESS){
+		log_out("Could not create OpenCL context!", LOG_ERROR_);
+		exit(EXIT_FAILURE);
+	}
+	*commands = clCreateCommandQueueWithProperties(*context, *device_id, NULL, &err);
+	if(!commands || err != CL_SUCCESS){
+		log_out("Could not create command queue!", LOG_ERROR_);
+		exit(EXIT_FAILURE);
+	}
+	*program = build_program(*context, *device_id, "solve.cl");
 }

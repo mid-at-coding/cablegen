@@ -30,6 +30,7 @@ typedef struct {
 	long long end_solve;
 	bool score;
 	bool delete_boards;
+	bool gpu_solve;
 } settings_t;
 
 settings_t get_settings(void);

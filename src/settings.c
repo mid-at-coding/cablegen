@@ -53,7 +53,8 @@ settings_t get_settings(void){
 		.winstates = "./winstates",
 		.end_solve = 0,
 		.score = false,
-		.delete_boards = false
+		.delete_boards = true,
+		.gpu_solve = false
 	};
 	if(settings_read)
 		return res;
@@ -78,6 +79,7 @@ settings_t get_settings(void){
 	get_int_setting_section("end", "Solve", &res.end_solve); 
 	get_bool_setting_section("score", "Solve", &res.score);
 	get_bool_setting_section("delete_boards", "Solve", &res.delete_boards);
+	get_bool_setting_section("gpu_solve", "Solve", &res.gpu_solve);
 	if(!registered){
 		registered = true;
 		if(atexit(free_str_settings)){
@@ -102,7 +104,7 @@ ini_t* get_cfg(void){
 		get_user_config_file(cfgdir, sizeof(cfgdir), "cablegen");
 	}
 	if (cfgdir[0] == 0) {
-		log_out("Could not find config directory!", LOG_WARN_);
+		log_out("Could not find config directory!", LOG_DBG_);
 		return NULL;
 	}
 	log_out("Loading config from: ", LOG_DBG_);
@@ -111,7 +113,7 @@ ini_t* get_cfg(void){
 }
 void change_config(char *cfg){	
 	if(cfg == NULL || strlen(cfg) >= MAX_PATH){
-		log_out("Invalid config file location!", LOG_WARN_);
+		log_out("Invalid config file location!", LOG_DBG_);
 		return;
 	}
 	settings_read = false; // update settings reading
