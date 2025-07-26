@@ -149,7 +149,7 @@ void *generation_thread_move(void* data){ // n, nret
 			}
 		}
 	}
-	deduplicate(&args->nret);
+	deduplicate_qs(&args->nret);
 	return NULL;
 }
 
@@ -172,7 +172,7 @@ void *generation_thread_movep(void* data){ // n, nret, stsl, ltc, smallest_large
 			}
 		}
 	}
-	deduplicate(&args->nret);
+	deduplicate_qs(&args->nret);
 	return NULL;
 }
 
@@ -195,8 +195,8 @@ void *generation_thread_spawn(void* data){
 			}
 		}
 	}
-	deduplicate(&args->n2);
-	deduplicate(&args->n4);
+	deduplicate_qs(&args->n2); // TODO optimize
+	deduplicate_qs(&args->n4);
 	return NULL;
 }
 
