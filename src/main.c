@@ -445,6 +445,7 @@ void benchmark(void){
 	generate(16, 150, "/tmp/cablegen/%d.boards", initial_arr.bp, initial_arr.sp - initial_arr.bp, get_settings().cores / 2, false, false, false);
 	set_log_level(LOG_INFO_);
 	printf("Multi-threaded LL-128(half cc): %d seconds\n", (unsigned)difftime(time(NULL), curr));
+	exit(0);
 	log_out("Benchmarking single-threaded solving (LL-128)", LOG_INFO_);
 	static_arr_info winstates = init_sarr(0,1);
 	winstates.bp[0] = 0x0000000007ff0ff;

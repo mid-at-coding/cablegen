@@ -39,6 +39,7 @@ settings_t get_settings(void){
 		.nox = 0,
 		.mask = 0,
 		.compress = false,
+		.max_prealloc = 1000000,
 		
 		.premove = false,
 		.bdir = "./boards/",
@@ -65,6 +66,7 @@ settings_t get_settings(void){
 	get_int_setting("nox", &res.nox); 
 	get_bool_setting("mask", &res.mask); 
 	get_bool_setting("compress", &res.compress); 
+	get_int_setting("max_prealloc", &res.max_prealloc); 
 	get_bool_setting_section("premove", "Generate", &res.premove);
 	get_str_setting_section("dir", "Generate", &res.bdir);
 	get_str_setting_section("initial", "Generate", &res.initial);

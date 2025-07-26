@@ -15,6 +15,7 @@ typedef struct {
 	long long nox;
 	bool mask;
 	bool compress;
+	long long max_prealloc;
 
 	bool premove;
 	char *bdir;
