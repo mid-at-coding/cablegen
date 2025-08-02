@@ -418,60 +418,23 @@ static void parsePlay(int argc, char **argv){
 }
 
 void benchmark(void){
-	log_out("Benchmarking single-threaded generation (LL-128)", LOG_INFO_);
 	dynamic_arr_info initial_arr = init_darr(0,2);
-	push_back(&initial_arr, 0x1000000021ff12ff);
-	push_back(&initial_arr, 0x1000000012ff21ff);
 	time_t curr = time(NULL);
-	set_log_level(LOG_WARN_);
-	generate(16, 150, "/tmp/cablegen/%d.boards", initial_arr.bp, initial_arr.sp - initial_arr.bp, 1, false, false, false);
-	set_log_level(LOG_INFO_);
-	printf("Single-threaded LL-128: %d seconds\n", (unsigned)difftime(time(NULL), curr));
 	log_out("Benchmarking multi-threaded generation (LL-128)", LOG_INFO_);
-	initial_arr = init_darr(0,2);
 	push_back(&initial_arr, 0x1000000021ff12ff);
 	push_back(&initial_arr, 0x1000000012ff21ff);
-	curr = time(NULL);
 	set_log_level(LOG_WARN_);
 	generate(16, 150, "/tmp/cablegen/%d.boards", initial_arr.bp, initial_arr.sp - initial_arr.bp, get_settings().cores, false, false, false);
 	set_log_level(LOG_INFO_);
 	printf("Multi-threaded LL-128: %d seconds\n", (unsigned)difftime(time(NULL), curr));
-	log_out("Benchmarking multi-threaded generation (half cc) (LL-128)", LOG_INFO_);
-	initial_arr = init_darr(0,2);
-	push_back(&initial_arr, 0x1000000021ff12ff);
-	push_back(&initial_arr, 0x1000000012ff21ff);
-	curr = time(NULL);
-	set_log_level(LOG_ERROR_);
-	generate(16, 150, "/tmp/cablegen/%d.boards", initial_arr.bp, initial_arr.sp - initial_arr.bp, get_settings().cores / 2, false, false, false);
-	set_log_level(LOG_INFO_);
-	printf("Multi-threaded LL-128(half cc): %d seconds\n", (unsigned)difftime(time(NULL), curr));
-	exit(0);
-	log_out("Benchmarking single-threaded solving (LL-128)", LOG_INFO_);
 	static_arr_info winstates = init_sarr(0,1);
 	winstates.bp[0] = 0x0000000007ff0ff;
-	curr = time(NULL);
-	set_log_level(LOG_ERROR_);
-	solve(150, 16, "/tmp/cablegen/%d.boards", "/tmp/cablegen/%d.tables", &winstates, 1, 0, 0, 0);
-	set_log_level(LOG_INFO_);
-	printf("Single-threaded LL-128: %d seconds\n", (unsigned)difftime(time(NULL), curr));
-
 	log_out("Benchmarking multi-threaded solving (LL-128)", LOG_INFO_);
-	winstates = init_sarr(0,1);
-	winstates.bp[0] = 0x0000000007ff0ff;
 	curr = time(NULL);
 	set_log_level(LOG_ERROR_);
 	solve(150, 16, "/tmp/cablegen/%d.boards", "/tmp/cablegen/%d.tables", &winstates, get_settings().cores, 0, 0, 0);
 	set_log_level(LOG_INFO_);
 	printf("Multi-threaded LL-128: %d seconds\n", (unsigned)difftime(time(NULL), curr));
-
-	log_out("Benchmarking multi-threaded solving(half cc) (LL-128)", LOG_INFO_);
-	winstates = init_sarr(0,1);
-	winstates.bp[0] = 0x0000000007ff0ff;
-	curr = time(NULL);
-	set_log_level(LOG_ERROR_);
-	solve(150, 16, "/tmp/cablegen/%d.boards", "/tmp/cablegen/%d.tables", &winstates, get_settings().cores / 2, 0, 0, 0);
-	set_log_level(LOG_INFO_);
-	printf("Multi-threaded LL-128(half cc): %d seconds\n", (unsigned)difftime(time(NULL), curr));
 }
 
 uint64_t factorial(uint16_t inp){
