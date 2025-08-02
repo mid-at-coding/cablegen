@@ -13,6 +13,7 @@
 
 bool push_back(dynamic_arr_info *info, uint64_t v){
 	bool res = false;
+#ifndef NOERRCHECK
 	if(info->sp == NULL){
 		log_out("Invalid stack pointer, refusing to push\n", LOG_WARN_);
 		info->valid = false;
@@ -22,15 +23,18 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 		log_out("Invalid array, refusing to push\n", LOG_WARN_);
 		return false;
 	}
+#endif
 	if(info->sp == info->bp + info->size){
 		// reallocate
 		size_t size = info->sp - info->bp;
 		info->bp = realloc(info->bp, info->size ? (info->size * REALLOC_MULT * sizeof(uint64_t)) : sizeof(uint64_t));
+#ifndef NOERRCHECK
 		if (info->bp == NULL){
 			log_out("Alloc failed! Download more ram!\n", LOG_ERROR_);
 			info->valid = false;
 			return false;
 		}
+#endif
 		if(info->size)
 			info->size *= REALLOC_MULT;
 		else
@@ -78,11 +82,12 @@ static_arr_info init_sarr(bool zero, size_t size){
 
 static_arr_info shrink_darr(dynamic_arr_info* info){
 	int new_size = info->sp - info->bp;
+#ifndef NOERRCHECK
 	if(info->valid == false){
 		log_out("Invalid array, refusing to shrink\n", LOG_WARN_);
-		exit(1);
 		return (static_arr_info){.valid = false, .bp = info->bp, .size = info->sp - info->bp};
 	}
+#endif
 	info->valid = false; 
 	if(new_size == 0){
 		free(info->bp);
@@ -91,17 +96,21 @@ static_arr_info shrink_darr(dynamic_arr_info* info){
 		info->size = 0;
 	}
 	uint64_t *new_bp = realloc(info->bp, sizeof(uint64_t) * new_size);
+#ifndef NOERRCHECK
 	if(new_bp == NULL){
 		log_out("Shrink failed!\n", LOG_ERROR_);
 		return (static_arr_info){.valid = false, .bp = info->bp, .size = info->sp - info->bp};
 	}
+#endif
 	return (static_arr_info){.valid = true, .bp = new_bp, .size = new_size};
 }
 dynamic_arr_info concat(dynamic_arr_info * restrict arr1, dynamic_arr_info * restrict arr2){
+#ifndef NOERRCHECK
 	if(!arr1->valid || !arr2->valid){
 		log_out("Refusing to concatenate invalid arrays!", LOG_WARN_);
 		return *arr1;
 	}
+#endif
 	arr1->valid = arr2->valid = false;
 	dynamic_arr_info arr1_dynamic = {
 		.valid = true,
@@ -183,6 +192,7 @@ void deduplicate_qs(dynamic_arr_info *s){
 }
 
 void* malloc_errcheck(size_t size){ // guaranteed to be non-null
+#ifndef NOERRCHECK
 	void* res = malloc(size);
 	if(res == NULL){
 		log_out("Alloc failed!", LOG_ERROR_);
@@ -190,6 +200,10 @@ void* malloc_errcheck(size_t size){ // guaranteed to be non-null
 		return NULL;
 	}
 	return res;
+#endif
+#ifdef NOERRCHECK
+	return malloc(size);
+#endif
 }
 dynamic_arr_info sarrtodarr(static_arr_info *s){
 	dynamic_arr_info tmp;

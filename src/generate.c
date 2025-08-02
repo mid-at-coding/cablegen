@@ -241,11 +241,13 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 		}
 	}
 	for(unsigned i = 0; i < core_count; i++){
-		unsigned int e;
+		[[maybe_unused]] int e;
 		log_out("Creating thread", LOG_TRACE_);
 		if((e = pthread_create(&cores[i].thread, NULL, fn, (void*)(cores + i)))){
+#ifndef NOERRCHECK
 			log_out("Failed creating thread!", LOG_ERROR_);
 			exit(1);
+#endif
 		}
 	}
 }
