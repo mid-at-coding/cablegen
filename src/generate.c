@@ -29,7 +29,7 @@ enum thread_op {
 	spawn,
 };
 
-void print_speed(uint64_t size){
+void print_speed(uint64_t size){ // TODO
 	/*static uint64_t old_size = 0;
 	static bool init = false;
 	static bool enabled = true;
@@ -64,7 +64,7 @@ void print_speed(uint64_t size){
 		printf("Layer multiplied: %ld\n", size/old_size);
 	}
 	old_size = size; */
-};
+}
 
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
 	size_t filename_size = strlen(fmt) + 10; // if there are more than 10 digits of layers i'll eat my shoe
@@ -258,13 +258,8 @@ static void wait(arguments *cores, size_t core_count){
 
 static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int core_count){
 	wait(cores, core_count);
-	size_t newn_size = cores[0].nret.sp - cores[0].nret.bp;
-	for(size_t i = 1; i < core_count; i++){
-		newn_size += cores[i].nret.sp - cores[i].nret.bp;
-	}
-	newn_size = newn_size > (get_settings().max_prealloc) ? (get_settings().max_prealloc) : newn_size;
 	destroy_darr(n);
-	*n = init_darr(0, newn_size);
+	*n = init_darr(0, get_settings().max_prealloc); // TODO maybe a concat multiple api
 	for(size_t i = 0; i < core_count; i++){
 		*n = concat(n, &cores[i].nret);
 	}
@@ -286,13 +281,8 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	write_boards((static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp}, fmt_dir, layer);
 	wait(cores,core_count);
 	// concatenate spawns
-	size_t newn_size = cores[0].n2.sp - cores[0].n2.bp;
-	for(size_t i = 1; i < core_count; i++){
-		newn_size += cores[i].n2.sp - cores[i].n2.bp;
-	}
-	newn_size = newn_size > (get_settings().max_prealloc / 2) ? (get_settings().max_prealloc / 2) : newn_size;
-	*n2 = init_darr(0, newn_size);
-	*n4 = init_darr(0, newn_size);
+	*n2 = init_darr(0, get_settings().max_prealloc / 2);
+	*n4 = init_darr(0, get_settings().max_prealloc / 2);
 	for(size_t i = 0; i < core_count; i++){
 		*n2 = concat(n2, &cores[i].n2);
 		*n4 = concat(n4, &cores[i].n4);

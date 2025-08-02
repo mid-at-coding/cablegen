@@ -98,6 +98,10 @@ static_arr_info shrink_darr(dynamic_arr_info* info){
 	return (static_arr_info){.valid = true, .bp = new_bp, .size = new_size};
 }
 dynamic_arr_info concat(dynamic_arr_info * restrict arr1, dynamic_arr_info * restrict arr2){
+	if(!arr1->valid || !arr2->valid){
+		log_out("Refusing to concatenate invalid arrays!", LOG_WARN_);
+		return *arr1;
+	}
 	arr1->valid = arr2->valid = false;
 	dynamic_arr_info arr1_dynamic = {
 		.valid = true,
@@ -105,11 +109,16 @@ dynamic_arr_info concat(dynamic_arr_info * restrict arr1, dynamic_arr_info * res
 		.sp   = NULL,
 		.size = (arr1->sp - arr1->bp) + (arr2->sp - arr2->bp)
 	};
-	arr1_dynamic.bp = malloc_errcheck(arr1_dynamic.size * sizeof(uint64_t));
+	if(arr1->size >= arr1_dynamic.size){
+		arr1_dynamic.bp = arr1->bp;
+	}
+	else{
+		arr1_dynamic.bp = malloc_errcheck(arr1_dynamic.size * sizeof(uint64_t));
+		memcpy(arr1_dynamic.bp, arr1->bp, (arr1->sp - arr1->bp) * sizeof(uint64_t));
+		free(arr1->bp);
+	}
 	arr1_dynamic.sp = arr1_dynamic.bp + arr1_dynamic.size;
-	memcpy(arr1_dynamic.bp, arr1->bp, (arr1->sp - arr1->bp) * sizeof(uint64_t));
 	memcpy(arr1_dynamic.bp + (arr1->sp - arr1->bp), arr2->bp, (arr2->sp - arr2->bp) * sizeof(uint64_t));
-	free(arr1->bp);
 	free(arr2->bp);
 	return arr1_dynamic;
 }
