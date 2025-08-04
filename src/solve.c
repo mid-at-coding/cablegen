@@ -55,6 +55,8 @@ void read_table(table *t, const char *filename){
 		snprintf(buf, 100, "Couldn't read %s!\n", filename);
 		t->key = init_sarr(0,0);
 		t->value = init_sarr(0,0);
+		t->key.valid = false;
+		t->value.valid = false;
 		log_out(buf, LOG_WARN_);
 		free(buf);
 		return;
@@ -67,6 +69,8 @@ void read_table(table *t, const char *filename){
 		fclose(fp);
 		t->key = init_sarr(0,0);
 		t->value = init_sarr(0,0);
+		t->key.valid = false;
+		t->value.valid = false;
 		return;
 	}
 	rewind(fp);
@@ -78,12 +82,16 @@ void read_table(table *t, const char *filename){
 	if(ferror(fp)){
 		log_out("Error reading file!", LOG_WARN_);
 		fclose(fp);
+		t->key.valid = false;
+		t->value.valid = false;
 		return;
 	}
 	fread(t->value.bp, sizeof(double), sz / 16, fp);
 	if(ferror(fp) || feof(fp)){
 		log_out("Error reading file!", LOG_WARN_);
 		fclose(fp);
+		t->key.valid = false;
+		t->value.valid = false;
 		return;
 	}
 	char *buf = malloc_errcheck(100);
@@ -109,32 +117,7 @@ inline static uint64_t next_pow2(uint64_t x) {
 	return x == 1 ? 1 : 1<<(64-__builtin_clzl(x-1));
 }
 
-double lookup(uint64_t lookup, table *t, bool canonicalize){
-	size_t length = t->key.size;
-	size_t begin = 0;
-	size_t end = t->key.size;
-	if(length == 0){
-		log_out("Empty table!", LOG_TRACE_);
-		return 0.0;
-	}
-	if(canonicalize)
-		canonicalize_b(&lookup);
-	size_t step = next_pow2(t->key.size) / 2;
-	if(step != length && t->key.bp[step] < lookup){
-		length -= step + 1;
-		if(length == 0)
-			return *((double*)&t->value.bp[end - 1]);
-		step = next_pow2(length);
-		begin = end - step;
-	}
-	for(step /= 2; step != 0; step /= 2){
-		if(t->key.bp[begin + step] < lookup)
-			begin += step;
-	}
-	return *((double*)&t->value.bp[begin + (t->key.bp[begin] < lookup)]);
-} 
-
-double lookup_old(uint64_t key, table *t, bool canonicalize){
+double lookup(uint64_t key, table *t, bool canonicalize){
 	if(t->key.size == 0){
 		log_out("Empty table!", LOG_TRACE_);
 		return 0.0;
@@ -146,39 +129,54 @@ double lookup_old(uint64_t key, table *t, bool canonicalize){
 	size_t top = t->key.size;
 	size_t bottom = 0;
 	size_t midpoint = (top + bottom) / 2;
+	// use binary search tree cache
 	while (t->key.bp[midpoint] != key){
+#ifdef DBG
 		LOGIF(LOG_TRACE_){
 			printf("Current midpoint: %ld, %016lx(%ld)\n", midpoint, t->key.bp[midpoint], t->key.bp[midpoint]);
 		}
+#endif
 		if(top - bottom < SEARCH_STOP){
+#ifdef DBG
 			log_out("Switching to linear search", LOG_TRACE_);
+#endif
 			for(size_t i = bottom; i < top; i++){
+#ifdef DBG
 				LOGIF(LOG_TRACE_){
 					printf("Current board: %ld, %016lx(%ld)\n", i, t->key.bp[i], t->key.bp[i]);
 				}
+#endif
 				if(t->key.bp[i] == key){
+#ifdef DBG
 					log_out("Found board!", LOG_TRACE_);
+#endif
 					// return value as a double
 					return *(double*)(&(t->value.bp[i]));
 				}
 			}
+#ifdef DBG
 			log_out("Couldn't find board!", LOG_TRACE_);
 			LOGIF(LOG_TRACE_){
 				printf("board: %016lx\n", key);
 			}
+#endif
 			return 0.0;
 		}
 		if(t->key.bp[midpoint] < key){
 			bottom = midpoint;
+#ifdef DBG
 			LOGIF(LOG_TRACE_){
 				printf("t->key.bp[%ld] (%ld) < key (%ld)\n", midpoint, t->key.bp[midpoint], key);
 			}
+#endif
 		}
 		else{
 			top = midpoint;
+#ifdef DBG
 			LOGIF(LOG_TRACE_){
 				printf("t->key.bp[%ld] (%ld) >= key (%ld)\n", midpoint, t->key.bp[midpoint], key);
 			}
+#endif
 		}
 		midpoint = (top + bottom) / 2;
 //		current_depth++;

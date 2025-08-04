@@ -18,6 +18,7 @@ typedef struct{
 	uint64_t* bp;
 	size_t size;
 } static_arr_info;
+
 void* malloc_errcheck(size_t size); // guaranteed to be non-null
 dynamic_arr_info init_darr(bool zero, size_t size); // error handling is callee's responsibility
 static_arr_info init_sarr(bool zero, size_t size); // error handling is callee's responsibility

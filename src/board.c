@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
-//#define DBG
-//#define TRACE
 #ifdef _WIN32
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #endif
