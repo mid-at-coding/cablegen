@@ -20,6 +20,15 @@ A high speed 2048 generator and solver, entirely in C
 
 `play [BOARD] (TDIR)` -- simulate an optimal game of BOARD with random spawns
 
+Example usage (solving [DPDF](https://wiki.2048verse.com/wiki/index.php/Double_Perimeter_Defense_Formation(4x4)) with a goal of 512 and 10 movable tiles)
+```
+./cablegen write initial 18ff07ff15ff1334 # sensible starting board. https://2048verse.com/p/18ff07ff15ff1334 
+./cablegen write winstates 09ff00ff00ff0000 # a 512 on the top left -- 0s indicate a "don't care"
+# edit cablegen.conf as fit
+./cablegen generate cablegen.conf
+./cablegen solve cablegen.conf
+```
+
 ## Configuration
 
 Configuration is stored in an INI file and defines many properties of a table. Cablegen will try to read first from `~/.config/cablegen.conf`(on linux) or `C:\Users\[name]\AppData\Roaming\cablegen.ini`(on windows), and then from `cablegen.conf` in the directory it is run.

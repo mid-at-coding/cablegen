@@ -2,13 +2,9 @@
 #include "../inc/array.h"
 #include "../inc/settings.h"
 #include <stdint.h>
-#include <sys/param.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
-#ifdef _WIN32
-#define MAX(a,b) (((a)>(b))?(a):(b))
-#endif
 
 uint16_t _move_lut[2][UINT16_MAX + 1];
 bool    _merge_lut[2][UINT16_MAX + 1];

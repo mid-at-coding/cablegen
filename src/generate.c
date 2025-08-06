@@ -30,25 +30,24 @@ enum thread_op {
 };
 
 void print_speed(uint64_t size){ // TODO
-	/*static uint64_t old_size = 0;
 	static bool init = false;
 	static bool enabled = true;
 	static struct timespec old_time;
 	struct timespec time;
-	static clockid_t clock;
 	if(!enabled)
 		return;
-	if(clock_gettime(clock, &time)){
+	if(clock_gettime(CLOCK_MONOTONIC, &time)){
 		log_out("Could not get system time!", LOG_WARN_);
 		return;
 	}
 	if(!init){
-		if(clock_getcpuclockid(0, &clock)){
+		init = true;
+/*		if(clock_getcpuclockid(0, &clock)){
 			log_out("Could not get system time, speed information will be disabled!", LOG_WARN_);
 			enabled = false;
 			return;
-		}
-		if(clock_gettime(clock, &old_time)){
+		} */
+		if(clock_gettime(CLOCK_MONOTONIC, &old_time)){
 			log_out("Could not get system time, speed information will be disabled!", LOG_WARN_);
 			enabled = false;
 			return;
@@ -58,12 +57,14 @@ void print_speed(uint64_t size){ // TODO
 	struct timespec diff = { 
 		.tv_sec  = time.tv_sec - old_time.tv_sec,
 		.tv_nsec = time.tv_nsec - old_time.tv_nsec };
-	long totalns = 1000000000 * diff.tv_sec + diff.tv_nsec;
-	LOGIF(LOG_INFO_){
-		printf("Speed: %ld thousand boards per second\n", size / (totalns / 1000000));
-		printf("Layer multiplied: %ld\n", size/old_size);
+	old_time = time;
+	long totalns = (1000000000 * diff.tv_sec) + diff.tv_nsec;
+	if(totalns == 0){
+		return;
 	}
-	old_size = size; */
+	LOGIF(LOG_INFO_){
+		printf("[INFO] Speed: %ld thousand boards per second\n", (long)((float)(size / 1000)/ ((float)totalns / (float)1000000000)));
+	}
 }
 
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
@@ -261,7 +262,7 @@ static void wait(arguments *cores, size_t core_count){
 static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int core_count){
 	wait(cores, core_count);
 	destroy_darr(n);
-	*n = init_darr(0, get_settings().max_prealloc); // TODO maybe a concat multiple api
+	*n = init_darr(0, 0);
 	for(size_t i = 0; i < core_count; i++){
 		*n = concat(n, &cores[i].nret);
 	}
@@ -283,8 +284,8 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	write_boards((static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp}, fmt_dir, layer);
 	wait(cores,core_count);
 	// concatenate spawns
-	*n2 = init_darr(0, get_settings().max_prealloc / 2);
-	*n4 = init_darr(0, get_settings().max_prealloc / 2);
+	*n2 = init_darr(0, 0);
+	*n4 = init_darr(0, 0);
 	for(size_t i = 0; i < core_count; i++){
 		*n2 = concat(n2, &cores[i].n2);
 		*n4 = concat(n4, &cores[i].n4);

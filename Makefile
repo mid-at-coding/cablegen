@@ -1,7 +1,8 @@
 CC=clang
 CCFLAGS= -Wall -g -O2 -pg -pthread -lc -Wpedantic -Wextra -Wno-unused-parameter \
 		 -fno-strict-aliasing -std=c23 -Wno-unused-command-line-argument \
-		 -Wuninitialized -fcolor-diagnostics -Wno-unused-function -DDBG
+		 -Wuninitialized -fcolor-diagnostics -Wno-unused-function -DDBG \
+		 -fsanitize=address,undefined
 LDFLAGS= -lc -lrt -lm
 CCFLAGS_PROD=-Wall -O2 -pthread -DPROD -fno-strict-aliasing -Wno-format \
 			  -std=c23 -DNOERRCHECK

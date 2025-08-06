@@ -103,20 +103,6 @@ void read_table(table *t, const char *filename){
 #endif
 }
 
-inline static uint64_t next_pow2(uint64_t x) {
-#ifdef _WIN32
-	x--;
-	x |= x >> 1;
-	x |= x >> 2;
-	x |= x >> 4;
-	x |= x >> 8;
-	x |= x >> 16;
-	x |= x >> 32;
-	return ++x;
-#endif
-	return x == 1 ? 1 : 1<<(64-__builtin_clzl(x-1));
-}
-
 double lookup(uint64_t key, table *t, bool canonicalize){
 	if(t->key.size == 0){
 		log_out("Empty table!", LOG_TRACE_);

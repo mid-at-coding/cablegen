@@ -49,6 +49,7 @@ static void parseGenerate(int argc, char **argv){
 	static_arr_info boards = read_boards(settings.initial);
 	if(boards.size < 1){
 		printf("No boards in %s!", settings.initial);
+		return;
 	}
 	int layer = get_sum(boards.bp[0]);
 	generate(layer, settings.end_gen, fmt, boards.bp, boards.size, settings.cores, settings.premove, settings.nox, settings.free_formation);
@@ -420,21 +421,21 @@ static void parsePlay(int argc, char **argv){
 void benchmark(void){
 	dynamic_arr_info initial_arr = init_darr(0,2);
 	time_t curr = time(NULL);
-	log_out("Benchmarking multi-threaded generation (LL-128)", LOG_INFO_);
+	log_out("Benchmarking multi-threaded generation (LL-256)", LOG_INFO_);
 	push_back(&initial_arr, 0x1000000021ff12ff);
 	push_back(&initial_arr, 0x1000000012ff21ff);
 	set_log_level(LOG_WARN_);
-	generate(16, 150, "/tmp/cablegen/%d.boards", initial_arr.bp, initial_arr.sp - initial_arr.bp, get_settings().cores, false, false, false);
+	generate(16, 300, ".benchmark/%d.boards", initial_arr.bp, initial_arr.sp - initial_arr.bp, get_settings().cores, false, false, false);
 	set_log_level(LOG_INFO_);
-	printf("Multi-threaded LL-128: %d seconds\n", (unsigned)difftime(time(NULL), curr));
+	printf("Multi-threaded LL-256: %d seconds\n", (unsigned)difftime(time(NULL), curr));
 	static_arr_info winstates = init_sarr(0,1);
-	winstates.bp[0] = 0x0000000007ff0ff;
-	log_out("Benchmarking multi-threaded solving (LL-128)", LOG_INFO_);
+	winstates.bp[0] = 0x0000000008ff0ff;
+	log_out("Benchmarking multi-threaded solving (LL-256)", LOG_INFO_);
 	curr = time(NULL);
-	set_log_level(LOG_ERROR_);
-	solve(150, 16, "/tmp/cablegen/%d.boards", "/tmp/cablegen/%d.tables", &winstates, get_settings().cores, 0, 0, 0);
+	set_log_level(LOG_WARN_);
+	solve(300, 16, ".benchmark/%d.boards", ".benchmark/%d.tables", &winstates, get_settings().cores, 0, 0, 0);
 	set_log_level(LOG_INFO_);
-	printf("Multi-threaded LL-128: %d seconds\n", (unsigned)difftime(time(NULL), curr));
+	printf("Multi-threaded LL-256: %d seconds\n", (unsigned)difftime(time(NULL), curr));
 }
 
 uint64_t factorial(uint16_t inp){

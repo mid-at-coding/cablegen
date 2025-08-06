@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "array.h"
+#include <sys/param.h>
 #define SETBIT(x, y) (x |= (1 << y))
 #define CLEARBIT(x, y) (x &= ~(1 << y))
 #define GETBIT(x, y) (x & (1 << y))
@@ -10,6 +11,10 @@
 #define OFFSET(x) (x * 4)
 #define GET_TILE(b, x) (uint8_t)(((b << OFFSET(x)) & BIT_MASK) >> OFFSET(15))
 #define SET_TILE(b, x, v) ( b = (~(~b | (BIT_MASK >> OFFSET(x))) | ((BIT_MASK & ((uint64_t)v << OFFSET(15))) >> OFFSET(x)) ))
+
+#ifdef _WIN32
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#endif
 
 typedef enum {
 	left,

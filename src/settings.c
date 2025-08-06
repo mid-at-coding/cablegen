@@ -23,15 +23,7 @@ static int get_bool_setting_section(const char *key, char *section, bool*);
 static int get_str_setting_section (const char *key, char *section, char**);
 static int get_int_setting_section (const char *key, char *section, long long*);
 
-void free_str_settings(void){ // was an attempt to make asan happy but did not work
-	free(get_settings().bdir);
-	free(get_settings().initial);
-	free(get_settings().tdir);
-	free(get_settings().winstates);
-}
-
 settings_t get_settings(void){
-	static bool registered = false;
 	static settings_t res = { // set sane defaults
 		.free_formation = 0,
 		.ignore_f = 0,
@@ -39,7 +31,6 @@ settings_t get_settings(void){
 		.nox = 0,
 		.mask = 0,
 		.compress = false,
-		.max_prealloc = 1000000,
 		
 		.premove = false,
 		.bdir = "./boards/",
@@ -80,12 +71,6 @@ settings_t get_settings(void){
 	get_int_setting_section("end", "Solve", &res.end_solve); 
 	get_bool_setting_section("score", "Solve", &res.score);
 	get_bool_setting_section("delete_boards", "Solve", &res.delete_boards);
-	if(!registered){
-		registered = true;
-		if(atexit(free_str_settings)){
-			log_out("Could not register str setting freeing on exit!", LOG_INFO_);
-		}
-	}
 	return res;
 }
 
