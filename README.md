@@ -45,7 +45,7 @@ cores = 1
 nox = 0
 ; treat 0xf tiles as if they were walls -- free formation must be true for this setting to have an effect (generally only used for variants)
 ignore_f = false
-; compress boards and positions while generating and solving
+; compress boards and positions while generating and solving (currently unused rn)
 compress = true
 
 ; generation specific settings
@@ -97,6 +97,7 @@ delete_boards = false
 - More customizable pruning
 - Cross-compatible tablegen API 
 - Proper unit testing
+- Threshold for inaccuracies
 
 ## Contributing
 

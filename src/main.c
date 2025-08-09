@@ -12,7 +12,12 @@
 #include "../inc/board.h"
 #include "../inc/settings.h"
 #include <string.h>
+#ifndef WIN32
 #include <termios.h>
+#endif
+#ifdef WIN32
+#include <conio.h>
+#endif
 #include <errno.h>
 #include <time.h>
 
@@ -270,6 +275,7 @@ static void spawn(uint64_t *board){
 }
 char getch__(void) // https://stackoverflow.com/a/7469410 
 {
+#ifndef WIN32
 	bool echo = false;
 	static struct termios current, old;
 	tcgetattr(0, &old); /* grab old terminal i/o settings */
@@ -284,6 +290,10 @@ char getch__(void) // https://stackoverflow.com/a/7469410
 	char res = getchar();
 	tcsetattr(0, TCSANOW, &old);
 	return res;
+#endif
+#ifdef WIN32
+	return getch();
+#endif
 }
 static void parseTrain(int argc, char **argv){
 	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
