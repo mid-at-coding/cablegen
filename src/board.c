@@ -1,5 +1,6 @@
 #include "../inc/board.h"
 #include "../inc/array.h"
+#include "../inc/logging.h"
 #include "../inc/settings.h"
 #include <stdint.h>
 #include <stdlib.h>
@@ -10,6 +11,25 @@ uint16_t _move_lut[2][UINT16_MAX + 1];
 bool    _merge_lut[2][UINT16_MAX + 1];
 bool   _locked_lut[2][UINT16_MAX + 1];
 
+uint16_t lookup_lut(uint16_t l){
+	static bool init = false;
+	if(!init){
+		set_log_level(LOG_ERROR_);
+		generate_lut();
+		init = true;
+	}
+	return _move_lut[left][l];
+}
+uint16_t lookup_lut12(uint16_t l){
+	l = 0xfff0 & l;
+	static bool init = false;
+	if(!init){
+		set_log_level(LOG_ERROR_);
+		generate_lut();
+		init = true;
+	}
+	return _move_lut[left][l] & 0xfff0;
+}
 static bool shifted(uint64_t board, uint64_t board2, bool free_formation){
 	if(!free_formation){
 		for(int i = 0; i < 4; i++){
@@ -163,6 +183,7 @@ bool movedir(uint64_t* board, dir d){
 bool movedir_unstable(uint64_t* board, dir d){
 	// make every direction left
 	switch(d){
+		default:
 		case left:
 			return movedir_hori(board, left).changed;
 		break;
@@ -351,6 +372,9 @@ inline static uint64_t log2_(uint64_t x) {
 }
 
 bool *required_symmetries(static_arr_info *winstates){ // TODO make JIT optimization w this
+	// required symmetries : generates a bool array of an array of winstates where
+	// required_symmetries[rot] == 1 means that it is possible to reach and therefore should 
+	// be checked for in solving.
 	bool *res = malloc_errcheck(8);
 	for(int i = 0; i < 8; i++){
 		res[i] = 1;
@@ -363,14 +387,13 @@ bool *required_symmetries(static_arr_info *winstates){ // TODO make JIT optimiza
 				SET_TILE(curr, tile, 0);
 			}
 		}
-		// check if it doesn't match any of its symmetries, in which case generating that symmetry is not required
+		// check if it doesn't match the canonical representation of this board, in which case it is not required
 		uint64_t *rots = get_all_rots(curr);
-		for(uint8_t rot = 1; rot < 8; rot++){ // the 0th element is the board itself
-			for(uint8_t tile = 0; tile < 16; tile++){
-				if(GET_TILE(curr, tile) != GET_TILE(rots[rot], tile)){
-					res[rot] = 0;
-				}
-			}
+		uint64_t canonicalized = curr;
+		canonicalize_b(&curr);
+		for(uint8_t rot = 0; rot < 8; rot++){
+			if(rots[rot] != canonicalized)
+				res[i] = 0;
 		}
 	}
 	return res;

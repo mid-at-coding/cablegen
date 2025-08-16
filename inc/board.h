@@ -16,6 +16,9 @@
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #endif
 
+uint16_t lookup_lut(uint16_t l);
+uint16_t lookup_lut12(uint16_t l);
+
 typedef enum {
 	left,
 	right,

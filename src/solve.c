@@ -188,7 +188,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 		uint64_t *rots = get_all_rots(initial_winstates->bp[i]);
 		for(int j = 0; j < 8; j++){ // loop over all 8 symmetries
 			if(!rots_required[j])
-				continue; // TODO
+				continue;
 			push_back(&winstates_d, rots[j]);
 		}
 		free(rots);

@@ -163,6 +163,10 @@ static void parseLookup(int argc, char **argv, bool spawn){ // TODO refactor
 	char* table_fmt = malloc_errcheck(table_fmt_size);
 	char* tablestr = malloc_errcheck(table_fmt_size);
 	snprintf(table_fmt, table_fmt_size, "%s%s", tabledir, default_table_postfix);
+	if(!table_fmt){
+		log_out("This shouldn't happen", LOG_ERROR_);
+		exit(EXIT_FAILURE);
+	}
 	snprintf(tablestr, table_fmt_size, table_fmt, sum);
 	log_out(tablestr, LOG_TRACE_);
 	
@@ -322,7 +326,6 @@ static void parseTrain(int argc, char **argv){
 	while(canMove(board)){
 		printf("-------------\n");
 		output_board(board);
-		validMove = true;
 		uint64_t premove = board;
 		dir move = 0;
 		do{
@@ -404,7 +407,6 @@ static void parsePlay(int argc, char **argv){
 	table *t  = malloc_errcheck(sizeof(table));
 
 	do{
-		spawn(&board);
 		output_board(board);
 		if(!canMove(board)){
 			log_out("AI died :(", LOG_INFO_);
@@ -421,6 +423,7 @@ static void parsePlay(int argc, char **argv){
 		}
 		free(t->key.bp);
 		free(t->value.bp);
+		spawn(&board);
 	}
 	while (true);
 	free(table_fmt);
@@ -463,6 +466,35 @@ void print_binary(uint16_t num) {
     }
 }
 
+void output12(short tmp){
+	for(int bit = 0; bit < 12; bit++){
+		short mask = 1 << bit;
+		if(!(tmp & mask)){
+			printf("0");
+		}
+		else{
+			printf("1");
+		}
+	}
+}
+void espresso(){
+	printf(".i 12\n");
+	printf(".o 12\n");
+	printf(".ob O1 O2 O3 O4 O5 O6 O7 O8 O9 O10 O11 O12\n");
+	printf(".ilb I1 I2 I3 I4 I5 I6 I7 I8 I9 I10 I11 I12\n");
+	generate_lut();
+	for(int i = 0; (i << 4) < UINT16_MAX; i++){
+		short tmp = lookup_lut12(i);
+		output12(i);
+		printf(" ");
+		output12(tmp);
+		printf("\n");
+		if(i == 5)
+			exit(0);
+	}
+	printf(".e\n");
+}
+
 int main(int argc, char **argv){
 	set_log_level(LOG_INFO_);
 	init_settings();
@@ -480,6 +512,7 @@ int main(int argc, char **argv){
 		else if(!strcmp(strlwr_(argv[1]), "play")) {parsePlay(argc, argv);}
 		else if(!strcmp(strlwr_(argv[1]), "train")) {parseTrain(argc, argv);}
 		else if(!strcmp(strlwr_(argv[1]), "benchmark")) {benchmark();}
+		else if(!strcmp(strlwr_(argv[1]), "espresso")) {espresso();}
 		else{
 			log_out("Unrecognized command!", LOG_WARN_);
 			help();

@@ -1,13 +1,13 @@
 CC=clang
 CCFLAGS= -Wall -g -O2 -pg -pthread -lc -Wpedantic -Wextra -Wno-unused-parameter \
 		 -fno-strict-aliasing -std=c23 -Wno-unused-command-line-argument \
-		 -Wuninitialized -fcolor-diagnostics -Wno-unused-function -DDBG \
+		 -Wuninitialized -Wno-unused-function -DDBG \
 		 -fsanitize=address,undefined
 LDFLAGS= -lc -lrt -lm
 CCFLAGS_PROD=-Wall -O2 -pthread -DPROD -fno-strict-aliasing -Wno-format \
-			  -std=c23 -DNOERRCHECK
+			  -std=c23 -DNOERRCHECK -fprofile-use -march=native
 CCFLAGS_BENCH=-Wall -O2 -pthread -DPROD -fno-strict-aliasing -Wno-format \
-			  -std=c23 -lprofiler -g -ltcmalloc
+			  -std=c23 -DNOERRCHECK -lprofiler -g -ltcmalloc -fprofile-generate
 EXEC_FILE=cablegen
 BUILD=debug
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))
