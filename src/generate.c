@@ -9,6 +9,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <time.h>
+
 typedef struct {
 	static_arr_info n; 
 	dynamic_arr_info nret;
@@ -29,7 +30,7 @@ enum thread_op {
 	spawn,
 };
 
-void print_speed(uint64_t size){ // TODO
+void print_speed(uint64_t size){
 	static bool init = false;
 	static bool enabled = true;
 	static struct timespec old_time;
@@ -63,7 +64,7 @@ void print_speed(uint64_t size){ // TODO
 		return;
 	}
 	LOGIF(LOG_INFO_){
-		printf("[INFO] Speed: %ld thousand boards per second\n", (long)((float)(size / 1000)/ ((float)totalns / (float)1000000000)));
+		printf("[INFO] Speed: %ld thousand boards per second\n", (long)((float)((float)size / 1000)/ ((float)totalns / (float)1000000000)));
 	}
 }
 
@@ -145,6 +146,7 @@ void *generation_thread_move(void* data){ // n, nret
 		for(dir d = left; d <= down; d++){
 			if(movedir_unstable(&tmp, d)){
 				canonicalize_b(&tmp); // TODO it's not necessary to gen *all* boards in nox
+				
 				push_back(&args->nret, tmp);
 				tmp = old;
 			}
