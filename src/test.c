@@ -113,6 +113,24 @@ bool test_dynamic_arr(void){
 		}
 	}
 	log_out("No errors reported.\n", LOG_INFO_);
+	log_out("Testing bucket insertion\n", LOG_INFO_);
+	buckets b;
+	init_buckets(&b);
+	for(size_t n = 0; n < 500; n++){
+		uint64_t tmp = rand();
+		push_back_into_bucket(&b, tmp);
+		_BitInt(BUCKETS_DIGITS) lookup = get_first_digits(tmp);
+		if(b.bucket[lookup].d.sp == b.bucket[lookup].d.bp){
+			log_out("Bucket not pushed to!", LOG_ERROR_);
+			return false;
+		}
+		if(*(b.bucket[lookup].d.sp - 1) != tmp){
+			log_out("Incorrect value!", LOG_ERROR_);
+			return false;
+		}
+	}
+	destroy_buckets(&b);
+	log_out("No errors reported.\n", LOG_INFO_);
 	return true;
 }
 

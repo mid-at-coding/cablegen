@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #define SORT_NAME uint64
 #define SORT_TYPE uint64_t
 #include "../inc/sort.h"
@@ -220,4 +221,41 @@ void destroy_darr(dynamic_arr_info* arr){
 void destroy_sarr(static_arr_info* arr){
 	free(arr->bp);
 	arr->valid = false;
+}
+
+void init_buckets(buckets *b){
+	for(size_t i = 0; i < BUCKETS_N; i++){
+		b->bucket[i].d = init_darr(0,0);
+		pthread_mutex_init(&b->bucket[i].mut, NULL);
+	}
+}
+
+void destroy_buckets(buckets *b){
+	for(size_t i = 0; i < BUCKETS_N; i++){
+		destroy_darr(&b->bucket[i].d);
+		if(EBUSY == pthread_mutex_destroy(&b->bucket[i].mut)){
+			log_out("Could not destroy bucket mutex!", LOG_WARN_);
+		}
+	}
+}
+
+_BitInt(BUCKETS_DIGITS) get_first_digits(uint64_t tmp){
+	static uint64_t mask = 0;
+#if BUCKETS_DIGITS > 64
+#warn "are you sure"
+#endif
+	if(mask == 0){ // TODO: may have a race condition
+		for(int i = 0; i < BUCKETS_DIGITS; i++){
+			mask = mask | (1 >> i); 
+		}
+	}
+	return mask & tmp;
+}
+
+bool push_back_into_bucket(buckets *b, uint64_t d){
+	_BitInt(BUCKETS_DIGITS) radix = get_first_digits(d);
+	pthread_mutex_lock(&b->bucket[radix].mut);
+	bool res = push_back(&b->bucket[radix].d, d); // TODO: if this function takes a while the mutex can be added to darrs for TCO
+	pthread_mutex_unlock(&b->bucket[radix].mut);
+	return res;
 }

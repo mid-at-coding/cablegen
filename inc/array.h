@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #define REALLOC_MULT 3
+#define BUCKETS_DIGITS 16
+#define BUCKETS_N 65536
 
 typedef struct{ // TODO might be worthwile to use the biggest bit in size instead of valid for packing purposes, especially for masked boards
 	bool valid;
@@ -18,6 +20,17 @@ typedef struct{
 	uint64_t* bp;
 	size_t size;
 } static_arr_info;
+
+typedef struct {
+	struct {
+		dynamic_arr_info d;
+		pthread_mutex_t mut;
+	} bucket[BUCKETS_N];
+} buckets;
+
+void init_buckets(buckets *b);
+void destroy_buckets(buckets *b);
+bool push_back_into_bucket(buckets *b, uint64_t d);
 
 void* malloc_errcheck(size_t size); // guaranteed to be non-null
 dynamic_arr_info init_darr(bool zero, size_t size); // error handling is callee's responsibility
@@ -34,4 +47,5 @@ void deduplicate_masked(dynamic_arr_info*);
 dynamic_arr_info sarrtodarr(static_arr_info*);
 void destroy_darr(dynamic_arr_info* arr);
 void destroy_sarr(static_arr_info* arr);
+_BitInt(BUCKETS_DIGITS) get_first_digits(uint64_t tmp);
 #endif
