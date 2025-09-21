@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
+extern void cb1111111(uint64_t *b);
 
 uint16_t _move_lut[2][UINT16_MAX + 1];
 bool    _merge_lut[2][UINT16_MAX + 1];
@@ -258,21 +259,25 @@ inline void rotate_180(uint64_t* b){
 void canonicalize_b(uint64_t* board){ // turn a board into it's canonical version
 	uint64_t b = *board;
 	uint64_t max = b;
+	uint64_t cached[3];
 	rotate_clockwise(&b);
+	cached[0] = b;
 	max = MAX(max, b);
 	rotate_clockwise(&b);
+	cached[1] = b;
 	max = MAX(max, b);
 	rotate_clockwise(&b);
+	cached[2] = b;
 	max = MAX(max, b);
 	b = *board;
 	flip(&b);
 	max = MAX(max, b);
-	rotate_clockwise(&b);
-	max = MAX(max, b);
-	rotate_clockwise(&b);
-	max = MAX(max, b);
-	rotate_clockwise(&b);
-	max = MAX(max, b);
+	flip(cached);
+	max = MAX(max, cached[0]);
+	flip(cached + 1);
+	max = MAX(max, cached[1]);
+	flip(cached + 2);
+	max = MAX(max, cached[2]);
 	*board = max;
 }
 

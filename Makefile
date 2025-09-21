@@ -3,9 +3,9 @@ CCFLAGS= -Wall -g -O2 -pg -pthread -lc -Wpedantic -Wextra -Wno-unused-parameter 
 		 -fno-strict-aliasing -std=c23 -Wno-unused-command-line-argument \
 		 -Wuninitialized -Wno-unused-function -DDBG \
 		 -fsanitize=address,undefined
-LDFLAGS= -lc -lrt -lm
-CCFLAGS_PROD=-Wall -O2 -pthread -DPROD -fno-strict-aliasing -Wno-format \
-			  -std=c23 -DNOERRCHECK -fprofile-use -march=native
+LDFLAGS= -lc -lrt -lm -flto
+CCFLAGS_PROD=-Wall -Os -pthread -DPROD -fno-strict-aliasing -Wno-format \
+			  -std=c23 -DNOERRCHECK -march=native
 CCFLAGS_BENCH=-Wall -O2 -pthread -DPROD -fno-strict-aliasing -Wno-format \
 			  -std=c23 -DNOERRCHECK -lprofiler -g -ltcmalloc -fprofile-generate
 EXEC_FILE=cablegen

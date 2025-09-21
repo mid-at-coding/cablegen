@@ -22,7 +22,7 @@
 #include <time.h>
 
 static void help(void){
-	log_out("Cablegen v1.2 by ember/emelia/cattodoameow", LOG_INFO_);
+	log_out("Cablegen v1.3 by ember/emelia/cattodoameow", LOG_INFO_);
 	log_out("Commands:", LOG_INFO_);
 	log_out("help -- this output", LOG_INFO_);
 	log_out("generate (CONFIG) -- generate boards, optionally specifying an alternate config file", LOG_INFO_);
@@ -56,6 +56,10 @@ static void parseGenerate(int argc, char **argv){
 		printf("No boards in %s!", settings.initial);
 		return;
 	}
+
+	if(get_sum(boards.bp[0]) < get_settings().end_solve){
+		log_out("Solving will continue below initial board, consider changing Solve.end!", LOG_WARN_);
+	}
 	int layer = get_sum(boards.bp[0]);
 	generate(layer, settings.end_gen, fmt, boards.bp, boards.size, settings.cores, settings.premove, settings.nox, settings.free_formation);
 	free(fmt);
@@ -81,6 +85,13 @@ static void parseSolve(int argc, char **argv){
 	static_arr_info boards = read_boards(settings.winstates);
 	if(boards.size < 1){
 		printf("No boards in %s!", argv[6]);
+		return;
+	}
+	for(size_t i = 0; i < boards.size; i++){
+		if(get_sum(boards.bp[i]) > get_settings().end_gen){
+			log_out("Winstate will never be generated, consider changing Generate.end!", LOG_WARN_);
+			output_board(boards.bp[i]);
+		}
 	}
 	solve(settings.end_gen, settings.end_solve, posfmt, table_fmt, &boards, settings.cores, settings.nox, settings.score, settings.free_formation);
 	free(posfmt);
