@@ -254,23 +254,18 @@ bool satisfied(const uint64_t *board, const static_arr_info *winstates, const ch
 	}
 	return false;
 }
+
 static double maxmove(uint64_t board, table *n, static_arr_info *winstates, char nox, bool score){
 	uint64_t tmp;
-	double prob = 0;
+	uint64_t max;
+	double prob[4] = {0};
 	for(dir d = left; d <= down; d++){
 		tmp = board;
-		if(movedir(&tmp, d)){
-			if(satisfied(&tmp, winstates, nox, score))
-				return 1.0;
-			if((nox && checkx(tmp,nox)) || !nox){
-				if(tmp < board)
-					prob = fmax(prob, lookup(tmp, n, true));
-				else
-					prob = fmax(prob, lookup(tmp, n, false));
-			}
+		if(movedir_unstable(&tmp, d)){
+			prob[d] = lookup(tmp, n, true);
 		}
 	}
-	return prob;
+	return fmax(fmax(prob[0], prob[1]), fmax(prob[2], prob[3]));
 }
 double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstates, char nox, bool score){
 	int spaces = 0;

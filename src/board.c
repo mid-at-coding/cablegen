@@ -136,22 +136,39 @@ void generate_lut(void){
 	free(b.bp);
 }
 
-inline static struct _move_res movedir_hori(uint64_t* board, dir direction){
+inline static uint64_t movedir_hori_board(uint64_t board, dir direction){
+	uint64_t premove = board;
+	uint16_t lookup;
+	bool changed = false;
+	const short BITS_PER_ROW = 16;
+	for(int i = 0; i < 4; i++){ // 4 rows
+		lookup = ((board) >> BITS_PER_ROW * i) & 0xFFFF; // get a row
+		if(_move_lut[direction][lookup] != lookup){
+			board &= ~((uint64_t)0x000000000000FFFF << BITS_PER_ROW * i); // set the bits we want to set to zero
+			board |= ((uint64_t)_move_lut[direction][lookup]) << BITS_PER_ROW * i ; // set them
+		}
+		if(!_locked_lut[direction][lookup]){ // not allowed!!
+			return premove;
+		}
+	}
+	return board;
+}
+
+inline static bool movedir_hori(uint64_t* board, dir direction){
 	uint64_t premove = *board;
 	uint16_t lookup;
-	struct _move_res changed = {false, false};
+	bool changed = false;
 	const short BITS_PER_ROW = 16;
 	for(int i = 0; i < 4; i++){ // 4 rows
 		lookup = ((*board) >> BITS_PER_ROW * i) & 0xFFFF; // get a row
 		if(_move_lut[direction][lookup] != lookup){
-			changed.changed = true;
-			changed.merged = _merge_lut[direction][lookup];
+			changed = true;
 			(*board) &= ~((uint64_t)0x000000000000FFFF << BITS_PER_ROW * i); // set the bits we want to set to zero
 			(*board) |= ((uint64_t)_move_lut[direction][lookup]) << BITS_PER_ROW * i ; // set them
 		}
 		if(!_locked_lut[direction][lookup]){ // not allowed!!
 			*board = premove;
-			return (struct _move_res){false, false};
+			return false;
 		}
 	}
 	return changed;
@@ -162,19 +179,19 @@ bool movedir(uint64_t* board, dir d){
 	// make every direction left
 	switch(d){
 		case left:
-			changed = movedir_hori(board, left).changed;
+			changed = movedir_hori(board, left);
 		break;
 		case right:
-			changed = movedir_hori(board, right).changed;
+			changed = movedir_hori(board, right);
 		break;
 		case up:
 			rotate_clockwise(board);
-			changed = movedir_hori(board, right).changed;
+			changed = movedir_hori(board, right);
 			rotate_counterclockwise(board);
 		break;
 		case down:
 			rotate_clockwise(board);
-			changed = movedir_hori(board, left).changed;
+			changed = movedir_hori(board, left);
 			rotate_counterclockwise(board);
 		break;
 	};
@@ -186,25 +203,25 @@ bool movedir_unstable(uint64_t* board, dir d){
 	switch(d){
 		default:
 		case left:
-			return movedir_hori(board, left).changed;
+			return movedir_hori(board, left);
 		break;
 		case right:
-			return movedir_hori(board, right).changed;
+			return movedir_hori(board, right);
 		break;
 		case up:
 			rotate_clockwise(board);
-			return movedir_hori(board, right).changed;
+			return movedir_hori(board, right);
 		break;
 		case down:
 			rotate_clockwise(board);
-			return movedir_hori(board, left).changed;
+			return movedir_hori(board, left);
 		break;
 	};
 }
 
 move_res movedir_mask(uint64_t* board, dir d){
 	move_res changed = {false, false};
-	// make every direction left
+/*	// make every direction left
 	switch(d){
 		case left:
 			changed = movedir_hori(board, left);
@@ -222,7 +239,7 @@ move_res movedir_mask(uint64_t* board, dir d){
 			changed = movedir_hori(board, left);
 			rotate_counterclockwise(board);
 		break;
-	};
+	}; */
 	return changed;
 }
 void rotate_clockwise(uint64_t* b){ // taken from game-difficult/2048EndgameTablebase (Calculator.py)

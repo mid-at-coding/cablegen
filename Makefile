@@ -4,10 +4,10 @@ CCFLAGS= -Wall -g -O2 -pg -pthread -lc -Wpedantic -Wextra -Wno-unused-parameter 
 		 -Wuninitialized -Wno-unused-function -DDBG \
 		 -fsanitize=address,undefined
 LDFLAGS= -lc -lrt -lm -flto
-CCFLAGS_PROD=-Wall -Os -pthread -DPROD -fno-strict-aliasing -Wno-format \
+CCFLAGS_PROD=-Wall -O2 -pthread -DPROD -fno-strict-aliasing -Wno-format \
 			  -std=c23 -DNOERRCHECK -march=native
 CCFLAGS_BENCH=-Wall -O2 -pthread -DPROD -fno-strict-aliasing -Wno-format \
-			  -std=c23 -DNOERRCHECK -lprofiler -g -ltcmalloc -fprofile-generate
+			  -std=c23 -DNOERRCHECK -lprofiler -g
 EXEC_FILE=cablegen
 BUILD=debug
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))
