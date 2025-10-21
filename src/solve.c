@@ -63,17 +63,19 @@ void read_table(table *t, const char *filename){
 	}
 	errno = 0;
 	fseek(fp, 0L, SEEK_END);
+	if(errno){
+		goto read_err;
+	}
+	errno = 0;
 	size_t sz = ftell(fp);
 	if(errno){
-		log_out("Failed getting size of table!", LOG_ERROR_);
-		fclose(fp);
-		t->key = init_sarr(0,0);
-		t->value = init_sarr(0,0);
-		t->key.valid = false;
-		t->value.valid = false;
-		return;
+		goto read_err;
 	}
+	errno = 0;
 	rewind(fp);
+	if(errno){
+		goto read_err;
+	}
 	if(sz % 16 != 0) // 16 is 2 * 8 bytes is a double and a board
 		log_out("sz %%16 != 0, this is probably not a real table!\n", LOG_WARN_);
 	t->key =   init_sarr(0, sz / 16);
@@ -99,6 +101,15 @@ void read_table(table *t, const char *filename){
 	log_out(buf, LOG_DBG_);
 	free(buf);
 	fclose(fp);
+	return;
+read_err:
+	log_out("Failed getting size of table!", LOG_ERROR_);
+	fclose(fp);
+	t->key = init_sarr(0,0);
+	t->value = init_sarr(0,0);
+	t->key.valid = false;
+	t->value.valid = false;
+	return;
 #ifdef DBG
 #endif
 }
