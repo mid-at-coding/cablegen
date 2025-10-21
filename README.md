@@ -119,8 +119,6 @@ development, and as of right now, is more robust than cablegen.
 
 ## Used libraries
 
-[C-Thread-Pool](https://github.com/Pithikos/C-Thread-Pool) -- MIT License
-
 [cfgpath](https://github.com/Malvineous/cfgpath) -- Unlicense
 
 [sort](https://github.com/swenson/sort) -- MIT License
