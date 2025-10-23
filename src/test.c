@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static bool test_searching(void){
@@ -370,6 +371,7 @@ bool test(void){
 	test_generation();
 	if(!passed){
 		log_out("One or more tests failed!", LOG_ERROR_);
+		exit(EXIT_FAILURE);
 	}
 	else
 		log_out("All tests passed!", LOG_INFO_);
