@@ -242,15 +242,11 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	free(filename);
 }
 
-static inline bool cmpbrd(uint64_t board, uint64_t board2){
-	for(int i = 0; i < 16; i++){
-		if((GET_TILE(board2, i)) == 0) // 0s 
-			continue;
-		else if(GET_TILE(board, i) != GET_TILE(board2, i)){
-			return false;	
-		}
-	}
-	return true;
+bool cmpbrd(uint64_t board, uint64_t board2){
+	uint64_t board_mask = (board2 >> 2) | board2;
+	board_mask = ((board_mask >> 1) | board_mask) & 0x1111111111111111;
+	board_mask = board_mask * 0xf;
+	return (board & board_mask) == board2;
 }
 
 bool satisfied(const uint64_t *board, const static_arr_info *winstates, const char nox, const bool score){

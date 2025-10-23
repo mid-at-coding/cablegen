@@ -325,6 +325,37 @@ static bool test_settings(void){
 	return true;
 }
 
+static bool test_cmpbrd(){
+	log_out("Testing comparison", LOG_INFO_);
+	uint64_t test = 0;
+	uint64_t curr = 0;
+	uint64_t ind = 0;
+	size_t iterations = 10000;
+	for(size_t i = 0; i < iterations; i++){
+		curr = rand();
+		if(!cmpbrd(curr, test)){
+			log_out("Wrong!", LOG_ERROR_);
+			output_board(curr);
+			log_out("Not equal", LOG_ERROR_);
+			output_board(test);
+			return false;
+		}
+		// choose a random tile to set
+		ind = rand() % 16;
+		SET_TILE(test, ind, (GET_TILE(curr, ind)));
+		if(!cmpbrd(curr, test)){
+			log_out("Wrong!", LOG_ERROR_);
+			output_board(curr);
+			log_out("Not equal", LOG_ERROR_);
+			output_board(test);
+			return false;
+		}
+		SET_TILE(test, ind, 0);
+	}
+	log_out("No errors reported", LOG_INFO_);
+	return true;
+}
+
 bool test(void){
 	set_log_level(LOG_INFO_);
 	bool passed = true;
@@ -335,6 +366,7 @@ bool test(void){
 	passed &= test_rots();
 	passed &= test_misc();
 	passed &= test_settings();
+	passed &= test_cmpbrd();
 	test_generation();
 	if(!passed){
 		log_out("One or more tests failed!", LOG_ERROR_);
