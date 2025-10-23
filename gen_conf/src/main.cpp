@@ -175,20 +175,20 @@ int main(){
 	}while(!cores || cores < 0);
 	ini["Cablegen"]["Cores"] = std::to_string(cores);
 
-	logger.log("Creating initial...", Logger::INFO);
-	execCommand(cablegen + " write generated_initial " + int_to_hex(initial[formation]), exit);
+	logger.log("Writing initial to ./generated_initial...", Logger::INFO);
+	execCommand(cablegen + " write generated_initial " + int_to_hex(initial[formation - 1]), exit);
 	if(exit){
 		logger.log("Failed generating initial!", Logger::FATAL);
 		std::exit(EXIT_FAILURE);
 	}
 
-	logger.log("Creating winstate...", Logger::INFO);
-	execCommand(cablegen + " write generated_winstate " + vec_to_str(winstate_to_vec(winstate_loc[formation], goal)), exit);
+	logger.log("Writing winstate to ./generated_winstate...", Logger::INFO);
+	execCommand(cablegen + " write generated_winstate " + vec_to_str(winstate_to_vec(winstate_loc[formation - 1], goal)), exit);
 	if(exit){
 		logger.log("Failed generating winstate!", Logger::FATAL);
 		std::exit(EXIT_FAILURE);
 	}
-	logger.log("Generating config file to ./cablegen.conf...", Logger::INFO);
+	logger.log("Writing config file to ./cablegen.conf...", Logger::INFO);
 	ini["Generate"]["initial"] = "generated_initial";
 	ini["Solve"]["winstates"] = "generated_winstate";
 	auto generationres = generated.generate(ini, true);
