@@ -1,11 +1,13 @@
 #include "../inc/logging.hpp"
 #include <cstdint>
 #include <cstdlib>
+#include <string>
 #include <thread>
 #include <optional>
 #include <iostream>
 #include <iomanip>
 #include <vector>
+#include <cmath>
 #include <stdexcept>
 #include <sstream>
 #include <algorithm>
@@ -105,6 +107,16 @@ std::string vec_to_str(std::vector<std::uint64_t> vec){
 	return res;
 }
 
+std::uint64_t get_sum(std::uint64_t b){
+	std::uint64_t res = 0;
+	for(int i = 0; i < 16; i++){
+		if(GET_TILE(b, i) == 0xf)
+			continue;
+		res += std::pow(2, GET_TILE(b, i));
+	}
+	return res;
+}
+
 int main(){
 	mINI::INIFile generated("cablegen.conf");
 	mINI::INIStructure ini;
@@ -190,8 +202,13 @@ int main(){
 	}
 	logger.log("Writing config file to ./cablegen.conf...", Logger::INFO);
 	ini["Generate"]["initial"] = "generated_initial";
+	ini["Generate"]["end"] = std::to_string(std::pow(2, goal) * 1.5);
 	ini["Solve"]["winstates"] = "generated_winstate";
-	auto generationres = generated.generate(ini, true);
+	ini["Solve"]["end"] = std::to_string(get_sum(initial[formation - 1]));
+	if (!generated.generate(ini, true)){
+		logger.log("Could not write config!", Logger::FATAL);
+		std::exit(EXIT_FAILURE);
+	}
 	logger.log("Done!", Logger::INFO);
 
 }
