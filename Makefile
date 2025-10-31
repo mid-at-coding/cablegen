@@ -5,7 +5,7 @@ CCFLAGS= -Wall -g -O2 -pg -pthread -lc -Wpedantic -Wextra -Wno-unused-parameter 
 		 -fsanitize=address,undefined
 LDFLAGS= -lc -lrt -lm -flto
 CCFLAGS_PROD=-Wall -O2 -pthread -DPROD -fno-strict-aliasing -Wno-format \
-			  -std=c23 -DNOERRCHECK -march=native
+			  -std=c23 -DNOERRCHECK -march=native -ffast-math
 CCFLAGS_BENCH=-Wall -O2 -pthread -DPROD -fno-strict-aliasing -Wno-format \
 			  -std=c23 -DNOERRCHECK -lprofiler -g
 EXEC_FILE=cablegen

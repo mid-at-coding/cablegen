@@ -148,8 +148,8 @@ int main(){
 	}
 	logger.log("What should this table be called?", Logger::INFO);
 	std::getline(std::cin, name);
-	ini["Generate"]["dir"] = name;
-	ini["Solve"]["dir"] = name;
+	ini["Generate"]["dir"] = name + "/";
+	ini["Solve"]["dir"] = name + "/";
 	logger.log("What formation? \n(1) 4422 / LL \n(2) 4411 / DPDgap \n(3) 0044 / 2x4 \n(4) 0444 / 3x4", Logger::INFO);
 	int formation = 0;
 	do{
@@ -188,21 +188,25 @@ int main(){
 	ini["Cablegen"]["Cores"] = std::to_string(cores);
 
 	logger.log("Writing initial to ./generated_initial...", Logger::INFO);
-	execCommand(cablegen + " write generated_initial " + int_to_hex(initial[formation - 1]), exit);
+	res = execCommand(cablegen + " write generated_initial " + int_to_hex(initial[formation - 1]), exit);
 	if(exit){
 		logger.log("Failed generating initial!", Logger::FATAL);
+		logger.log("Output:", Logger::FATAL);
+		logger.log(res, Logger::FATAL);
 		std::exit(EXIT_FAILURE);
 	}
 
 	logger.log("Writing winstate to ./generated_winstate...", Logger::INFO);
-	execCommand(cablegen + " write generated_winstate " + vec_to_str(winstate_to_vec(winstate_loc[formation - 1], goal)), exit);
+	res = execCommand(cablegen + " write generated_winstate " + vec_to_str(winstate_to_vec(winstate_loc[formation - 1], goal)), exit);
 	if(exit){
 		logger.log("Failed generating winstate!", Logger::FATAL);
+		logger.log("Output:", Logger::FATAL);
+		logger.log(res, Logger::FATAL);
 		std::exit(EXIT_FAILURE);
 	}
 	logger.log("Writing config file to ./cablegen.conf...", Logger::INFO);
 	ini["Generate"]["initial"] = "generated_initial";
-	ini["Generate"]["end"] = std::to_string(std::pow(2, goal) * 1.5);
+	ini["Generate"]["end"] = std::to_string((int)(std::pow(2, goal) * 1.5));
 	ini["Solve"]["winstates"] = "generated_winstate";
 	ini["Solve"]["end"] = std::to_string(get_sum(initial[formation - 1]));
 	if (!generated.generate(ini, true)){
