@@ -5,6 +5,7 @@
 #include <string.h>
 #include <limits.h>
 #include <sys/stat.h>
+#include <argp.h>
 #include "../inc/test.h"
 #include "../inc/logging.h"
 #include "../inc/generate.h"

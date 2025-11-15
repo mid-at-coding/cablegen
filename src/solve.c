@@ -194,7 +194,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	dynamic_arr_info winstates_d = init_darr(0,0);
 	generate_lut(); // if we don't gen a lut we can't move
 	// generate all required rotations of the winstates
-	bool *rots_required = required_symmetries(initial_winstates);
+//	bool *rots_required = required_symmetries(initial_winstates);
 	for(size_t i = 0; i < initial_winstates->size; i++){
 		uint64_t *rots = get_all_rots(initial_winstates->bp[i]);
 		for(int j = 0; j < 8; j++){ // loop over all 8 symmetries
@@ -264,7 +264,6 @@ bool satisfied(const uint64_t *board, const static_arr_info *winstates, const ch
 
 static double maxmove(uint64_t board, table *n, static_arr_info *winstates, char nox, bool score){
 	uint64_t tmp;
-	uint64_t max;
 	double prob[4] = {0};
 	for(dir d = left; d <= down; d++){
 		tmp = board;

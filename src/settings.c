@@ -109,7 +109,10 @@ void change_config(char *cfg){
 }
 void init_settings(void){
 	char buf[MAX_PATH];
-	getcwd_(buf, MAX_PATH);
+	if(!getcwd_(buf, MAX_PATH)){
+		log_out("Could not get current working directory!", LOG_WARN_);
+		return;
+	}
 	if(strlen(buf) + strlen("cablegen.conf") >= MAX_PATH || errno){
 		log_out("Invalid config file location!", LOG_WARN_);
 		return;

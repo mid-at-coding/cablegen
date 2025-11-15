@@ -136,10 +136,9 @@ void generate_lut(void){
 	free(b.bp);
 }
 
-inline static uint64_t movedir_hori_board(uint64_t board, dir direction){
+[[maybe_unused]] inline static uint64_t movedir_hori_board(uint64_t board, dir direction){
 	uint64_t premove = board;
 	uint16_t lookup;
-	bool changed = false;
 	const short BITS_PER_ROW = 16;
 	for(int i = 0; i < 4; i++){ // 4 rows
 		lookup = ((board) >> BITS_PER_ROW * i) & 0xFFFF; // get a row
@@ -379,7 +378,7 @@ void output_board(uint64_t board){
 		printf("\n");
 	}
 }
-inline static uint64_t log2_(uint64_t x) {
+[[maybe_unused]] inline static uint64_t log2_(uint64_t x) {
 #ifdef _WIN32
 	x--;
 	x |= x >> 1;

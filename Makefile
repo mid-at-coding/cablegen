@@ -1,9 +1,8 @@
 CC=clang
-CCFLAGS= -Wall -g -O2 -pg -pthread -lc -Wpedantic -Wextra -Wno-unused-parameter \
-		 -fno-strict-aliasing -std=c23 -Wno-unused-command-line-argument \
-		 -Wuninitialized -Wno-unused-function -DDBG \
+CCFLAGS= -Wall -g -O2 -pg -pthread -Wpedantic -Wextra -Wno-unused-parameter \
+		 -fno-strict-aliasing -std=c23 -Wuninitialized -DDBG \
 		 -fsanitize=address,undefined
-LDFLAGS= -lc -lrt -lm -flto
+LDFLAGS= -lc
 CCFLAGS_PROD=-Wall -O2 -pthread -DPROD -fno-strict-aliasing -Wno-format \
 			  -std=c23 -DNOERRCHECK -march=native -ffast-math
 CCFLAGS_BENCH=-Wall -O2 -pthread -DPROD -fno-strict-aliasing -Wno-format \
@@ -26,7 +25,7 @@ clean:
 	@rm build/*.o
 
 build/%.o: src/%.c 
-	$(CC) $< $(CCFLAGS) -c -o $@ $(LDFLAGS)
+	$(CC) $< $(CCFLAGS) -c -o $@
 
 cablegen: $(FILES)
 	$(CC) $(wildcard build/*.o) $(CCFLAGS) -o cablegen $(LDFLAGS)
