@@ -1,11 +1,12 @@
-#include "../inc/settings.h"
-#include "../inc/cfgpath.h"
-#include "../inc/ini.h"
-#include "../inc/logging.h"
-#include "../inc/array.h"
+#include "settings.h"
+#include "cfgpath.h"
+#include "ini.h"
+#include "logging.h"
+#include "array.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 #ifdef WINDOWS
 #include <direct.h>
 #define getcwd_ _getcwd
@@ -23,7 +24,7 @@ static int get_bool_setting_section(const char *key, char *section, bool*);
 static int get_str_setting_section (const char *key, char *section, char**);
 static int get_int_setting_section (const char *key, char *section, long long*);
 
-settings_t get_settings(void){
+settings_t *get_settings(void){
 	static settings_t res = { // set sane defaults
 		.free_formation = 0,
 		.ignore_f = 0,
@@ -48,7 +49,7 @@ settings_t get_settings(void){
 		.delete_boards = false
 	};
 	if(settings_read)
-		return res;
+		return &res;
 	settings_read = true; 
 	log_out("Reading settings...", LOG_DBG_);
 	get_bool_setting("free_formation", &res.free_formation);
@@ -71,7 +72,7 @@ settings_t get_settings(void){
 	get_int_setting_section("end", "Solve", &res.end_solve); 
 	get_bool_setting_section("score", "Solve", &res.score);
 	get_bool_setting_section("delete_boards", "Solve", &res.delete_boards);
-	return res;
+	return &res;
 }
 
 char *strlwr_(char *str) {

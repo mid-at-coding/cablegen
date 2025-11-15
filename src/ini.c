@@ -26,7 +26,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "../inc/ini.h"
+#include "ini.h"
 
 struct ini_t {
   char *data;

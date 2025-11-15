@@ -1,7 +1,7 @@
-#include "../inc/generate.h"
-#include "../inc/logging.h"
-#include "../inc/board.h"
-#include "../inc/settings.h"
+#include "generate.h"
+#include "logging.h"
+#include "board.h"
+#include "settings.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -221,8 +221,8 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 		cores[i].n = (static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp};
 		switch(op){
 		case movep:
-			cores[i].stsl = get_settings().stsl;
-			cores[i].ltc = get_settings().ltc;
+			cores[i].stsl = get_settings()->stsl;
+			cores[i].ltc = get_settings()->ltc;
 		case move:
 			cores[i].nret = init_darr(0, 3 * (n->sp - n->bp) / core_count);
 			break;
@@ -273,7 +273,7 @@ static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int 
 void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, 
 		const unsigned core_count, const char *fmt_dir, const int layer, arguments *cores, char nox){
 	// move
-	if(get_settings().prune)
+	if(get_settings()->prune)
 		init_threads(n, core_count, movep, cores, nox, layer);
 	else
 		init_threads(n, core_count, move, cores, nox, layer);

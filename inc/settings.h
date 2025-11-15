@@ -1,8 +1,7 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
-#include <errno.h>
 #include <stdbool.h>
-#include "../inc/cfgpath.h"
+#include "cfgpath.h"
 extern bool settings_read;
 extern bool custom_path;
 extern char cfgdir[MAX_PATH];
@@ -33,7 +32,7 @@ typedef struct {
 	bool delete_boards;
 } settings_t;
 
-settings_t get_settings(void);
+settings_t *get_settings(void);
 void init_settings(void);
 
 #endif

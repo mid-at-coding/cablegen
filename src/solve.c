@@ -1,8 +1,8 @@
-#include "../inc/solve.h"
-#include "../inc/logging.h"
-#include "../inc/board.h"
-#include "../inc/generate.h"
-#include "../inc/settings.h"
+#include "solve.h"
+#include "logging.h"
+#include "board.h"
+#include "generate.h"
+#include "settings.h"
 #include <assert.h>
 #include <math.h>
 #include <errno.h>
@@ -222,7 +222,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	for(unsigned int i = start; i >= end; i -= 2){
 		snprintf(filename, FILENAME_SIZE, posfmt, i);
 		n->key = read_boards(filename);
-		if(get_settings().delete_boards)
+		if(get_settings()->delete_boards)
 			remove(filename);
 		n->value = init_sarr(0,n->key.size);
 		solve_layer(n4, n2, n, &winstates, cores, nox, score, i);

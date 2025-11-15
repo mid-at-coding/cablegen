@@ -1,5 +1,5 @@
-#include "../inc/array.h"
-#include "../inc/logging.h"
+#include "array.h"
+#include "logging.h"
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -10,7 +10,7 @@
 #include <pthread.h>
 #define SORT_NAME uint64
 #define SORT_TYPE uint64_t
-#include "../inc/sort.h"
+#include "sort.h"
 
 bool push_back(dynamic_arr_info *info, uint64_t v){
 	bool res = false;

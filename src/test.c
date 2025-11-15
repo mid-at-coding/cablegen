@@ -1,8 +1,8 @@
-#include "../inc/generate.h"
-#include "../inc/solve.h"
-#include "../inc/logging.h"
-#include "../inc/board.h"
-#include "../inc/settings.h"
+#include "generate.h"
+#include "solve.h"
+#include "logging.h"
+#include "board.h"
+#include "settings.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -307,7 +307,7 @@ bool test_misc(void){
 
 static bool test_settings(void){
 	log_out("Checking settings (accuracy not checked, verify manually)", LOG_INFO_);
-	settings_t settings = get_settings();
+	settings_t settings = *get_settings();
 	printf(".free_formation %d\n", settings.free_formation);
 	printf(".cores %lld\n", settings.cores);
 	printf(".nox %lld\n", settings.nox);
