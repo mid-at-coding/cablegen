@@ -13,8 +13,8 @@ Example usage (solving [DPDF](https://wiki.2048verse.com/wiki/index.php/Double_P
 ./cablegen write initial 18ff07ff15ff1334 # sensible starting board. https://2048verse.com/p/18ff07ff15ff1334 
 ./cablegen write winstates 09ff00ff00ff0000 # a 512 on the top left -- 0s indicate a "don't care"
 # edit cablegen.conf as fit
-./cablegen generate cablegen.conf
-./cablegen solve cablegen.conf
+./cablegen --config=cablegen.conf generate
+./cablegen --config=cablegen.conf solve
 ```
 
 ## Commands
