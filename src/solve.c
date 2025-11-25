@@ -219,7 +219,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	n4->key   = init_sarr(0,0);
 	n4->value = init_sarr(0,0);
 	char *filename = malloc_errcheck(FILENAME_SIZE);
-	for(unsigned int i = start; i >= end; i -= 2){
+	for(unsigned int i = start; i >= end && i; i -= 2){
 		snprintf(filename, FILENAME_SIZE, posfmt, i);
 		n->key = read_boards(filename);
 		if(get_settings()->delete_boards)

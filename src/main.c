@@ -87,19 +87,15 @@ static void help(void){
 	log_out("benchmark                        -- benchmark cablegen", LOG_INFO_);
 }
 
-static void parseGenerate(int argc, char **argv){
+static void parseGenerate(){
 	set_log_level(LOG_INFO_);
-	if(argc < 2){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
-	if(argc > 2){
-		change_config(argv[2]);
-	}
 	settings_t settings = *get_settings();
 	char *default_postfix = "%d.boards";
 	size_t fmt_size = strlen(default_postfix) + strlen(settings.bdir) + 1;
 	char *fmt = malloc_errcheck(fmt_size);
 	snprintf(fmt, fmt_size, "%s%s", settings.bdir, default_postfix);
 
-	// assume all boards in FILE are the same sum (!!)
+	// assume all boards in our file are the same sum (!!)
 	static_arr_info boards = read_boards(settings.initial);
 	if(boards.size < 1){
 		printf("No boards in %s!", settings.initial);
@@ -114,12 +110,8 @@ static void parseGenerate(int argc, char **argv){
 	free(fmt);
 }
 
-static void parseSolve(int argc, char **argv){
+static void parseSolve(){
 	set_log_level(LOG_INFO_);
-	if(argc < 2){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
-	if(argc > 2){ 
-		change_config(argv[2]);
-	}
 	settings_t settings = *get_settings();
 	char *default_board_postfix = "%d.boards";
 	size_t posfmt_size = strlen(default_board_postfix) + strlen(settings.bdir) + 1;
@@ -133,7 +125,7 @@ static void parseSolve(int argc, char **argv){
 
 	static_arr_info boards = read_boards(settings.winstates);
 	if(boards.size < 1){
-		printf("No boards in %s!", argv[6]);
+		printf("No boards in %s!", settings.initial);
 		return;
 	}
 	for(size_t i = 0; i < boards.size; i++){
@@ -148,16 +140,16 @@ static void parseSolve(int argc, char **argv){
 }
 
 static void parseWrite(int argc, char **argv){
-	if(argc < 4){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
+	if(argc < 2){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	dynamic_arr_info boards = init_darr(0, 1);
-	for(int i = 3; i < argc; i++){
+	for(int i = 2; i < argc; i++){
 		uint64_t board = strtoull(argv[i], NULL, 16); // interpret as hex string
 		if (errno != 0){
 			printf("Error parsing string! %s\n", strerror(errno));
 		}
 		push_back(&boards, board);
 	}
-	write_boards((static_arr_info){.valid = boards.valid, .bp = boards.bp, .size = boards.sp - boards.bp}, argv[2], 0);
+	write_boards((static_arr_info){.valid = boards.valid, .bp = boards.bp, .size = boards.sp - boards.bp}, argv[1], 0);
 }
 
 struct dirprob {
@@ -280,10 +272,18 @@ static void parseLookup(int argc, char **argv, bool spawn){ // TODO refactor
 	free(t4);
 }
 
+static void parseLookupSpawn(int argc, char **argv){
+	parseLookup(argc, argv, true);
+}
+static void parseLookupMove(int argc, char **argv){
+	parseLookup(argc, argv, false);
+}
+
+
 static void parseExplore(int argc, char **argv){
-	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
+	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	table *t = malloc_errcheck(sizeof(table));
-	read_table(t, argv[2]);
+	read_table(t, argv[1]);
 	for(size_t i = 0; i < t->key.size; i++){
 		printf("Board(%0.20lf):\n", *(double*)(t->value.bp + i));
 		output_board(t->key.bp[i]);
@@ -294,9 +294,9 @@ static void parseExplore(int argc, char **argv){
 }
 
 static void parseRead(int argc, char **argv){
-	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
+	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 
-	static_arr_info t = read_boards(argv[2]);
+	static_arr_info t = read_boards(argv[1]);
 	for(size_t i = 0; i < t.size; i++){
 		output_board(t.bp[i]);
 		if(i + 1 < t.size)
@@ -360,7 +360,7 @@ char getch__(void) // https://stackoverflow.com/a/7469410
 #endif
 }
 static void parseTrain(int argc, char **argv){
-	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
+	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	set_log_level(LOG_INFO_);
 	srand(time(0));
 	generate_lut();
@@ -376,7 +376,7 @@ static void parseTrain(int argc, char **argv){
 	size_t table_dir_str_size = strlen(table_fmt) + 10;
 	char *table_dir_str = malloc_errcheck(table_dir_str_size);
 	table *t  = malloc_errcheck(sizeof(table));
-	uint64_t board = strtoull(argv[2], NULL, 16);
+	uint64_t board = strtoull(argv[1], NULL, 16);
 
 	struct dirprob res;
 	double tmp = 0;
@@ -444,15 +444,12 @@ static void parseTrain(int argc, char **argv){
 }
 
 static void parsePlay(int argc, char **argv){
-	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
+	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
 	set_log_level(LOG_INFO_);
 	settings_t settings = *get_settings();
 	srand(time(NULL));
 	char *tdir = settings.tdir;
-	if(argc > 3){
-		tdir = argv[3];
-	}
-	uint64_t board = strtoull(argv[2], NULL, 16); // interpret as hex string
+	uint64_t board = strtoull(argv[1], NULL, 16); // interpret as hex string
 	generate_lut();
 
 	char* default_table_postfix = "%d.tables"; // TODO pull out
@@ -509,8 +506,47 @@ void benchmark(void){
 	printf("Multi-threaded LL-256: %d seconds\n", (unsigned)difftime(time(NULL), curr));
 }
 
+static void parseGenSolve(){
+	parseGenerate();
+	parseSolve();
+}
+
+static void testThunk(){
+	test(); // ignore the bool return value
+}
+
 int main(int argc, char **argv){
 	set_log_level(LOG_INFO_);
+	int commandOffset;
+	struct {
+		char *name;
+		bool args;
+		union {
+			void (*noargs)(void);
+			void (*args)(int, char**);
+		} fn;
+	} commands[] = {
+		{"help", false, .fn.noargs = help},
+		{"generate", false, .fn.noargs = parseGenerate},
+		{"solve", false, .fn.noargs = parseSolve},
+		{"generate_solve", false, .fn.noargs = parseGenSolve},
+		{"test", false, .fn.noargs = testThunk},
+		{"read", true, .fn.args = parseRead},
+		{"write", true, .fn.args = parseWrite},
+		{"lookup", true, .fn.args = parseLookupMove},
+		{"lookup_spawn", true, .fn.args = parseLookupSpawn},
+		{"explore", true, .fn.args = parseExplore},
+		{"train", true, .fn.args = parseTrain},
+		{"play", true, .fn.args = parsePlay},
+		{"benchmark", false, .fn.noargs = benchmark},
+	};
+	for(int i = 0; i < argc; i++){
+		for(size_t cm = 0; cm < sizeof(commands)/sizeof(commands[0]); cm++){
+			if(!strcmp(commands[cm].name, argv[i])){
+				commandOffset = i;
+			}
+		}
+	}
 	option_t opts[] = {
 		{ parseCfg , "-C", "--config", get_settings() },
 		{ parseBool, "-f", "--free-formation", &get_settings()->free_formation },
@@ -525,7 +561,16 @@ int main(int argc, char **argv){
 		{ parseStr , "-w", "--winstate", &get_settings()->winstates },
 		{ parseBool, "-d", "--delete", &get_settings()->delete_boards }
 	};
-	parse(opts, sizeof(opts)/sizeof(opts[0]), argc, argv);
-	test();
+	parse(opts, sizeof(opts)/sizeof(opts[0]), commandOffset, argv);
+	for(size_t i = 0; i < sizeof(commands)/sizeof(commands[0]); i++){
+		if(!strcmp(commands[i].name, argv[commandOffset])){
+			if(commands[i].args){
+				commands[i].fn.args(argc - commandOffset, argv + commandOffset);
+			}
+			else{
+				commands[i].fn.noargs();
+			}
+		}
+	}
 	exit(EXIT_SUCCESS);
 }
