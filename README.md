@@ -1,24 +1,12 @@
 # Cablegen
-A high speed 2048 generator and solver, entirely in C
+A high speed 2048 generator and solver in C
 
 ## Known issues:
 - libwinpthread missing dll error on windows -- a copy is provided here, just drop it into the same directory or your PATH
 
 ## Usage
 
-`generate (CONFIG)` -- Generate boards, optionally specifiying an alternate config file
-
-`solve (CONFIG)` -- Solve positions, optionally specifying an alternate config file
-
-`read [FILE]` -- lists all boards in FILE
-
-`write [FILE] [BOARD] (BOARD) ...` -- writes one or more boards into FILE, for use as winstates or initial boards
-
-`lookup [BOARD] (TDIR)` -- looks for BOARD, optionally specifying an alternate directory to look in
-
-`explore [TABLE]` -- lists all solved boards in TABLE
-
-`play [BOARD] (TDIR)` -- simulate an optimal game of BOARD with random spawns
+`cablegen [flags] [command]`
 
 Example usage (solving [DPDF](https://wiki.2048verse.com/wiki/index.php/Double_Perimeter_Defense_Formation(4x4)) with a goal of 512 and 10 movable tiles)
 ```
@@ -28,6 +16,43 @@ Example usage (solving [DPDF](https://wiki.2048verse.com/wiki/index.php/Double_P
 ./cablegen generate cablegen.conf
 ./cablegen solve cablegen.conf
 ```
+
+## Commands
+
+`generate` -- Generate boards
+
+`solve` -- Solve positions
+
+`generate_solve` -- Generate, and then solve
+
+`read [FILE]` -- lists all boards in FILE
+
+`write [FILE] [BOARD] (BOARD) ...` -- writes one or more boards into FILE, for use as winstates or initial boards
+
+`lookup [BOARD]` -- looks for BOARD
+
+`explore [TABLE]` -- lists all solved boards in TABLE
+
+`play [BOARD]` -- simulate an optimal game of BOARD with random spawns
+
+## Flags
+
+> Note that later flags override earlier flags, and config files will override the values that are set within them appropriately
+
+| Short option | Long Option | Description | Datatype
+|--|--|--|--|
+|-C|--config             |Specifies a config to read flags from. If unspecified, first ~/.config/cablegen/cablegen.conf and then ./cablegen.conf will be read. If neither are found, default values will be used. |String|
+|-f|--free-formation     |Specifies whether unmergable (0xf) tiles should be allowed to move (default: false) |Bool|
+|-v|--ignore-unmergeable |treats unmergable tiles as walls (default: false)|Bool
+|-c|--cores              |Chooses the amount of cores to use while generating or solving (default:1)|Int
+|-n|--nox                |Treats a tile with this tile on it as dead (0 to disable) (default:0)|Int
+|-b|--bdir               |Select a directory for where to put generated positions (default:./boards/)|String
+|-t|--tdir               |Select a directory for where to put solved tables (default:./tables/)|String
+|-i|--initial            |Select a file to start generation from (default:./initial)|String
+|-e|--end-gen            |Choose the tile sum to end generation (default: 1200)| Int
+|-E|--end-solve          |Choose the tile sum to end solving (default: 0)| Int
+|-w|--winstate           |Select a file to consider winstates from (default: ./winstates)| String
+|-d|--delete             |Delete positions after solving them (default: false) | Bool
 
 ## Configuration
 
@@ -81,6 +106,8 @@ score = false
 delete_boards = false
 
 ```
+
+If you don't wish to do all the work of configuration, and just want a quick and dirty solution, check out the gen_conf folder
 
 ## Wishlist
 

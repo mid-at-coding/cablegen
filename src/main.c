@@ -65,11 +65,9 @@ static void help(void){
 	log_out("-b=[string] --bdir               -- select a directory for where to put generated positions", LOG_INFO_);
 	log_out("-t=[string] --tdir               -- select a directory for where to put solved tables", LOG_INFO_);
 	log_out("-i=[string] --initial            -- select a file to start generation from", LOG_INFO_);
-	log_out("-I=[hex]    --iboard             -- choose a board to start generation from", LOG_INFO_);
 	log_out("-e=[int]    --end-gen            -- choose the tile sum to end generation", LOG_INFO_);
 	log_out("-E=[int]    --end-solve          -- choose the tile sum to end solving", LOG_INFO_);
 	log_out("-w=[string] --winstate           -- select a file to consider winstates from", LOG_INFO_);
-	log_out("-W=[hex]    --wboard             -- select a board to consider a winstate", LOG_INFO_);
 	log_out("-d=[bool]   --delete             -- delete positions after solving them", LOG_INFO_);
 	log_out("Commands:", LOG_INFO_);
 	log_out("help                             -- this output", LOG_INFO_);
@@ -193,9 +191,6 @@ static void parseLookup(int argc, char **argv, bool spawn){ // TODO refactor
 	char *tabledir;
 	settings_t settings = *get_settings();
 	tabledir = settings.tdir;
-	if(argc > 3){ 
-		tabledir = argv[3];
-	}
 	uint64_t board = strtoull(argv[2], NULL, 16); // interpret as hex string
 	uint64_t original = board;
 	set_log_level(LOG_INFO_);
