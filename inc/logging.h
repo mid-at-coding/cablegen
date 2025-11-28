@@ -1,6 +1,5 @@
-#ifndef LOGGING_H
+#ifndef LOGGING_H // TODO: switch to new logging lib
 #define LOGGING_H
-#include <string.h>
 #include <stdbool.h>
 #define LOGIF(level) if(logif_f(level))
 

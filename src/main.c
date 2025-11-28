@@ -11,6 +11,7 @@
 #include "generate.h"
 #include "solve.h"
 #include "board.h"
+#include "format.h"
 #include "settings.h"
 #include <string.h>
 #ifndef WIN32
@@ -54,7 +55,7 @@ static int parseCfg(char *arg, void *data){
 }
 
 static void help(void){
-	log_out("Cablegen v1.3 by ember/emelia/cattodoameow", LOG_INFO_);
+	log_out("Cablegen v1.3 by ember/emelia/cattodoameow", LOG_INFO_); // TODO: how do I make sure this matches the tag?
 	log_out("Usage: [cablegen] [flags] [command]", LOG_INFO_);
 	log_out("Flags:", LOG_INFO_);
 	log_out("-C=[FILE]   --config             -- specifies a config to read flags from, behaviour if unspecified is specified in the README", LOG_INFO_);
@@ -85,16 +86,27 @@ static void help(void){
 	log_out("benchmark                        -- benchmark cablegen", LOG_INFO_);
 }
 
+#if __has_include(<unistd.h>)
+#include <unistd.h>
+#elif __has_include(<windows.h>)
+#include <windows.h>
+#else
+#warning "Sleep will not work on non posix, non-windows systems!"
+#endif
 static void parseGenerate(){
 	set_log_level(LOG_INFO_);
 	settings_t settings = *get_settings();
 	char *default_postfix = "%d.boards";
-	size_t fmt_size = strlen(default_postfix) + strlen(settings.bdir) + 1;
-	char *fmt = malloc_errcheck(fmt_size);
-	snprintf(fmt, fmt_size, "%s%s", settings.bdir, default_postfix);
+	char *fmt = format_str("%s%s", settings.bdir, default_postfix);
 
 	// assume all boards in our file are the same sum (!!)
 	static_arr_info boards = read_boards(settings.initial);
+	for(size_t i = 0; i < boards.size; i++){
+		if(get_sum(boards.bp[i]) != get_sum(boards.bp[0])){
+			log_out("Boards in Generate.initial have mixed sums, refusing to generate!", LOG_ERROR_);
+			exit(EXIT_FAILURE);
+		}
+	}
 	if(boards.size < 1){
 		printf("No boards in %s!", settings.initial);
 		return;
@@ -102,6 +114,16 @@ static void parseGenerate(){
 
 	if(get_sum(boards.bp[0]) < get_settings()->end_solve){
 		log_out("Solving will continue below initial board, consider changing Solve.end!", LOG_WARN_);
+		log_out("Press Ctrl+C to cancel, otherwise beginning generation in 5 seconds...", LOG_WARN_);
+		// TODO: platform independent sleep
+#if __has_include(<unistd.h>)
+		sleep(5);
+#elif __has_include(<windows.h>)
+		Sleep(5000);
+#else
+#warning "Sleep will not work on non posix, non-windows systems!"
+		log_out("Just kidding! I don't know how to sleep on your stupid OS!", LOG_WARN_);
+#endif
 	}
 	int layer = get_sum(boards.bp[0]);
 	generate(layer, settings.end_gen, fmt, boards.bp, boards.size, settings.cores, settings.premove, settings.nox, settings.free_formation);
@@ -112,18 +134,14 @@ static void parseSolve(){
 	set_log_level(LOG_INFO_);
 	settings_t settings = *get_settings();
 	char *default_board_postfix = "%d.boards";
-	size_t posfmt_size = strlen(default_board_postfix) + strlen(settings.bdir) + 1;
-	char* posfmt = malloc_errcheck(posfmt_size);
-	snprintf(posfmt, posfmt_size, "%s%s", settings.bdir, default_board_postfix);
+	char* posfmt = format_str("%s%s", settings.bdir, default_board_postfix);
 
 	char* default_table_postfix = "%d.tables";
-	size_t table_fmt_size = strlen(default_table_postfix) + strlen(settings.tdir) + 1;
-	char* table_fmt = malloc_errcheck(table_fmt_size);
-	snprintf(table_fmt, table_fmt_size, "%s%s", settings.tdir, default_table_postfix);
+	char* table_fmt = format_str("%s%s", settings.tdir, default_table_postfix);
 
 	static_arr_info boards = read_boards(settings.winstates);
 	if(boards.size < 1){
-		printf("No boards in %s!", settings.initial);
+		log_out(format_str("No boards in %s!", settings.initial), LOG_WARN_);
 		return;
 	}
 	for(size_t i = 0; i < boards.size; i++){
@@ -206,15 +224,8 @@ static void parseLookup(int argc, char **argv, bool spawn){ // TODO refactor
 	uint64_t sum = get_sum(board);
 
 	char* default_table_postfix = "%d.tables";
-	size_t table_fmt_size = strlen(default_table_postfix) + strlen(tabledir) + 10;
-	char* table_fmt = malloc_errcheck(table_fmt_size);
-	char* tablestr = malloc_errcheck(table_fmt_size);
-	snprintf(table_fmt, table_fmt_size, "%s%s", tabledir, default_table_postfix);
-	if(!table_fmt){
-		log_out("This shouldn't happen", LOG_ERROR_);
-		exit(EXIT_FAILURE);
-	}
-	snprintf(tablestr, table_fmt_size, table_fmt, sum);
+	char* table_fmt = format_str("%s%s", tabledir, default_table_postfix);
+	char* tablestr = format_str(table_fmt, sum);
 	log_out(tablestr, LOG_TRACE_);
 	
 	table *t  = malloc_errcheck(sizeof(table));
@@ -222,9 +233,11 @@ static void parseLookup(int argc, char **argv, bool spawn){ // TODO refactor
 	table *t4 = malloc_errcheck(sizeof(table));
 	read_table(t, tablestr);
 	double res = lookup(board, t, true);
-	snprintf(tablestr, table_fmt_size, table_fmt, sum + 2);
+	free(tablestr);
+	tablestr = format_str(table_fmt, sum + 2);
 	read_table(t2, tablestr);
-	snprintf(tablestr, table_fmt_size, table_fmt, sum + 4);
+	free(tablestr);
+	tablestr = format_str(table_fmt, sum + 4);
 	read_table(t4, tablestr);
 
 
@@ -364,12 +377,9 @@ static void parseTrain(int argc, char **argv){
 	char inp;
 
 	char* default_table_postfix = "%d.tables"; // TODO pull out
-	size_t table_fmt_size = strlen(default_table_postfix) + strlen(get_settings()->tdir) + 1;
-	char* table_fmt = malloc_errcheck(table_fmt_size);
-	snprintf(table_fmt, table_fmt_size, "%s%s", get_settings()->tdir, default_table_postfix);
+	char* table_fmt = format_str("%s%s", get_settings()->tdir, default_table_postfix);
 
-	size_t table_dir_str_size = strlen(table_fmt) + 10;
-	char *table_dir_str = malloc_errcheck(table_dir_str_size);
+	char *table_dir_str;
 	table *t  = malloc_errcheck(sizeof(table));
 	uint64_t board = strtoull(argv[1], NULL, 16);
 
@@ -412,8 +422,9 @@ static void parseTrain(int argc, char **argv){
 			if(validMove == false)
 				log_out("Invalid move!", LOG_INFO_);
 		}while(!validMove);
-		snprintf(table_dir_str, table_dir_str_size, table_fmt, get_sum(board));
+		table_dir_str = format_str(table_fmt, get_sum(board));
 		read_table(t, table_dir_str);
+		free(table_dir_str);
 		res = best(premove, t);
 		if(tmp == 1){
 			log_out("You Win!", LOG_INFO_);
@@ -448,12 +459,9 @@ static void parsePlay(int argc, char **argv){
 	generate_lut();
 
 	char* default_table_postfix = "%d.tables"; // TODO pull out
-	size_t table_fmt_size = strlen(default_table_postfix) + strlen(tdir) + 1;
-	char* table_fmt = malloc_errcheck(table_fmt_size);
-	snprintf(table_fmt, table_fmt_size, "%s%s", tdir, default_table_postfix);
+	char* table_fmt = format_str("%s%s", tdir, default_table_postfix);
 
-	size_t table_dir_str_size = strlen(table_fmt) + 10;
-	char *table_dir_str = malloc_errcheck(table_dir_str_size);
+	char *table_dir_str;
 	table *t  = malloc_errcheck(sizeof(table));
 
 	do{
@@ -463,8 +471,9 @@ static void parsePlay(int argc, char **argv){
 			exit(0);
 		}
 		printf("\n");
-		snprintf(table_dir_str, table_dir_str_size, table_fmt, get_sum(board));
+		table_dir_str = format_str(table_fmt, get_sum(board));
 		read_table(t, table_dir_str);
+		free(table_dir_str);
 		struct dirprob tmp = best(board, t);
 		movedir(&board, tmp.d);
 		if(tmp.prob == 1.0f){
@@ -512,7 +521,7 @@ static void testThunk(){
 
 int main(int argc, char **argv){
 	set_log_level(LOG_INFO_);
-	int commandOffset;
+	int commandOffset = -1;
 	struct {
 		char *name;
 		bool args;
@@ -541,6 +550,11 @@ int main(int argc, char **argv){
 				commandOffset = i;
 			}
 		}
+	}
+	if(commandOffset == -1){
+		log_out("Command required!", LOG_ERROR_);
+		help();
+		exit(EXIT_FAILURE);
 	}
 	option_t opts[] = {
 		{ parseCfg , "-C", "--config", get_settings() },

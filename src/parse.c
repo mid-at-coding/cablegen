@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-static bool prefix(const char *pre, const char *str){
+static bool prefix(const char *pre, const char *str){ // TODO make sure the prefix matches entirely until an eq
     return strncmp(pre, str, strlen(pre));
 }
 
@@ -47,7 +47,7 @@ int parse(option_t *opts, size_t len_opts, int argc, char **argv){
 	return 0;
 }
 
-static size_t get_eq(char *arg, char *name, char *type){
+static size_t get_eq(char *arg, char *name, char *type){ // TODO: combine with prefix, maybe pull out into parse_opt
 	size_t eq = find_eq(arg);
 	if(!eq){
 		printf("Invalid flag! Do %s=%s\n", name, type);

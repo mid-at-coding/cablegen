@@ -48,8 +48,9 @@ void write_table(const table *t, const char *filename){ // TODO fix the speed si
 	print_speed(t->key.size);
 }
 
-void read_table(table *t, const char *filename){
+void read_table(table *t, const char *filename){ // TODO clean up this and read_boards
 	FILE *fp = fopen(filename, "rb");
+	size_t res = 0;
 	if(fp == NULL){
 		char *buf = malloc_errcheck(100);
 		snprintf(buf, 100, "Couldn't read %s!\n", filename);
@@ -80,16 +81,16 @@ void read_table(table *t, const char *filename){
 		log_out("sz %%16 != 0, this is probably not a real table!\n", LOG_WARN_);
 	t->key =   init_sarr(0, sz / 16);
 	t->value = init_sarr(0, sz / 16);
-	fread(t->key.bp, sizeof(uint64_t), sz / 16, fp);
-	if(ferror(fp)){
+	res = fread(t->key.bp, sizeof(uint64_t), sz / 16, fp);
+	if(ferror(fp) || res != sz / 16){
 		log_out("Error reading file!", LOG_WARN_);
 		fclose(fp);
 		t->key.valid = false;
 		t->value.valid = false;
 		return;
 	}
-	fread(t->value.bp, sizeof(double), sz / 16, fp);
-	if(ferror(fp) || feof(fp)){
+	res = fread(t->value.bp, sizeof(double), sz / 16, fp);
+	if(ferror(fp) || res != sz / 16){
 		log_out("Error reading file!", LOG_WARN_);
 		fclose(fp);
 		t->key.valid = false;
@@ -114,7 +115,7 @@ read_err:
 #endif
 }
 
-double lookup(uint64_t key, table *t, bool canonicalize){
+double lookup(uint64_t key, table *t, bool canonicalize){ // TODO get rid of these defines and make this nicer to adjust (+ test)
 	if(t->key.size == 0){
 		log_out("Empty table!", LOG_TRACE_);
 		return 0.0;

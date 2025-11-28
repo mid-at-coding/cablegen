@@ -56,10 +56,10 @@ void print_speed(uint64_t size){
 		return; // dont need to display on the first layer bc we don't know when startup was
 	}
 	struct timespec diff = { 
-		.tv_sec  = time.tv_sec - old_time.tv_sec,
+		.tv_sec  = time.tv_sec  - old_time.tv_sec,
 		.tv_nsec = time.tv_nsec - old_time.tv_nsec };
 	old_time = time;
-	long totalns = (1000000000 * diff.tv_sec) + diff.tv_nsec;
+	long totalns = (1'000'000'000 * diff.tv_sec) + diff.tv_nsec;
 	if(totalns == 0){
 		return;
 	}
@@ -102,7 +102,7 @@ bool checkx(uint64_t board, char x){
 }
 
 bool prune_board(const uint64_t board, const long stsl, const long ltc, const long smallest_large){
-	short tmp = 0;
+	short tmp = 0; // TODO: masking
 	short large_tiles = 0;
 	int smallest = 0xff;
 	int sts = 0; // small tile sum
@@ -329,12 +329,9 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 }
 static_arr_info read_boards(const char *dir){
 	FILE *fp = fopen(dir, "rb");
+	char *buf = malloc_errcheck(100);
 	if(fp == NULL){
-		char *buf = malloc_errcheck(100);
-		snprintf(buf, 100, "Couldn't read %s!\n", dir);
-		log_out(buf, LOG_WARN_);
-		free(buf);
-		return (static_arr_info){.valid = false};
+		goto fail;
 	}
 	fseek(fp, 0L, SEEK_END);
 	size_t sz = ftell(fp);
@@ -342,8 +339,9 @@ static_arr_info read_boards(const char *dir){
 	if(sz % 8 != 0)
 		log_out("sz %%8 != 0, this is probably not a real table!\n", LOG_WARN_);
 	uint64_t* data = malloc_errcheck(sz);
-	fread(data, 1, sz, fp);
-	char *buf = malloc_errcheck(100);
+	if(fread(data, 1, sz, fp) != sz){
+		goto fail;
+	}
 	snprintf(buf, 100, "Read %ld bytes (%ld boards) from %s\n", sz, sz / 8, dir);
 	log_out(buf, LOG_DBG_);
 	free(buf);
@@ -361,4 +359,9 @@ static_arr_info read_boards(const char *dir){
 	
 #endif
 	return res;
+fail:
+	snprintf(buf, 100, "Couldn't read %s!\n", dir);
+	log_out(buf, LOG_WARN_);
+	free(buf);
+	return (static_arr_info){.valid = false};
 }
