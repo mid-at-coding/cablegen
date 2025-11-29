@@ -4,7 +4,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -197,7 +196,7 @@ void* malloc_errcheck(size_t size){ // guaranteed to be non-null
 	void* res = malloc(size);
 	if(res == NULL){
 		log_out("Alloc failed!", LOG_ERROR_);
-		exit(ENOMEM);
+		exit(EXIT_FAILURE);
 		return NULL;
 	}
 	return res;
@@ -233,7 +232,7 @@ void init_buckets(buckets *b){
 void destroy_buckets(buckets *b){
 	for(size_t i = 0; i < BUCKETS_N; i++){
 		destroy_darr(&b->bucket[i].d);
-		if(EBUSY == pthread_mutex_destroy(&b->bucket[i].mut)){
+		if(pthread_mutex_destroy(&b->bucket[i].mut)){
 			log_out("Could not destroy bucket mutex!", LOG_WARN_);
 		}
 	}

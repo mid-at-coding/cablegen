@@ -22,27 +22,13 @@
 #endif
 #include <errno.h>
 #include <time.h>
+#define STR(x) #x
+#define EXPAND_STR(x) STR(x)
+#define VERSION_STR EXPAND_STR(VERSION)
 
-static size_t find_eq(const char *str){
-	for(const char *curr = str; *curr != '\0'; curr++){
-		if(*curr == '=')
-			return curr - str;
-	}
-	return 0;
-}
-static size_t get_eq(char *arg, char *name, char *type){
-	size_t eq = find_eq(arg);
-	if(!eq){
-		printf("Invalid flag! Do %s=%s\n", name, type);
-		return 0;
-	}
-	return eq;
-}
 static int parseCfg(char *arg, void *data){
 	option_t *opt = data;
-	size_t eq = get_eq(arg, opt->long_rep, "file");
-	if(!eq)
-		return -1;
+	size_t eq = opt->eq;
 	char *buf = malloc(strlen(arg) - eq);
 	if(!buf){
 		printf("Could not allocate string buffer for argument!\n");
@@ -55,7 +41,7 @@ static int parseCfg(char *arg, void *data){
 }
 
 static void help(void){
-	log_out("Cablegen v1.3 by ember/emelia/cattodoameow", LOG_INFO_); // TODO: how do I make sure this matches the tag?
+	log_out("Cablegen "VERSION_STR" by ember/emelia/cattodoameow", LOG_INFO_);
 	log_out("Usage: [cablegen] [flags] [command]", LOG_INFO_);
 	log_out("Flags:", LOG_INFO_);
 	log_out("-C=[FILE]   --config             -- specifies a config to read flags from, behaviour if unspecified is specified in the README", LOG_INFO_);
@@ -156,7 +142,7 @@ static void parseSolve(){
 }
 
 static void parseWrite(int argc, char **argv){
-	if(argc < 2){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
+	if(argc < 2){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(EXIT_FAILURE); }
 	dynamic_arr_info boards = init_darr(0, 1);
 	for(int i = 2; i < argc; i++){
 		uint64_t board = strtoull(argv[i], NULL, 16); // interpret as hex string
@@ -205,7 +191,7 @@ static struct dirprob best(uint64_t board, table *n){
 }
 
 static void parseLookup(int argc, char **argv, bool spawn){ // TODO refactor
-	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
+	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(EXIT_FAILURE); }
 	char *tabledir;
 	settings_t settings = *get_settings();
 	tabledir = settings.tdir;
@@ -289,7 +275,7 @@ static void parseLookupMove(int argc, char **argv){
 
 
 static void parseExplore(int argc, char **argv){
-	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
+	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(EXIT_FAILURE); }
 	table *t = malloc_errcheck(sizeof(table));
 	read_table(t, argv[1]);
 	for(size_t i = 0; i < t->key.size; i++){
@@ -302,7 +288,7 @@ static void parseExplore(int argc, char **argv){
 }
 
 static void parseRead(int argc, char **argv){
-	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
+	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(EXIT_FAILURE); }
 
 	static_arr_info t = read_boards(argv[1]);
 	for(size_t i = 0; i < t.size; i++){
@@ -368,7 +354,7 @@ char getch__(void) // https://stackoverflow.com/a/7469410
 #endif
 }
 static void parseTrain(int argc, char **argv){
-	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
+	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(EXIT_FAILURE); }
 	set_log_level(LOG_INFO_);
 	srand(time(0));
 	generate_lut();
@@ -450,7 +436,7 @@ static void parseTrain(int argc, char **argv){
 }
 
 static void parsePlay(int argc, char **argv){
-	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(1); }
+	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(EXIT_FAILURE); }
 	set_log_level(LOG_INFO_);
 	settings_t settings = *get_settings();
 	srand(time(NULL));
@@ -557,18 +543,18 @@ int main(int argc, char **argv){
 		exit(EXIT_FAILURE);
 	}
 	option_t opts[] = {
-		{ parseCfg , "-C", "--config", get_settings() },
-		{ parseBool, "-f", "--free-formation", &get_settings()->free_formation },
-		{ parseBool, "-v", "--ignore-unmergeable", &get_settings()->ignore_f },
-		{ parseLL  , "-c", "--cores", &get_settings()->cores },
-		{ parseLL  , "-n", "--nox", &get_settings()->nox },
-		{ parseStr , "-t", "--tdir", &get_settings()->tdir },
-		{ parseStr , "-b", "--bdir", &get_settings()->bdir },
-		{ parseStr , "-i", "--initial", &get_settings()->initial },
-		{ parseLL  , "-e", "--end-gen", &get_settings()->end_gen },
-		{ parseLL  , "-E", "--end-solve", &get_settings()->end_solve },
-		{ parseStr , "-w", "--winstate", &get_settings()->winstates },
-		{ parseBool, "-d", "--delete", &get_settings()->delete_boards }
+		{ parseCfg , "-C", "--config", get_settings(), 0 },
+		{ parseBool, "-f", "--free-formation", &get_settings()->free_formation, 0 },
+		{ parseBool, "-v", "--ignore-unmergeable", &get_settings()->ignore_f, 0 },
+		{ parseLL  , "-c", "--cores", &get_settings()->cores, 0 },
+		{ parseLL  , "-n", "--nox", &get_settings()->nox, 0 },
+		{ parseStr , "-t", "--tdir", &get_settings()->tdir, 0 },
+		{ parseStr , "-b", "--bdir", &get_settings()->bdir, 0 },
+		{ parseStr , "-i", "--initial", &get_settings()->initial, 0 },
+		{ parseLL  , "-e", "--end-gen", &get_settings()->end_gen, 0 },
+		{ parseLL  , "-E", "--end-solve", &get_settings()->end_solve, 0 },
+		{ parseStr , "-w", "--winstate", &get_settings()->winstates, 0 },
+		{ parseBool, "-d", "--delete", &get_settings()->delete_boards, 0 }
 	};
 	parse(opts, sizeof(opts)/sizeof(opts[0]), commandOffset, argv);
 	for(size_t i = 0; i < sizeof(commands)/sizeof(commands[0]); i++){

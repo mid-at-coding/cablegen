@@ -6,6 +6,7 @@ typedef struct {
 	char *short_rep;
 	char *long_rep;
 	void *data;
+	size_t eq;
 } option_t;
 
 int parse(option_t *, size_t, int, char **);

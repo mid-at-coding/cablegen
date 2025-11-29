@@ -8,6 +8,7 @@ CCFLAGS_BENCH=-DPROD -Wno-format -DNOERRCHECK -lprofiler -g
 EXEC_FILE=cablegen
 BUILD=debug
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))
+CCFLAGS += -DVERSION=$$(git describe --tags --always)
 .PHONY: all clean
 
 ifeq ($(BUILD),prod)
