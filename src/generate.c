@@ -23,27 +23,6 @@
 #define VERSION_STR EXPAND_STR(VERSION)
 #ifdef BENCH
 FILE *bench_output;
-typedef struct _node{
-	enum {
-		ROOT,
-		LAYER,
-		MERGE,
-		MOVE,
-		SPAWN,
-		THREAD_GEN_MOVE,
-		THREAD_GEN_SPAWN,
-		THREAD_SORT_MOVE,
-		THREAD_SORT_SPAWN,
-	} kind;
-	struct timespec start;
-	struct timespec end;
-	struct _node *child;
-	struct _node *next_sibling;
-	size_t id;
-	size_t num_elements;
-} node;
-node times;
-node *curr_child;
 #endif
 
 typedef struct {
@@ -454,7 +433,6 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 	if(bench_output != stdout){ // don't close stdout xp
 		fclose(bench_output);
 	}
-	clock_gettime(CLOCK_MONOTONIC, &times.end);
 #endif
 }
 static_arr_info read_boards(const char *dir){
