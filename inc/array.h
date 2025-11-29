@@ -8,7 +8,7 @@
 #define BUCKETS_DIGITS 16
 #define BUCKETS_N 65536
 
-typedef struct{ // TODO might be worthwile to use the biggest bit in size instead of valid for packing purposes, especially for masked boards
+typedef struct{
 	bool valid;
 	uint64_t* bp;
 	uint64_t* sp;
@@ -48,4 +48,5 @@ dynamic_arr_info sarrtodarr(static_arr_info*);
 void destroy_darr(dynamic_arr_info* arr);
 void destroy_sarr(static_arr_info* arr);
 _BitInt(BUCKETS_DIGITS) get_first_digits(uint64_t tmp);
+void radix_sort(dynamic_arr_info *arr);
 #endif

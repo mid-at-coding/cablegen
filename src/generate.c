@@ -1,9 +1,9 @@
 #include "generate.h"
-#include "format.h"
 #include <bits/time.h>
 #define LOG_H_ENUM_PREFIX_
 #define LOG_H_NAMESPACE_ 
 #include "logging.h"
+#include "format.h"
 #include "board.h"
 #include "settings.h"
 #include <stddef.h>
@@ -82,10 +82,8 @@ void print_speed(uint64_t size){
 }
 
 void write_boards(const static_arr_info n, const char* fmt, const int layer){
-	size_t filename_size = strlen(fmt) + 10; // if there are more than 10 digits of layers i'll eat my shoe
-	char* filename = malloc_errcheck(sizeof(char) * filename_size);
-	snprintf(filename, filename_size, fmt, layer);
-	logf_out("Writing %lu boards to %s (%lu bytes)", LOG_INFO, n.size, filename, sizeof(uint64_t) * n.size);  // lol
+	char* filename = format_str(fmt, layer);
+	logf_out("Writing %lu boards to %s (%lu bytes)", LOG_INFO, n.size, filename, sizeof(uint64_t) * n.size);
 	FILE *file = fopen(filename, "wb");
 	if(file == NULL){
 		logf_out("Couldn't write to %s!", LOG_WARN, filename);

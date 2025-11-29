@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-char *format_str(char *fmt, ...){
+char *format_str(const char *fmt, ...){
 	va_list v, v1;
 	va_start(v, fmt);
 	va_copy(v1, v);
