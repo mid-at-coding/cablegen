@@ -1,4 +1,6 @@
 #include "array.h"
+#define LOG_H_ENUM_PREFIX_
+#define LOG_H_NAMESPACE_ 
 #include "logging.h"
 #include <stdlib.h>
 #include <stddef.h>
@@ -15,12 +17,12 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 	bool res = false;
 #ifndef NOERRCHECK
 	if(info->sp == NULL){
-		log_out("Invalid stack pointer, refusing to push\n", LOG_WARN_);
+		log_out("Invalid stack pointer, refusing to push\n", LOG_WARN);
 		info->valid = false;
 		return false;
 	}
 	if(info->valid == false){
-		log_out("Invalid array, refusing to push\n", LOG_WARN_);
+		log_out("Invalid array, refusing to push\n", LOG_WARN);
 		return false;
 	}
 #endif
@@ -30,7 +32,7 @@ bool push_back(dynamic_arr_info *info, uint64_t v){
 		info->bp = realloc(info->bp, info->size ? (info->size * REALLOC_MULT * sizeof(uint64_t)) : sizeof(uint64_t));
 #ifndef NOERRCHECK
 		if (info->bp == NULL){
-			log_out("Alloc failed! Download more ram!\n", LOG_ERROR_);
+			log_out("Alloc failed! Download more ram!\n", LOG_ERROR);
 			info->valid = false;
 			return false;
 		}
@@ -57,7 +59,7 @@ dynamic_arr_info init_darr(bool zero, size_t size){
 	else	
 		d.bp = malloc(sizeof(uint64_t) * size);
 	if (d.bp == NULL){
-		log_out("Alloc failed! Download more ram!\n", LOG_ERROR_);
+		log_out("Alloc failed! Download more ram!\n", LOG_ERROR);
 		d.valid = false;
 	}
 	d.sp = d.bp;
@@ -73,7 +75,7 @@ static_arr_info init_sarr(bool zero, size_t size){
 	else	
 		s.bp = malloc(sizeof(uint64_t) * size);
 	if (s.bp == NULL){
-		log_out("Alloc failed! Download more ram!\n", LOG_ERROR_);
+		log_out("Alloc failed! Download more ram!\n", LOG_ERROR);
 		s.valid = false;
 	}
 	s.size = size;
@@ -84,7 +86,7 @@ static_arr_info shrink_darr(dynamic_arr_info* info){
 	int new_size = info->sp - info->bp;
 #ifndef NOERRCHECK
 	if(info->valid == false){
-		log_out("Invalid array, refusing to shrink\n", LOG_WARN_);
+		log_out("Invalid array, refusing to shrink\n", LOG_WARN);
 		return (static_arr_info){.valid = false, .bp = info->bp, .size = info->sp - info->bp};
 	}
 #endif
@@ -98,7 +100,7 @@ static_arr_info shrink_darr(dynamic_arr_info* info){
 	uint64_t *new_bp = realloc(info->bp, sizeof(uint64_t) * new_size);
 #ifndef NOERRCHECK
 	if(new_bp == NULL){
-		log_out("Shrink failed!\n", LOG_ERROR_);
+		log_out("Shrink failed!\n", LOG_ERROR);
 		return (static_arr_info){.valid = false, .bp = info->bp, .size = info->sp - info->bp};
 	}
 #endif
@@ -107,7 +109,7 @@ static_arr_info shrink_darr(dynamic_arr_info* info){
 dynamic_arr_info concat(dynamic_arr_info * restrict arr1, dynamic_arr_info * restrict arr2){
 #ifndef NOERRCHECK
 	if(!arr1->valid || !arr2->valid){
-		log_out("Refusing to concatenate invalid arrays!", LOG_WARN_);
+		log_out("Refusing to concatenate invalid arrays!", LOG_WARN);
 		return *arr1;
 	}
 #endif
@@ -155,7 +157,7 @@ dynamic_arr_info concat_unique(dynamic_arr_info * restrict arr1, dynamic_arr_inf
 
 void deduplicate(dynamic_arr_info *s){ // TODO optimize this somehow
     if(s->sp == s->bp || s-> sp == s->bp + 1){
-		log_out("Can't sort one value!\n", LOG_DBG_);
+		log_out("Can't sort one value!\n", LOG_DBG);
 		return;
 	}
 	size_t size = s->sp - s->bp;
@@ -174,7 +176,7 @@ void deduplicate(dynamic_arr_info *s){ // TODO optimize this somehow
 
 void deduplicate_qs(dynamic_arr_info *s){
     if(s->sp == s->bp || s-> sp == s->bp + 1){
-		log_out("Can't sort one value!\n", LOG_DBG_);
+		log_out("Can't sort one value!\n", LOG_DBG);
 		return;
 	}
 	size_t size = s->sp - s->bp;
@@ -195,7 +197,7 @@ void* malloc_errcheck(size_t size){ // guaranteed to be non-null
 #ifndef NOERRCHECK
 	void* res = malloc(size);
 	if(res == NULL){
-		log_out("Alloc failed!", LOG_ERROR_);
+		log_out("Alloc failed!", LOG_ERROR);
 		exit(EXIT_FAILURE);
 		return NULL;
 	}
@@ -233,7 +235,7 @@ void destroy_buckets(buckets *b){
 	for(size_t i = 0; i < BUCKETS_N; i++){
 		destroy_darr(&b->bucket[i].d);
 		if(pthread_mutex_destroy(&b->bucket[i].mut)){
-			log_out("Could not destroy bucket mutex!", LOG_WARN_);
+			log_out("Could not destroy bucket mutex!", LOG_WARN);
 		}
 	}
 }

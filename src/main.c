@@ -7,6 +7,9 @@
 #include <sys/stat.h>
 #include "test.h"
 #include "parse.h"
+#define LOG_H_IMPLEMENTATION
+#define LOG_H_ENUM_PREFIX_
+#define LOG_H_NAMESPACE_ 
 #include "logging.h"
 #include "generate.h"
 #include "solve.h"
@@ -41,35 +44,35 @@ static int parseCfg(char *arg, void *data){
 }
 
 static void help(void){
-	log_out("Cablegen "VERSION_STR" by ember/emelia/cattodoameow", LOG_INFO_);
-	log_out("Usage: [cablegen] [flags] [command]", LOG_INFO_);
-	log_out("Flags:", LOG_INFO_);
-	log_out("-C=[FILE]   --config             -- specifies a config to read flags from, behaviour if unspecified is specified in the README", LOG_INFO_);
-	log_out("-f=[bool]   --free-formation     -- specifies whether unmergable (0xf) tiles should be allowed to move", LOG_INFO_);
-	log_out("-v=[bool]   --ignore-unmergeable -- treats unmergable tiles as walls", LOG_INFO_);
-	log_out("-c=[int]    --cores              -- chooses the amount of cores to use while generating or solving", LOG_INFO_);
-	log_out("-n=[int]    --nox                -- treats a tile with this tile on it as dead (0 to disable)", LOG_INFO_);
-	log_out("-b=[string] --bdir               -- select a directory for where to put generated positions", LOG_INFO_);
-	log_out("-t=[string] --tdir               -- select a directory for where to put solved tables", LOG_INFO_);
-	log_out("-i=[string] --initial            -- select a file to start generation from", LOG_INFO_);
-	log_out("-e=[int]    --end-gen            -- choose the tile sum to end generation", LOG_INFO_);
-	log_out("-E=[int]    --end-solve          -- choose the tile sum to end solving", LOG_INFO_);
-	log_out("-w=[string] --winstate           -- select a file to consider winstates from", LOG_INFO_);
-	log_out("-d=[bool]   --delete             -- delete positions after solving them", LOG_INFO_);
-	log_out("Commands:", LOG_INFO_);
-	log_out("help                             -- this output", LOG_INFO_);
-	log_out("generate                         -- generate boards", LOG_INFO_);
-	log_out("solve                            -- solve boards backwards", LOG_INFO_);
-	log_out("generate_solve                   -- generate boards and then solves", LOG_INFO_);
-	log_out("test                             -- run self test", LOG_INFO_);
-	log_out("read [FILE]                      -- read board(s) from a file", LOG_INFO_);
-	log_out("write [FILE] [BOARD] (BOARD) ... -- write board(s) to a file", LOG_INFO_);
-	log_out("lookup [BOARD]                   -- look a board up", LOG_INFO_);
-	log_out("lookup_spawn [BOARD]             -- look a board up", LOG_INFO_);
-	log_out("explore [TABLE]                  -- show all the solved boards in TABLE", LOG_INFO_);
-	log_out("train [BOARD]                    -- play a game starting with BOARD, optionally specifying CONFIG, with live feedback", LOG_INFO_);
-	log_out("play [BOARD]                     -- simulate an optimal game of BOARD with random spawns", LOG_INFO_);
-	log_out("benchmark                        -- benchmark cablegen", LOG_INFO_);
+	log_out("Cablegen "VERSION_STR" by ember/emelia/cattodoameow", LOG_INFO);
+	log_out("Usage: [cablegen] [flags] [command]", LOG_INFO);
+	log_out("Flags:", LOG_INFO);
+	log_out("-C=[FILE]   --config             -- specifies a config to read flags from, behaviour if unspecified is specified in the README", LOG_INFO);
+	log_out("-f=[bool]   --free-formation     -- specifies whether unmergable (0xf) tiles should be allowed to move", LOG_INFO);
+	log_out("-v=[bool]   --ignore-unmergeable -- treats unmergable tiles as walls", LOG_INFO);
+	log_out("-c=[int]    --cores              -- chooses the amount of cores to use while generating or solving", LOG_INFO);
+	log_out("-n=[int]    --nox                -- treats a tile with this tile on it as dead (0 to disable)", LOG_INFO);
+	log_out("-b=[string] --bdir               -- select a directory for where to put generated positions", LOG_INFO);
+	log_out("-t=[string] --tdir               -- select a directory for where to put solved tables", LOG_INFO);
+	log_out("-i=[string] --initial            -- select a file to start generation from", LOG_INFO);
+	log_out("-e=[int]    --end-gen            -- choose the tile sum to end generation", LOG_INFO);
+	log_out("-E=[int]    --end-solve          -- choose the tile sum to end solving", LOG_INFO);
+	log_out("-w=[string] --winstate           -- select a file to consider winstates from", LOG_INFO);
+	log_out("-d=[bool]   --delete             -- delete positions after solving them", LOG_INFO);
+	log_out("Commands:", LOG_INFO);
+	log_out("help                             -- this output", LOG_INFO);
+	log_out("generate                         -- generate boards", LOG_INFO);
+	log_out("solve                            -- solve boards backwards", LOG_INFO);
+	log_out("generate_solve                   -- generate boards and then solves", LOG_INFO);
+	log_out("test                             -- run self test", LOG_INFO);
+	log_out("read [FILE]                      -- read board(s) from a file", LOG_INFO);
+	log_out("write [FILE] [BOARD] (BOARD) ... -- write board(s) to a file", LOG_INFO);
+	log_out("lookup [BOARD]                   -- look a board up", LOG_INFO);
+	log_out("lookup_spawn [BOARD]             -- look a board up", LOG_INFO);
+	log_out("explore [TABLE]                  -- show all the solved boards in TABLE", LOG_INFO);
+	log_out("train [BOARD]                    -- play a game starting with BOARD, optionally specifying CONFIG, with live feedback", LOG_INFO);
+	log_out("play [BOARD]                     -- simulate an optimal game of BOARD with random spawns", LOG_INFO);
+	log_out("benchmark                        -- benchmark cablegen", LOG_INFO);
 }
 
 #if __has_include(<unistd.h>)
@@ -80,7 +83,7 @@ static void help(void){
 #warning "Sleep will not work on non posix, non-windows systems!"
 #endif
 static void parseGenerate(){
-	set_log_level(LOG_INFO_);
+	set_log_level(LOG_INFO);
 	settings_t settings = *get_settings();
 	char *default_postfix = "%d.boards";
 	char *fmt = format_str("%s%s", settings.bdir, default_postfix);
@@ -89,7 +92,7 @@ static void parseGenerate(){
 	static_arr_info boards = read_boards(settings.initial);
 	for(size_t i = 0; i < boards.size; i++){
 		if(get_sum(boards.bp[i]) != get_sum(boards.bp[0])){
-			log_out("Boards in Generate.initial have mixed sums, refusing to generate!", LOG_ERROR_);
+			log_out("Boards in Generate.initial have mixed sums, refusing to generate!", LOG_ERROR);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -99,8 +102,8 @@ static void parseGenerate(){
 	}
 
 	if(get_sum(boards.bp[0]) < get_settings()->end_solve){
-		log_out("Solving will continue below initial board, consider changing Solve.end!", LOG_WARN_);
-		log_out("Press Ctrl+C to cancel, otherwise beginning generation in 5 seconds...", LOG_WARN_);
+		log_out("Solving will continue below initial board, consider changing Solve.end!", LOG_WARN);
+		log_out("Press Ctrl+C to cancel, otherwise beginning generation in 5 seconds...", LOG_WARN);
 		// TODO: platform independent sleep
 #if __has_include(<unistd.h>)
 		sleep(5);
@@ -108,7 +111,7 @@ static void parseGenerate(){
 		Sleep(5000);
 #else
 #warning "Sleep will not work on non posix, non-windows systems!"
-		log_out("Just kidding! I don't know how to sleep on your stupid OS!", LOG_WARN_);
+		log_out("Just kidding! I don't know how to sleep on your stupid OS!", LOG_WARN);
 #endif
 	}
 	int layer = get_sum(boards.bp[0]);
@@ -117,7 +120,7 @@ static void parseGenerate(){
 }
 
 static void parseSolve(){
-	set_log_level(LOG_INFO_);
+	set_log_level(LOG_INFO);
 	settings_t settings = *get_settings();
 	char *default_board_postfix = "%d.boards";
 	char* posfmt = format_str("%s%s", settings.bdir, default_board_postfix);
@@ -127,12 +130,12 @@ static void parseSolve(){
 
 	static_arr_info boards = read_boards(settings.winstates);
 	if(boards.size < 1){
-		log_out(format_str("No boards in %s!", settings.initial), LOG_WARN_);
+		log_out(format_str("No boards in %s!", settings.initial), LOG_WARN);
 		return;
 	}
 	for(size_t i = 0; i < boards.size; i++){
 		if(get_sum(boards.bp[i]) > get_settings()->end_gen){
-			log_out("Winstate will never be generated, consider changing Generate.end!", LOG_WARN_);
+			log_out("Winstate will never be generated, consider changing Generate.end!", LOG_WARN);
 			output_board(boards.bp[i]);
 		}
 	}
@@ -142,7 +145,7 @@ static void parseSolve(){
 }
 
 static void parseWrite(int argc, char **argv){
-	if(argc < 2){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(EXIT_FAILURE); }
+	if(argc < 2){ log_out("Not enough arguments!", LOG_ERROR); help(); exit(EXIT_FAILURE); }
 	dynamic_arr_info boards = init_darr(0, 1);
 	for(int i = 2; i < argc; i++){
 		uint64_t board = strtoull(argv[i], NULL, 16); // interpret as hex string
@@ -191,13 +194,13 @@ static struct dirprob best(uint64_t board, table *n){
 }
 
 static void parseLookup(int argc, char **argv, bool spawn){ // TODO refactor
-	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(EXIT_FAILURE); }
+	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR); help(); exit(EXIT_FAILURE); }
 	char *tabledir;
 	settings_t settings = *get_settings();
 	tabledir = settings.tdir;
 	uint64_t board = strtoull(argv[2], NULL, 16); // interpret as hex string
 	uint64_t original = board;
-	set_log_level(LOG_INFO_);
+	set_log_level(LOG_INFO);
 	if(spawn){ // this board has a spawn on it
 		for(int i = 0; i < 16; i++){
 			if(GET_TILE(board, i) <= 2){
@@ -212,7 +215,7 @@ static void parseLookup(int argc, char **argv, bool spawn){ // TODO refactor
 	char* default_table_postfix = "%d.tables";
 	char* table_fmt = format_str("%s%s", tabledir, default_table_postfix);
 	char* tablestr = format_str(table_fmt, sum);
-	log_out(tablestr, LOG_TRACE_);
+	log_out(tablestr, LOG_TRACE);
 	
 	table *t  = malloc_errcheck(sizeof(table));
 	table *t2 = malloc_errcheck(sizeof(table));
@@ -230,9 +233,9 @@ static void parseLookup(int argc, char **argv, bool spawn){ // TODO refactor
 	if(spawn)
 		output_board(original);
 	else{
-		printf("Board(%0.10lf):\n", res);
+		logf_out("Board(%0.10lf):\n", LOG_INFO, res);
 		output_board(board);
-		printf("Spawns:\n");
+		logf_out("Spawns:\n", LOG_INFO);
 	}
 	for(int i = 0; i < 16; i++){
 		if(GET_TILE(board, i))
@@ -275,7 +278,7 @@ static void parseLookupMove(int argc, char **argv){
 
 
 static void parseExplore(int argc, char **argv){
-	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(EXIT_FAILURE); }
+	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR); help(); exit(EXIT_FAILURE); }
 	table *t = malloc_errcheck(sizeof(table));
 	read_table(t, argv[1]);
 	for(size_t i = 0; i < t->key.size; i++){
@@ -288,7 +291,7 @@ static void parseExplore(int argc, char **argv){
 }
 
 static void parseRead(int argc, char **argv){
-	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(EXIT_FAILURE); }
+	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR); help(); exit(EXIT_FAILURE); }
 
 	static_arr_info t = read_boards(argv[1]);
 	for(size_t i = 0; i < t.size; i++){
@@ -314,7 +317,7 @@ static void spawn(uint64_t *board){
 			spaces++;
 	}
 	if(spaces == 0){
-		log_out("No space!", LOG_INFO_);
+		log_out("No space!", LOG_INFO);
 		output_board(*board);
 		exit(0);
 	}
@@ -354,8 +357,8 @@ char getch__(void) // https://stackoverflow.com/a/7469410
 #endif
 }
 static void parseTrain(int argc, char **argv){
-	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(EXIT_FAILURE); }
-	set_log_level(LOG_INFO_);
+	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR); help(); exit(EXIT_FAILURE); }
+	set_log_level(LOG_INFO);
 	srand(time(0));
 	generate_lut();
 	double cumacc = 1;
@@ -371,7 +374,7 @@ static void parseTrain(int argc, char **argv){
 
 	struct dirprob res;
 	double tmp = 0;
-	log_out("Welcome to cablegen training mode! Move with WASD or HJKL", LOG_INFO_);
+	log_out("Welcome to cablegen training mode! Move with WASD or HJKL", LOG_INFO);
 	while(canMove(board)){
 		printf("-------------\n");
 		output_board(board);
@@ -406,19 +409,19 @@ static void parseTrain(int argc, char **argv){
 			if(validMove)
 				validMove = movedir(&board, move);
 			if(validMove == false)
-				log_out("Invalid move!", LOG_INFO_);
+				log_out("Invalid move!", LOG_INFO);
 		}while(!validMove);
 		table_dir_str = format_str(table_fmt, get_sum(board));
 		read_table(t, table_dir_str);
 		free(table_dir_str);
 		res = best(premove, t);
 		if(tmp == 1){
-			log_out("You Win!", LOG_INFO_);
+			log_out("You Win!", LOG_INFO);
 			printf("[INFO] Cumulative accuracy: %lf\n", cumacc);
 			exit(0);
 		}
 		if((res.prob - (tmp = lookup(board, t, true))) > 0.005){ // TODO setting?
-			log_out("Suboptimal move!", LOG_INFO_);
+			log_out("Suboptimal move!", LOG_INFO);
 			printf("[INFO] Table: %lf(%s), You %lf(%s)\n", res.prob, dirtos(res.d), tmp, dirtos(move));
 			printf("[INFO] Cumulative accuracy: %lf\n", cumacc *= (tmp/res.prob));
 			printf("[INFO] One step loss: %lf\n", 1 - (tmp/res.prob));
@@ -430,14 +433,14 @@ static void parseTrain(int argc, char **argv){
 		free(t->value.bp);
 	}
 	output_board(board);
-	log_out("You Died!", LOG_INFO_);
+	log_out("You Died!", LOG_INFO);
 	printf("[INFO] Cumulative accuracy: %lf\n", cumacc);
 	exit(0);
 }
 
 static void parsePlay(int argc, char **argv){
-	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR_); help(); exit(EXIT_FAILURE); }
-	set_log_level(LOG_INFO_);
+	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR); help(); exit(EXIT_FAILURE); }
+	set_log_level(LOG_INFO);
 	settings_t settings = *get_settings();
 	srand(time(NULL));
 	char *tdir = settings.tdir;
@@ -453,7 +456,7 @@ static void parsePlay(int argc, char **argv){
 	do{
 		output_board(board);
 		if(!canMove(board)){
-			log_out("AI died :(", LOG_INFO_);
+			log_out("AI died :(", LOG_INFO);
 			exit(0);
 		}
 		printf("\n");
@@ -463,7 +466,7 @@ static void parsePlay(int argc, char **argv){
 		struct dirprob tmp = best(board, t);
 		movedir(&board, tmp.d);
 		if(tmp.prob == 1.0f){
-			log_out("AI won!", LOG_INFO_);
+			log_out("AI won!", LOG_INFO);
 			exit(0);
 		}
 		free(t->key.bp);
@@ -479,20 +482,21 @@ static void parsePlay(int argc, char **argv){
 void benchmark(void){
 	dynamic_arr_info initial_arr = init_darr(0,2);
 	time_t curr = time(NULL);
-	log_out("Benchmarking multi-threaded generation (LL-256)", LOG_INFO_);
+	log_out("Benchmarking multi-threaded generation (LL-256)", LOG_INFO);
 	push_back(&initial_arr, 0x1000000021ff12ff);
 	push_back(&initial_arr, 0x1000000012ff21ff);
-	set_log_level(LOG_WARN_);
+	set_log_level(LOG_WARN);
 	generate(16, 300, ".benchmark/%d.boards", initial_arr.bp, initial_arr.sp - initial_arr.bp, get_settings()->cores, false, false, false);
-	set_log_level(LOG_INFO_);
+	set_log_level(LOG_INFO);
 	printf("Multi-threaded LL-256: %d seconds\n", (unsigned)difftime(time(NULL), curr));
 	static_arr_info winstates = init_sarr(0,1);
 	winstates.bp[0] = 0x0000000008ff0ff;
-	log_out("Benchmarking multi-threaded solving (LL-256)", LOG_INFO_);
+	exit(0);
+	log_out("Benchmarking multi-threaded solving (LL-256)", LOG_INFO);
 	curr = time(NULL);
-	set_log_level(LOG_WARN_);
+	set_log_level(LOG_WARN);
 	solve(300, 16, ".benchmark/%d.boards", ".benchmark/%d.tables", &winstates, get_settings()->cores, 0, 0, 0);
-	set_log_level(LOG_INFO_);
+	set_log_level(LOG_INFO);
 	printf("Multi-threaded LL-256: %d seconds\n", (unsigned)difftime(time(NULL), curr));
 }
 
@@ -506,7 +510,7 @@ static void testThunk(){
 }
 
 int main(int argc, char **argv){
-	set_log_level(LOG_INFO_);
+	set_log_level(LOG_INFO);
 	int commandOffset = -1;
 	struct {
 		char *name;
@@ -538,7 +542,7 @@ int main(int argc, char **argv){
 		}
 	}
 	if(commandOffset == -1){
-		log_out("Command required!", LOG_ERROR_);
+		log_out("Command required!", LOG_ERROR);
 		help();
 		exit(EXIT_FAILURE);
 	}

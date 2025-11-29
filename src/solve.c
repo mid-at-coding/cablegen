@@ -1,4 +1,6 @@
 #include "solve.h"
+#define LOG_H_ENUM_PREFIX_
+#define LOG_H_NAMESPACE_ 
 #include "logging.h"
 #include "board.h"
 #include "generate.h"
@@ -25,20 +27,14 @@ typedef struct {
 	pthread_t thread;
 } solve_core_data;
 void write_table(const table *t, const char *filename){ // TODO fix the speed situation
-	LOGIF(LOG_INFO_){
-		printf("[INFO] Writing %lu boards to %s (%lu bytes)\n", t->key.size, filename, 2 * sizeof(uint64_t) * t->key.size);  // lol
-	}
+	logf_out("Writing %lu boards to %s (%lu bytes)\n", LOG_INFO, t->key.size, filename, 2 * sizeof(uint64_t) * t->key.size);
 	FILE *file = fopen(filename, "wb");
 	if(file == NULL){
-		char *buf = malloc_errcheck(100);
-		snprintf(buf, 100, "Couldn't write to %s!\n", filename);
-		log_out(buf, LOG_WARN_);
-		free(buf);
+		logf_out("Couldn't write to %s!\n", LOG_WARN, filename);
 		return;
 	}
 	if(t->key.size != t->value.size){
-		log_out("Key and value size inequal, refusing to write!", LOG_WARN_);
-		printf("(%lu, %lu)/n", t->key.size, t->value.size);
+		logf_out("Key and value size inequal, refusing to write! (%lu, %lu)", LOG_WARN, t->key.size, t->value.size);
 		fclose(file);
 		return;
 	}
@@ -52,14 +48,11 @@ void read_table(table *t, const char *filename){ // TODO clean up this and read_
 	FILE *fp = fopen(filename, "rb");
 	size_t res = 0;
 	if(fp == NULL){
-		char *buf = malloc_errcheck(100);
-		snprintf(buf, 100, "Couldn't read %s!\n", filename);
+		logf_out("Couldn't read %s!\n", LOG_WARN, filename);
 		t->key = init_sarr(0,0);
 		t->value = init_sarr(0,0);
 		t->key.valid = false;
 		t->value.valid = false;
-		log_out(buf, LOG_WARN_);
-		free(buf);
 		return;
 	}
 	errno = 0;
@@ -78,12 +71,12 @@ void read_table(table *t, const char *filename){ // TODO clean up this and read_
 		goto read_err;
 	}
 	if(sz % 16 != 0) // 16 is 2 * 8 bytes is a double and a board
-		log_out("sz %%16 != 0, this is probably not a real table!\n", LOG_WARN_);
+		log_out("sz %%16 != 0, this is probably not a real table!\n", LOG_WARN);
 	t->key =   init_sarr(0, sz / 16);
 	t->value = init_sarr(0, sz / 16);
 	res = fread(t->key.bp, sizeof(uint64_t), sz / 16, fp);
 	if(ferror(fp) || res != sz / 16){
-		log_out("Error reading file!", LOG_WARN_);
+		log_out("Error reading file!", LOG_WARN);
 		fclose(fp);
 		t->key.valid = false;
 		t->value.valid = false;
@@ -91,20 +84,17 @@ void read_table(table *t, const char *filename){ // TODO clean up this and read_
 	}
 	res = fread(t->value.bp, sizeof(double), sz / 16, fp);
 	if(ferror(fp) || res != sz / 16){
-		log_out("Error reading file!", LOG_WARN_);
+		log_out("Error reading file!", LOG_WARN);
 		fclose(fp);
 		t->key.valid = false;
 		t->value.valid = false;
 		return;
 	}
-	char *buf = malloc_errcheck(100);
-	snprintf(buf, 100, "Read %ld bytes (%ld boards) from %s\n", sz, sz / 16, filename);
-	log_out(buf, LOG_DBG_);
-	free(buf);
+	logf_out("Read %ld bytes (%ld boards) from %s\n", LOG_INFO, sz, sz / 16, filename);
 	fclose(fp);
 	return;
 read_err:
-	log_out("Failed getting size of table!", LOG_ERROR_);
+	log_out("Failed getting size of table!", LOG_ERROR);
 	fclose(fp);
 	t->key = init_sarr(0,0);
 	t->value = init_sarr(0,0);
@@ -117,7 +107,7 @@ read_err:
 
 double lookup(uint64_t key, table *t, bool canonicalize){ // TODO get rid of these defines and make this nicer to adjust (+ test)
 	if(t->key.size == 0){
-		log_out("Empty table!", LOG_TRACE_);
+		log_out("Empty table!", LOG_TRACE);
 		return 0.0;
 	}
 	// binary search for the index of the key
@@ -130,50 +120,40 @@ double lookup(uint64_t key, table *t, bool canonicalize){ // TODO get rid of the
 	// use binary search tree cache
 	while (t->key.bp[midpoint] != key){
 #ifdef DBG
-		LOGIF(LOG_TRACE_){
-			printf("Current midpoint: %ld, %016lx(%ld)\n", midpoint, t->key.bp[midpoint], t->key.bp[midpoint]);
-		}
+		logf_out("Current midpoint: %ld, %016lx(%ld)\n", LOG_TRACE, midpoint, t->key.bp[midpoint], t->key.bp[midpoint]);
 #endif
 		if(top - bottom < SEARCH_STOP){
 #ifdef DBG
-			log_out("Switching to linear search", LOG_TRACE_);
+			log_out("Switching to linear search", LOG_TRACE);
 #endif
 			for(size_t i = bottom; i < top; i++){
 #ifdef DBG
-				LOGIF(LOG_TRACE_){
-					printf("Current board: %ld, %016lx(%ld)\n", i, t->key.bp[i], t->key.bp[i]);
-				}
+				logf_out("Current board: %ld, %016lx(%ld)\n", LOG_TRACE, i, t->key.bp[i], t->key.bp[i]);
 #endif
 				if(t->key.bp[i] == key){
 #ifdef DBG
-					log_out("Found board!", LOG_TRACE_);
+					log_out("Found board!", LOG_TRACE);
 #endif
 					// return value as a double
 					return *(double*)(&(t->value.bp[i]));
 				}
 			}
 #ifdef DBG
-			log_out("Couldn't find board!", LOG_TRACE_);
-			LOGIF(LOG_TRACE_){
-				printf("board: %016lx\n", key);
-			}
+			log_out("Couldn't find board!", LOG_TRACE);
+			logf_out("board: %016lx\n", LOG_TRACE, key);
 #endif
 			return 0.0;
 		}
 		if(t->key.bp[midpoint] < key){
 			bottom = midpoint;
 #ifdef DBG
-			LOGIF(LOG_TRACE_){
-				printf("t->key.bp[%ld] (%ld) < key (%ld)\n", midpoint, t->key.bp[midpoint], key);
-			}
+			logf_out("t->key.bp[%ld] (%ld) < key (%ld)\n", LOG_TRACE, midpoint, t->key.bp[midpoint], key);
 #endif
 		}
 		else{
 			top = midpoint;
 #ifdef DBG
-			LOGIF(LOG_TRACE_){
-				printf("t->key.bp[%ld] (%ld) >= key (%ld)\n", midpoint, t->key.bp[midpoint], key);
-			}
+			logf_out("t->key.bp[%ld] (%ld) >= key (%ld)\n", LOG_TRACE, midpoint, t->key.bp[midpoint], key);
 #endif
 		}
 		midpoint = (top + bottom) / 2;
@@ -207,9 +187,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	}
 	static_arr_info winstates = shrink_darr(&winstates_d);
 	for(size_t i = 0; i < winstates.size; i++){
-		LOGIF(LOG_DBG_){
-			printf("winstates %ld: %016lx\n", i, winstates.bp[i]);
-		}
+		logf_out("winstates %ld: %016lx\n", LOG_DBG, i, winstates.bp[i]);
 	}
 	table *n4 = malloc_errcheck(sizeof(table));
 	table *n2 = malloc_errcheck(sizeof(table));
@@ -290,7 +268,7 @@ double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstat
 	}
 	double res = 0;
 	if(spaces == 0)
-		log_out("No space!", LOG_TRACE_);
+		log_out("No space!", LOG_TRACE);
 	else
 		res = (0.9 * n2prob / spaces) + (0.1 * n4prob / spaces);
 	if(score && res == 0){ // if this board is a leaf or otherwise dead, return the score. this is the base case
@@ -312,7 +290,7 @@ void *solve_worker_thread(void *args){
 		double prob = 0;
 		if(satisfied(&sargs->n->key.bp[curr], sargs->winstates, sargs->nox, sargs->score)){
 			prob = 1;
-			log_out("Winstate!", LOG_TRACE_);
+			log_out("Winstate!", LOG_TRACE);
 		}
 		else
 			prob = expectimax(sargs->n->key.bp[curr], sargs->n2, sargs->n4, sargs->winstates, sargs->nox, sargs->score); // we should not be moving -- we're reading moves

@@ -1,5 +1,7 @@
 #include "board.h"
 #include "array.h"
+#define LOG_H_ENUM_PREFIX_
+#define LOG_H_NAMESPACE_ 
 #include "logging.h"
 #include "settings.h"
 #include <stdint.h>
@@ -15,7 +17,7 @@ bool   _locked_lut[2][UINT16_MAX + 1];
 uint16_t lookup_lut(uint16_t l){
 	static bool init = false;
 	if(!init){
-		set_log_level(LOG_ERROR_);
+		set_log_level(LOG_ERROR);
 		generate_lut();
 		init = true;
 	}
@@ -25,7 +27,7 @@ uint16_t lookup_lut12(uint16_t l){
 	l = 0xfff0 & l;
 	static bool init = false;
 	if(!init){
-		set_log_level(LOG_ERROR_);
+		set_log_level(LOG_ERROR);
 		generate_lut();
 		init = true;
 	}

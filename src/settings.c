@@ -1,6 +1,8 @@
 #include "settings.h"
 #include "cfgpath.h"
 #include "ini.h"
+#define LOG_H_ENUM_PREFIX_
+#define LOG_H_NAMESPACE_ 
 #include "logging.h"
 #include "array.h"
 #include <stdlib.h>
@@ -51,7 +53,7 @@ settings_t *get_settings(void){
 	if(settings_read)
 		return &res;
 	settings_read = true; 
-	log_out("Reading settings...", LOG_DBG_);
+	log_out("Reading settings...", LOG_DBG);
 	get_bool_setting("free_formation", &res.free_formation);
 	get_bool_setting("ignore_f", &res.ignore_f);
 	get_int_setting("cores", &res.cores); 
@@ -90,47 +92,44 @@ ini_t* get_cfg(void){
 		get_user_config_file(cfgdir, sizeof(cfgdir), "cablegen");
 	}
 	if (cfgdir[0] == 0) {
-		log_out("Could not find config directory!", LOG_WARN_);
+		log_out("Could not find config directory!", LOG_WARN);
 		return NULL;
 	}
-	log_out("Loading config from: ", LOG_DBG_);
-	log_out(cfgdir, LOG_DBG_);
+	log_out("Loading config from: ", LOG_DBG);
+	log_out(cfgdir, LOG_DBG);
 	return ini_load(cfgdir);
 }
 void change_config(char *cfg){	
 	if(cfg == NULL || strlen(cfg) >= MAX_PATH){
-		log_out("Invalid config file location!", LOG_WARN_);
+		log_out("Invalid config file location!", LOG_WARN);
 		return;
 	}
 	settings_read = false; // update settings reading
 	custom_path = true;
 	memcpy(cfgdir, cfg, strlen(cfg) + 1);
-	log_out("New config dir: ", LOG_DBG_);
-	log_out(cfgdir, LOG_DBG_);
+	log_out("New config dir: ", LOG_DBG);
+	log_out(cfgdir, LOG_DBG);
 }
 void init_settings(void){
 	char buf[MAX_PATH];
 	if(!getcwd_(buf, MAX_PATH)){
-		log_out("Could not get current working directory!", LOG_WARN_);
+		log_out("Could not get current working directory!", LOG_WARN);
 		return;
 	}
 	if(strlen(buf) + strlen("cablegen.conf") >= MAX_PATH || errno){
-		log_out("Invalid config file location!", LOG_WARN_);
+		log_out("Invalid config file location!", LOG_WARN);
 		return;
 	}
-	log_out("Reading settings from conf dir", LOG_TRACE_);
+	log_out("Reading settings from conf dir", LOG_TRACE);
 	get_settings();
 	strcat(buf, "/cablegen.conf");
-	log_out("Reading settings from local dir", LOG_TRACE_);
-	log_out(buf, LOG_TRACE_);
+	log_out("Reading settings from local dir", LOG_TRACE);
+	log_out(buf, LOG_TRACE);
 	change_config(buf);
 	get_settings();
 }
 static int get_str_setting(const char *key, char **str){
-	int e = get_str_setting_section(key, "Cablegen", str);
-	if(e)
-		return e;
-	return 0;
+	return get_str_setting_section(key, "Cablegen", str);
 }
 static int get_str_setting_section (const char *key, char *section, char** str){
 	ini_t* cfg = get_cfg();
@@ -139,8 +138,8 @@ static int get_str_setting_section (const char *key, char *section, char** str){
 	}
 	char *res = ini_get(cfg, section, key);
 	if(res == NULL){
-		log_out("Could not find property!", LOG_DBG_);
-		log_out(key, LOG_DBG_);
+		log_out("Could not find property!", LOG_DBG);
+		log_out(key, LOG_DBG);
 		ini_free(cfg);
 		return 1;
 	}

@@ -4,11 +4,11 @@ CCFLAGS_SHARED = -Wall -Wpedantic -Wextra -Wuninitialized -O2 -pthread -fno-stri
 CCFLAGS= -g -pg -pthread -fno-strict-aliasing -std=c23 -DDBG -fsanitize=address,undefined
 LDFLAGS= -lc
 CCFLAGS_PROD=-DPROD -Wno-format -DNOERRCHECK -march=native -ffast-math
-CCFLAGS_BENCH=-DPROD -Wno-format -DNOERRCHECK -lprofiler -g
+CCFLAGS_BENCH=-DPROD -Wno-format -DNOERRCHECK -lprofiler -g -DBENCH
 EXEC_FILE=cablegen
 BUILD=debug
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))
-CCFLAGS += -DVERSION=$$(git describe --tags --always)
+CCFLAGS_SHARED += -DVERSION=$$(git describe --tags --always)
 .PHONY: all clean
 
 ifeq ($(BUILD),prod)
