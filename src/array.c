@@ -260,3 +260,45 @@ bool push_back_into_bucket(buckets *b, uint64_t d){
 	pthread_mutex_unlock(&b->bucket[radix].mut);
 	return res;
 }
+
+dynamic_arr_info deduplicate_threads(dynamic_arr_info *arrs, size_t core_count){
+	if(core_count > 1024){
+		logf_out("Core count (%ld) > 1024, this won't work!", LOG_ERROR);
+		exit(EXIT_FAILURE);
+	}
+	size_t offsets[1024] = {0};
+	size_t sizes[1024];
+	size_t array_len = 0;
+	for(size_t i = 0; i < core_count; i++){
+		sizes[i] = arrs[i].sp - arrs[i].bp;
+		array_len += sizes[i];
+	}
+	dynamic_arr_info res = init_darr(0, array_len / 2);
+	bool under = true;
+	uint64_t min;
+	uint64_t consumed = 0;
+	while(true){
+		under = false;
+		min = UINT64_MAX;
+		for(size_t i = 0; i < core_count; i++){
+			if(offsets[i] < sizes[i]){
+				under = true;
+			}
+			else{
+				continue;
+			}
+			if(arrs[i].bp[offsets[i]] < min){
+				min = arrs[i].bp[offsets[i]];
+				consumed = i;
+			}
+		}
+		offsets[consumed]++;
+		if(!under)
+			break;
+		if(res.sp != res.bp && min == *(res.sp - 1)){
+			continue;
+		}
+		push_back(&res, min);
+	}
+	return res;
+}

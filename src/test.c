@@ -1,3 +1,4 @@
+#include "array.h"
 #include "generate.h"
 #include "solve.h"
 #define LOG_H_ENUM_PREFIX_
@@ -142,21 +143,32 @@ bool test_dedupe(void){
 	push_back(&d, 5);
 	push_back(&d, 4);
 	push_back(&d, 5);
-	for(int i = 1; i < 5; i++){
-		deduplicate(&d);
-		for(uint64_t *a = d.bp; a < d.sp; a++){
-			for(uint64_t *b = d.bp; b < d.sp; b++){
-				if(*a == *b && a != b){
-					log_out("Failed!", LOG_ERROR);
-					set_log_level(LOG_INFO);
-					return false;
-				}
+	deduplicate(&d);
+	for(uint64_t *a = d.bp; a < d.sp; a++){
+		logf_out("\t%p: %zu", LOG_INFO, a, *a);
+		for(uint64_t *b = d.bp; b < d.sp; b++){
+			if(*a == *b && a != b){
+				log_out("Failed!", LOG_ERROR);
+				set_log_level(LOG_INFO);
+				return false;
 			}
 		}
+	}
+	log_out("Testing multi-array merging.", LOG_INFO);
+	dynamic_arr_info d2 = init_darr(false, 0);
+	push_back(&d2, 1);
+	push_back(&d2, 5);
+	push_back(&d2, 9);
+	dynamic_arr_info darrs[2] = { d, d2 };
+	dynamic_arr_info res = deduplicate_threads(darrs, 2);
+	for(uint64_t *curr = res.bp; curr < res.sp; curr++){
+		logf_out("\t%p: %zu", LOG_INFO, curr, *curr);
 	}
 	log_out("No error reported.", LOG_INFO);
 	set_log_level(LOG_INFO);
 	destroy_darr(&d);
+	destroy_darr(&d2);
+	destroy_darr(&res);
 	return true;
 }
 

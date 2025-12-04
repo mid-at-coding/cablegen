@@ -1,4 +1,5 @@
 #include "generate.h"
+#include "array.h"
 #ifdef BENCH
 #include "bench.h"
 #endif
@@ -197,7 +198,7 @@ void *generation_thread_spawn(void* data){
 			}
 		}
 	}
-	deduplicate_qs(&args->n2); // TODO optimize
+	deduplicate_qs(&args->n2); // TODO don't dedupe, just sort
 	deduplicate_qs(&args->n4);
 	return NULL;
 }
@@ -264,13 +265,21 @@ static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int 
 	wait(cores, core_count);
 #ifdef BENCH
 	end_node(GEN_MOVE);
-	start_node(COMBINE_MOVE);
 #endif
 	destroy_darr(n);
-	*n = init_darr(0, 0);
-	for(size_t i = 0; i < core_count; i++){
-		*n = concat(n, &cores[i].nret);
+	dynamic_arr_info *arrs = malloc(sizeof(dynamic_arr_info) * core_count);
+	if(!arrs){
+		log_out("Couldn't allocate arrays!", LOG_ERROR);
+		exit(EXIT_FAILURE);
 	}
+	for(size_t i = 0; i < core_count; i++){
+		arrs[i] = cores[i].nret;
+	}
+	*n = deduplicate_threads(arrs, core_count);
+	for(size_t i = 0; i < core_count; i++){
+		destroy_darr(arrs + i);
+	}
+	free(arrs);
 }
 
 void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, 
@@ -287,12 +296,6 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	// wait for moves to be done
 	replace_n(n, cores, core_count); // this array currently holds boards where we just spawned -- these are never our responsibility
 #ifdef BENCH
-	end_node(COMBINE_MOVE);
-	start_node(DEDUPE_MOVE);
-#endif
-	deduplicate(n);
-#ifdef BENCH
-	end_node(DEDUPE_MOVE);
 	end_node(MOVE);
 #endif
 	// spawn

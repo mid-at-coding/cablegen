@@ -49,4 +49,5 @@ void destroy_darr(dynamic_arr_info* arr);
 void destroy_sarr(static_arr_info* arr);
 _BitInt(BUCKETS_DIGITS) get_first_digits(uint64_t tmp);
 void radix_sort(dynamic_arr_info *arr);
+dynamic_arr_info deduplicate_threads(dynamic_arr_info *arrs, size_t core_count);
 #endif
