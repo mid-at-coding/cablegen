@@ -302,8 +302,12 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 #endif
 	init_threads(n, core_count, spawn, cores, nox, layer);
 	// write while waiting for spawns
+#ifdef BENCH
+	start_node(WRITE);
+#endif
 	write_boards((static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp}, fmt_dir, layer);
 #ifdef BENCH
+	end_node(WRITE);
 	end_node(GEN_SPAWN);
 	start_node(COMBINE_SPAWN);
 #endif
