@@ -1,4 +1,7 @@
 #include "generate.h"
+#ifdef BENCH
+#include "bench.h"
+#endif
 #include <bits/time.h>
 #define LOG_H_ENUM_PREFIX_
 #define LOG_H_NAMESPACE_ 
@@ -13,17 +16,9 @@
 #include <string.h>
 #include <fcntl.h>
 #include <time.h>
-#ifdef BENCH
-	struct timespec startT, endT;
-	size_t startC, endC;
-	int clayer;
-#endif
 #define STR(x) #x
 #define EXPAND_STR(x) STR(x)
 #define VERSION_STR EXPAND_STR(VERSION)
-#ifdef BENCH
-FILE *bench_output;
-#endif
 
 typedef struct {
 	static_arr_info n; 
@@ -268,40 +263,22 @@ static void wait(arguments *cores, size_t core_count){
 static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int core_count){
 	wait(cores, core_count);
 #ifdef BENCH
-	clock_gettime(CLOCK_MONOTONIC, &endT);
-	struct timespec mergeS, mergeE;
-	clock_gettime(CLOCK_MONOTONIC, &mergeS);
+	end_node(GEN_MOVE);
+	start_node(COMBINE_MOVE);
 #endif
 	destroy_darr(n);
 	*n = init_darr(0, 0);
 	for(size_t i = 0; i < core_count; i++){
 		*n = concat(n, &cores[i].nret);
 	}
-#ifdef BENCH
-	clock_gettime(CLOCK_MONOTONIC, &mergeE);
-	struct timespec diff = { 
-		.tv_sec  = endT.tv_sec  - startT.tv_sec,
-		.tv_nsec = endT.tv_nsec - startT.tv_nsec };
-	long totalns = (1'000'000'000 * diff.tv_sec) + diff.tv_nsec;
-	endC = n->sp - n->bp;
-	logf_f(bench_output, "\tm%d [label=\"Moving (N: %ld, T(ms): %ld)\"];", LOG_NONE, clayer, startC - endC, totalns / 1000);
-	logf_f(bench_output, "\tl%d -- m%d;", LOG_NONE, clayer, clayer);
-	diff = (struct timespec){ 
-		.tv_sec  = mergeE.tv_sec  - mergeS.tv_sec,
-		.tv_nsec = mergeE.tv_nsec - mergeS.tv_nsec };
-	totalns = (1'000'000'000 * diff.tv_sec) + diff.tv_nsec;
-	logf_f(bench_output, "\tmergem%d [label=\"Merging moves (T(ms): %ld)\"];", LOG_NONE, clayer, totalns / 1000);
-	logf_f(bench_output, "\tm%d -- mergem%d;", LOG_NONE, clayer, clayer);
-#endif
 }
 
 void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, 
 		const unsigned core_count, const char *fmt_dir, const int layer, arguments *cores, char nox){
 	// move
 #ifdef BENCH
-	startC = n->sp - n->bp;
-	clayer = layer;
-	clock_gettime(CLOCK_MONOTONIC, &startT);
+	start_node(MOVE);
+	start_node(GEN_MOVE);
 #endif
 	if(get_settings()->prune)
 		init_threads(n, core_count, movep, cores, nox, layer);
@@ -309,81 +286,49 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 		init_threads(n, core_count, move, cores, nox, layer);
 	// wait for moves to be done
 	replace_n(n, cores, core_count); // this array currently holds boards where we just spawned -- these are never our responsibility
+#ifdef BENCH
+	end_node(COMBINE_MOVE);
+	start_node(DEDUPE_MOVE);
+#endif
 	deduplicate(n);
+#ifdef BENCH
+	end_node(DEDUPE_MOVE);
+	end_node(MOVE);
+#endif
 	// spawn
 #ifdef BENCH
-	startC = n2->sp - n2->bp + n4->sp - n4->bp;
-	clock_gettime(CLOCK_MONOTONIC, &startT);
+	start_node(SPAWN);
+	start_node(GEN_SPAWN);
 #endif
 	init_threads(n, core_count, spawn, cores, nox, layer);
 	// write while waiting for spawns
-#ifdef BENCH
-	struct timespec writeS, writeE;
-	clock_gettime(CLOCK_MONOTONIC, &writeS);
-#endif
 	write_boards((static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp}, fmt_dir, layer);
 #ifdef BENCH
-	clock_gettime(CLOCK_MONOTONIC, &writeE);
+	end_node(GEN_SPAWN);
+	start_node(COMBINE_SPAWN);
 #endif
 	wait(cores,core_count);
-#ifdef BENCH
-	clock_gettime(CLOCK_MONOTONIC, &endT);
-	struct timespec diff = { 
-		.tv_sec  = endT.tv_sec  - startT.tv_sec,
-		.tv_nsec = endT.tv_nsec - startT.tv_nsec };
-	long totalns = (1'000'000'000 * diff.tv_sec) + diff.tv_nsec;
-	startC = n2->sp - n2->bp + n4->sp - n4->bp;
-	logf_f(bench_output, "\ts%d [label=\"Spawning (N: %ld, T(ms): %ld)\"];", LOG_NONE, clayer, startC - endC, totalns / 1000);
-	logf_f(bench_output, "\tl%d -- s%d;", LOG_NONE, clayer, clayer);
-	diff = (struct timespec){ 
-		.tv_sec  = writeE.tv_sec  - writeS.tv_sec,
-		.tv_nsec = writeE.tv_nsec - writeS.tv_nsec };
-	totalns = (1'000'000'000 * diff.tv_sec) + diff.tv_nsec;
-	logf_f(bench_output, "\twrite%d [label=\"Writing spawns (T(ms): %ld)\"];", LOG_NONE, clayer, totalns / 1000);
-	logf_f(bench_output, "\ts%d -- write%d;", LOG_NONE, clayer, clayer);
-#endif
-#ifdef BENCH
-	clock_gettime(CLOCK_MONOTONIC, &startT);
-#endif
 	// concatenate spawns
 	for(size_t i = 0; i < core_count; i++){
 		*n2 = concat(n2, &cores[i].n2);
 		*n4 = concat(n4, &cores[i].n4);
 	}
 #ifdef BENCH
-	clock_gettime(CLOCK_MONOTONIC, &endT);
-	diff = (struct timespec){ 
-		.tv_sec  = endT.tv_sec  - startT.tv_sec,
-		.tv_nsec = endT.tv_nsec - startT.tv_nsec };
-	totalns = (1'000'000'000 * diff.tv_sec) + diff.tv_nsec;
-	logf_f(bench_output, "\tmerges%d [label=\"Merging spawns (T(ms): %ld)\"];", LOG_NONE, clayer, totalns / 1000);
-	logf_f(bench_output, "\ts%d -- merges%d;", LOG_NONE, clayer, clayer);
-	clock_gettime(CLOCK_MONOTONIC, &startT);
+	end_node(COMBINE_SPAWN);
+	start_node(DEDUPE_SPAWN);
 #endif
 	deduplicate(n4);
 	deduplicate(n2);
 #ifdef BENCH
-	clock_gettime(CLOCK_MONOTONIC, &endT);
-	diff = (struct timespec){ 
-		.tv_sec  = endT.tv_sec  - startT.tv_sec,
-		.tv_nsec = endT.tv_nsec - startT.tv_nsec };
-	totalns = (1'000'000'000 * diff.tv_sec) + diff.tv_nsec;
-	logf_f(bench_output, "\tdds%d [label=\"Deduping spawns (T(ms): %ld)\"];", LOG_NONE, clayer, totalns / 1000);
-	logf_f(bench_output, "\ts%d -- dds%d;", LOG_NONE, clayer, clayer);
+	end_node(DEDUPE_SPAWN);
+	end_node(SPAWN);
 #endif
 }
 void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, 
 		const unsigned core_count, bool prespawn, char nox, bool free_formation){
-	// GENERATE: write all sub-boards where it is the computer's move	
+	// GENERATE: write all sub-boards where it is the computer's move
 #ifdef BENCH
-	char *bench_output_name = format_str("%s.bench.gv", VERSION_STR);
-	bench_output = fopen(bench_output_name, "w");    
-	if (!bench_output){
-		logf_out("Couldn't open file %s for benchmarking performance, sending to stdout instead", LOG_WARN, bench_output_name);
-		bench_output = stdout;
-	}
-	logf_f(bench_output, "// Benchmarking generation", LOG_NONE);
-	free(bench_output_name);
+	open_bench("bench/"VERSION_STR".gv", "generate");
 #endif
 	generate_lut();
 	static const size_t DARR_INITIAL_SIZE = 100;
@@ -404,33 +349,26 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 		prespawn_args.end = prespawn_args.n.size;
 		generation_thread_spawn(&prespawn_args);
 	}
+	for(int i = start; i <= 50; i += 2){
 #ifdef BENCH
-	logf_f(bench_output, "graph generation{\n", LOG_NONE);
-	logf_f(bench_output, "\troot [label=\"Generation\"];", LOG_NONE);
+		set_layer(i);
+		start_node(GEN_LAYER);
 #endif
-	for(int i = start; i <= end; i += 2){
 		generate_layer(&n, &n2, &n4, core_count, fmt, i, cores, nox);
-		destroy_darr(&n);
 #ifdef BENCH
-		logf_f(bench_output, "\tl%d [label=\"Layer %d (n=%d)\"];", LOG_NONE, i, i, n2.sp - n2.bp + n4.sp - n4.bp);
-//		logf_f(bench_output, "\tl%d -- root;", LOG_NONE, i, i);
+		end_node(GEN_LAYER);
 #endif
+		destroy_darr(&n);
 		n = n2;
 		n2 = n4;
 		n4 = init_darr(false, DARR_INITIAL_SIZE);
 	}
-#ifdef BENCH
-	logf_f(bench_output, "}\n", LOG_NONE);
-	fflush(bench_output);
-#endif
 	destroy_darr(&n);
 	destroy_darr(&n2);
 	destroy_darr(&n4);
 	free(cores);
 #ifdef BENCH
-	if(bench_output != stdout){ // don't close stdout xp
-		fclose(bench_output);
-	}
+	end_bench();
 #endif
 }
 static_arr_info read_boards(const char *dir){
