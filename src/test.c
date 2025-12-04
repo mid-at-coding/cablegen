@@ -159,8 +159,10 @@ bool test_dedupe(void){
 	push_back(&d2, 1);
 	push_back(&d2, 5);
 	push_back(&d2, 9);
-	dynamic_arr_info darrs[2] = { d, d2 };
-	dynamic_arr_info res = deduplicate_threads(darrs, 2);
+	dynamic_arr_info d3 = init_darr(false, 0);
+	push_back(&d3, 0);
+	dynamic_arr_info darrs[3] = { d, d2, d3};
+	dynamic_arr_info res = deduplicate_threads(darrs, 3);
 	for(uint64_t *curr = res.bp; curr < res.sp; curr++){
 		logf_out("\t%p: %zu", LOG_INFO, curr, *curr);
 	}
@@ -168,6 +170,7 @@ bool test_dedupe(void){
 	set_log_level(LOG_INFO);
 	destroy_darr(&d);
 	destroy_darr(&d2);
+	destroy_darr(&d3);
 	destroy_darr(&res);
 	return true;
 }

@@ -152,7 +152,7 @@ void *generation_thread_move(void* data){ // n, nret
 			}
 		}
 	}
-	deduplicate_qs(&args->nret);
+	qs_sort_h(args->nret.bp, args->nret.sp - args->nret.bp);
 	return NULL;
 }
 
@@ -175,7 +175,7 @@ void *generation_thread_movep(void* data){ // n, nret, stsl, ltc, smallest_large
 			}
 		}
 	}
-	deduplicate_qs(&args->nret);
+	qs_sort_h(args->nret.bp, args->nret.sp - args->nret.bp);
 	return NULL;
 }
 
@@ -198,8 +198,8 @@ void *generation_thread_spawn(void* data){
 			}
 		}
 	}
-	deduplicate_qs(&args->n2); // TODO don't dedupe, just sort
-	deduplicate_qs(&args->n4);
+	qs_sort_h(args->n2.bp, args->n2.sp - args->n2.bp);
+	qs_sort_h(args->n4.bp, args->n4.sp - args->n4.bp);
 	return NULL;
 }
 
@@ -261,12 +261,23 @@ static void wait(arguments *cores, size_t core_count){
 	}
 }
 
-static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int core_count){
-	wait(cores, core_count);
-#ifdef BENCH
-	end_node(GEN_MOVE);
-#endif
-	destroy_darr(n);
+dynamic_arr_info *get_darr_arr_and(const arguments *cores, const size_t core_count, const size_t extra, const bool n2){
+	dynamic_arr_info *arrs = malloc(sizeof(dynamic_arr_info) * (core_count + extra));
+	if(!arrs){
+		log_out("Couldn't allocate arrays!", LOG_ERROR);
+		exit(EXIT_FAILURE);
+	}
+	for(size_t i = 0; i < core_count; i++){
+		if(n2){
+			arrs[i] = cores[i].n2;
+		}
+		else{
+			arrs[i] = cores[i].n4;
+		}
+	}
+	return arrs;
+}
+dynamic_arr_info *get_darr_arr(const arguments *cores, const size_t core_count){
 	dynamic_arr_info *arrs = malloc(sizeof(dynamic_arr_info) * core_count);
 	if(!arrs){
 		log_out("Couldn't allocate arrays!", LOG_ERROR);
@@ -275,6 +286,19 @@ static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int 
 	for(size_t i = 0; i < core_count; i++){
 		arrs[i] = cores[i].nret;
 	}
+	return arrs;
+}
+
+static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int core_count){
+	wait(cores, core_count);
+#ifdef BENCH
+	end_node(GEN_MOVE);
+	start_node(COMBINE_MOVE);
+	start_node(DEDUPE_MOVE);
+#endif
+	destroy_darr(n);
+	dynamic_arr_info *arrs = get_darr_arr(cores, core_count);
+
 	*n = deduplicate_threads(arrs, core_count);
 	for(size_t i = 0; i < core_count; i++){
 		destroy_darr(arrs + i);
@@ -296,6 +320,8 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	// wait for moves to be done
 	replace_n(n, cores, core_count); // this array currently holds boards where we just spawned -- these are never our responsibility
 #ifdef BENCH
+	end_node(COMBINE_MOVE);
+	end_node(DEDUPE_MOVE);
 	end_node(MOVE);
 #endif
 	// spawn
@@ -313,20 +339,26 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	end_node(WRITE);
 	end_node(GEN_SPAWN);
 	start_node(COMBINE_SPAWN);
+	start_node(DEDUPE_SPAWN);
 #endif
 	wait(cores,core_count);
 	// concatenate spawns
-	for(size_t i = 0; i < core_count; i++){
-		*n2 = concat(n2, &cores[i].n2);
-		*n4 = concat(n4, &cores[i].n4);
+	dynamic_arr_info *arrs = get_darr_arr_and(cores, core_count, 1, true);
+	arrs[core_count] = *n2;
+	*n2 = deduplicate_threads(arrs, core_count + 1);
+	for(size_t i = 0; i < core_count + 1; i++){
+		destroy_darr(arrs + i);
 	}
+	free(arrs);
+	arrs = get_darr_arr_and(cores, core_count, 1, false);
+	arrs[core_count] = *n4;
+	*n4 = deduplicate_threads(arrs, core_count + 1);
+	for(size_t i = 0; i < core_count + 1; i++){
+		destroy_darr(arrs + i);
+	}
+	free(arrs);
 #ifdef BENCH
 	end_node(COMBINE_SPAWN);
-	start_node(DEDUPE_SPAWN);
-#endif
-	deduplicate(n4);
-	deduplicate(n2);
-#ifdef BENCH
 	end_node(DEDUPE_SPAWN);
 	end_node(SPAWN);
 #endif

@@ -161,7 +161,7 @@ void deduplicate(dynamic_arr_info *s){ // TODO optimize this somehow
 		return;
 	}
 	size_t size = s->sp - s->bp;
-    dynamic_arr_info res = init_darr(0, 0.7 * size); // assume it's around 30% dupes
+	dynamic_arr_info res = init_darr(0, 0.7 * size); // assume it's around 30% dupes
 	uint64_tim_sort(s->bp, size);
 	push_back(&res, *s->bp);
 	for(uint64_t *curr = s->bp + 1; curr < s->sp; curr++){
@@ -180,7 +180,7 @@ void deduplicate_qs(dynamic_arr_info *s){
 		return;
 	}
 	size_t size = s->sp - s->bp;
-    dynamic_arr_info res = init_darr(0, 0.7 * size); // assume it's around 30% dupes
+	dynamic_arr_info res = init_darr(0, 0.7 * size); // assume it's around 30% dupes
 	uint64_quick_sort(s->bp, size);
 	push_back(&res, *s->bp);
 	for(uint64_t *curr = s->bp + 1; curr < s->sp; curr++){
@@ -301,4 +301,8 @@ dynamic_arr_info deduplicate_threads(dynamic_arr_info *arrs, size_t core_count){
 		push_back(&res, min);
 	}
 	return res;
+}
+
+void qs_sort_h(uint64_t *bp, size_t size){
+	uint64_quick_sort(bp, size);
 }
