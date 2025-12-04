@@ -349,7 +349,7 @@ void generate(const int start, const int end, const char* fmt, uint64_t* initial
 		prespawn_args.end = prespawn_args.n.size;
 		generation_thread_spawn(&prespawn_args);
 	}
-	for(int i = start; i <= 50; i += 2){
+	for(int i = start; i <= end; i += 2){
 #ifdef BENCH
 		set_layer(i);
 		start_node(GEN_LAYER);
