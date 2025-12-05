@@ -1,5 +1,4 @@
 #include "bench.h"
-#include <bits/time.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>

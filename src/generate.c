@@ -3,7 +3,7 @@
 #ifdef BENCH
 #include "bench.h"
 #endif
-#include <bits/time.h>
+#include <time.h>
 #define LOG_H_ENUM_PREFIX_
 #define LOG_H_NAMESPACE_ 
 #include "logging.h"
@@ -223,6 +223,7 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 		case movep:
 			cores[i].stsl = get_settings()->stsl;
 			cores[i].ltc = get_settings()->ltc;
+			__attribute__ ((fallthrough));
 		case move:
 			cores[i].nret = init_darr(0, 3 * (n->sp - n->bp) / core_count);
 			break;

@@ -262,12 +262,13 @@ bool push_back_into_bucket(buckets *b, uint64_t d){
 }
 
 dynamic_arr_info deduplicate_threads(dynamic_arr_info *arrs, size_t core_count){
-	if(core_count > 1024){
-		logf_out("Core count (%ld) > 1024, this won't work!", LOG_ERROR);
+	constexpr static size_t max_cores = 128;
+	if(core_count > max_cores){
+		logf_out("Core count (%ld) > %zu, this won't work!", LOG_ERROR, core_count, max_cores);
 		exit(EXIT_FAILURE);
 	}
-	size_t offsets[1024] = {0};
-	size_t sizes[1024];
+	size_t offsets[max_cores] = {0};
+	size_t sizes[max_cores];
 	size_t array_len = 0;
 	for(size_t i = 0; i < core_count; i++){
 		sizes[i] = arrs[i].sp - arrs[i].bp;

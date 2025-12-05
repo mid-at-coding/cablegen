@@ -27,10 +27,10 @@ typedef struct {
 	pthread_t thread;
 } solve_core_data;
 void write_table(const table *t, const char *filename){ // TODO fix the speed situation
-	logf_out("Writing %lu boards to %s (%lu bytes)\n", LOG_INFO, t->key.size, filename, 2 * sizeof(uint64_t) * t->key.size);
+	logf_out("Writing %lu boards to %s (%lu bytes)", LOG_INFO, t->key.size, filename, 2 * sizeof(uint64_t) * t->key.size);
 	FILE *file = fopen(filename, "wb");
 	if(file == NULL){
-		logf_out("Couldn't write to %s!\n", LOG_WARN, filename);
+		logf_out("Couldn't write to %s!", LOG_WARN, filename);
 		return;
 	}
 	if(t->key.size != t->value.size){
@@ -48,7 +48,7 @@ void read_table(table *t, const char *filename){ // TODO clean up this and read_
 	FILE *fp = fopen(filename, "rb");
 	size_t res = 0;
 	if(fp == NULL){
-		logf_out("Couldn't read %s!\n", LOG_WARN, filename);
+		logf_out("Couldn't read %s!", LOG_WARN, filename);
 		t->key = init_sarr(0,0);
 		t->value = init_sarr(0,0);
 		t->key.valid = false;
@@ -71,7 +71,7 @@ void read_table(table *t, const char *filename){ // TODO clean up this and read_
 		goto read_err;
 	}
 	if(sz % 16 != 0) // 16 is 2 * 8 bytes is a double and a board
-		log_out("sz %%16 != 0, this is probably not a real table!\n", LOG_WARN);
+		log_out("sz %%16 != 0, this is probably not a real table!", LOG_WARN);
 	t->key =   init_sarr(0, sz / 16);
 	t->value = init_sarr(0, sz / 16);
 	res = fread(t->key.bp, sizeof(uint64_t), sz / 16, fp);
@@ -90,7 +90,7 @@ void read_table(table *t, const char *filename){ // TODO clean up this and read_
 		t->value.valid = false;
 		return;
 	}
-	logf_out("Read %ld bytes (%ld boards) from %s\n", LOG_INFO, sz, sz / 16, filename);
+	logf_out("Read %ld bytes (%ld boards) from %s", LOG_INFO, sz, sz / 16, filename);
 	fclose(fp);
 	return;
 read_err:
@@ -120,7 +120,7 @@ double lookup(uint64_t key, table *t, bool canonicalize){ // TODO get rid of the
 	// use binary search tree cache
 	while (t->key.bp[midpoint] != key){
 #ifdef DBG
-		logf_out("Current midpoint: %ld, %016lx(%ld)\n", LOG_TRACE, midpoint, t->key.bp[midpoint], t->key.bp[midpoint]);
+		logf_out("Current midpoint: %ld, %016lx(%ld)", LOG_TRACE, midpoint, t->key.bp[midpoint], t->key.bp[midpoint]);
 #endif
 		if(top - bottom < SEARCH_STOP){
 #ifdef DBG
@@ -128,7 +128,7 @@ double lookup(uint64_t key, table *t, bool canonicalize){ // TODO get rid of the
 #endif
 			for(size_t i = bottom; i < top; i++){
 #ifdef DBG
-				logf_out("Current board: %ld, %016lx(%ld)\n", LOG_TRACE, i, t->key.bp[i], t->key.bp[i]);
+				logf_out("Current board: %ld, %016lx(%ld)", LOG_TRACE, i, t->key.bp[i], t->key.bp[i]);
 #endif
 				if(t->key.bp[i] == key){
 #ifdef DBG
@@ -140,20 +140,20 @@ double lookup(uint64_t key, table *t, bool canonicalize){ // TODO get rid of the
 			}
 #ifdef DBG
 			log_out("Couldn't find board!", LOG_TRACE);
-			logf_out("board: %016lx\n", LOG_TRACE, key);
+			logf_out("board: %016lx", LOG_TRACE, key);
 #endif
 			return 0.0;
 		}
 		if(t->key.bp[midpoint] < key){
 			bottom = midpoint;
 #ifdef DBG
-			logf_out("t->key.bp[%ld] (%ld) < key (%ld)\n", LOG_TRACE, midpoint, t->key.bp[midpoint], key);
+			logf_out("t->key.bp[%ld] (%ld) < key (%ld)", LOG_TRACE, midpoint, t->key.bp[midpoint], key);
 #endif
 		}
 		else{
 			top = midpoint;
 #ifdef DBG
-			logf_out("t->key.bp[%ld] (%ld) >= key (%ld)\n", LOG_TRACE, midpoint, t->key.bp[midpoint], key);
+			logf_out("t->key.bp[%ld] (%ld) >= key (%ld)", LOG_TRACE, midpoint, t->key.bp[midpoint], key);
 #endif
 		}
 		midpoint = (top + bottom) / 2;
@@ -187,7 +187,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_ar
 	}
 	static_arr_info winstates = shrink_darr(&winstates_d);
 	for(size_t i = 0; i < winstates.size; i++){
-		logf_out("winstates %ld: %016lx\n", LOG_DBG, i, winstates.bp[i]);
+		logf_out("winstates %ld: %016lx", LOG_DBG, i, winstates.bp[i]);
 	}
 	table *n4 = malloc_errcheck(sizeof(table));
 	table *n2 = malloc_errcheck(sizeof(table));

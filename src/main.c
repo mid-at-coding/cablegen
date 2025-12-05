@@ -194,11 +194,11 @@ static struct dirprob best(uint64_t board, table *n){
 }
 
 static void parseLookup(int argc, char **argv, bool spawn){ // TODO refactor
-	if(argc < 3){ log_out("Not enough arguments!", LOG_ERROR); help(); exit(EXIT_FAILURE); }
+	if(argc < 2){ log_out("Not enough arguments!", LOG_ERROR); help(); exit(EXIT_FAILURE); }
 	char *tabledir;
 	settings_t settings = *get_settings();
 	tabledir = settings.tdir;
-	uint64_t board = strtoull(argv[2], NULL, 16); // interpret as hex string
+	uint64_t board = strtoull(argv[1], NULL, 16); // interpret as hex string
 	uint64_t original = board;
 	set_log_level(LOG_INFO);
 	if(spawn){ // this board has a spawn on it

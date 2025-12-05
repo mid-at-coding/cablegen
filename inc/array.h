@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <sys/types.h>
+#include <pthread.h>
 #define REALLOC_MULT 3
 #define BUCKETS_DIGITS 16
 #define BUCKETS_N 65536

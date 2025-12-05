@@ -2,14 +2,22 @@ CC=clang
 CCFLAGS_SHARED = -Wall -Wpedantic -Wextra -Wuninitialized -O2 -pthread -fno-strict-aliasing -std=c23 -Wno-unused-parameter\
 		 -I./inc/
 CCFLAGS= -g -pg -pthread -fno-strict-aliasing -std=c23 -DDBG -fsanitize=address,undefined
-LDFLAGS= -lc
 CCFLAGS_PROD=-DPROD -Wno-format -DNOERRCHECK -march=native -ffast-math
 CCFLAGS_BENCH=-DPROD -Wno-format -DNOERRCHECK -DBENCH
 EXEC_FILE=cablegen
 BUILD=debug
+PLATFORM=linux
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))
 CCFLAGS_SHARED += -DVERSION=$$(git describe --tags --always --dirty)
 .PHONY: all clean
+
+ifeq ($(PLATFORM),windows)
+CC=x86_64-w64-mingw32-gcc
+LDFLAGS = -lm
+endif
+ifeq ($(PLATFORM),linux)
+LDFLAGS = -lm -lc
+endif
 
 ifeq ($(BUILD),prod)
 CCFLAGS = $(CCFLAGS_PROD)
