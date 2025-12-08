@@ -11,6 +11,7 @@
 #define LOG_H_ENUM_PREFIX_
 #define LOG_H_NAMESPACE_ 
 #include "logging.h"
+#include "ui.h"
 #include "generate.h"
 #include "solve.h"
 #include "board.h"
@@ -73,6 +74,7 @@ static void help(void){
 	log_out("train [BOARD]                    -- play a game starting with BOARD, optionally specifying CONFIG, with live feedback", LOG_INFO);
 	log_out("play [BOARD]                     -- simulate an optimal game of BOARD with random spawns", LOG_INFO);
 	log_out("benchmark                        -- benchmark cablegen", LOG_INFO);
+	log_out("ui                               -- start cablegen with a ui", LOG_INFO);
 }
 
 #if __has_include(<unistd.h>)
@@ -533,6 +535,7 @@ int main(int argc, char **argv){
 		{"train", true, .fn.args = parseTrain},
 		{"play", true, .fn.args = parsePlay},
 		{"benchmark", false, .fn.noargs = benchmark},
+		{"ui", false, .fn.noargs = ui},
 	};
 	for(int i = 0; i < argc; i++){
 		for(size_t cm = 0; cm < sizeof(commands)/sizeof(commands[0]); cm++){
