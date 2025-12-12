@@ -1,6 +1,7 @@
 #include "parse.h"
 #include "format.h"
 #include <string.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -79,34 +80,37 @@ int parseBool(char* arg, void* data){
 int parseInt(char* arg, void* data){
 	option_t *opt = data;
 	size_t eq = opt->eq;
-	errno = 0;
-	*(int*)opt->data = (int)strtol(arg + eq + 1, NULL, 10);
-	if(errno){
-		printf("Invalid value %s for integer flag!\n", arg + eq); 
+	atoi_res res = safe_atoi(arg + eq + 1);
+	if(res.res > INT_MAX || res.res < INT_MIN){
+		res.status = ERANGE;
+	}
+	if(res.status){
+		printf("Invalid value %s for integer flag: %s\n", arg + eq, strerror(res.status)); 
 		return -1;
 	}
+	*(int*)opt->data = res.res;
 	return 0;
 }
 int parseLong(char* arg, void* data){
 	option_t *opt = data;
 	size_t eq = opt->eq;
-	errno = 0;
-	*(long*)opt->data = strtol(arg + eq + 1, NULL, 10);
-	if(errno){
-		printf("Invalid value %s for long flag!\n", arg + eq); 
+	atoi_res res = safe_atoi(arg + eq + 1);
+	if(res.status){
+		printf("Invalid value %s for long flag: %s\n", arg + eq, strerror(res.status)); 
 		return -1;
 	}
+	*(long*)opt->data = res.res;
 	return 0;
 }
 int parseLL(char* arg, void* data){
 	option_t *opt = data;
 	size_t eq = opt->eq;
-	errno = 0;
-	*(long*)opt->data = strtoll(arg + eq + 1, NULL, 10);
-	if(errno){
-		printf("Invalid value %s for long flag!\n", arg + eq); 
+	atoi_res_ll res = safe_atoi_ll(arg + eq + 1, 10);
+	if(res.status){
+		printf("Invalid value %s for long flag: %s\n", arg + eq, strerror(res.status)); 
 		return -1;
 	}
+	*(long*)opt->data = res.res;
 	return 0;
 }
 int parseDouble(char* arg, void* data){
@@ -123,12 +127,12 @@ int parseDouble(char* arg, void* data){
 int parseHex(char* arg, void* data){
 	option_t *opt = data;
 	size_t eq = opt->eq;
-	errno = 0;
-	*(unsigned long long*)opt->data = strtoull(arg + eq + 1, NULL, 16);
-	if(errno){
-		printf("Invalid value %s for hex flag!\n", arg + eq); 
+	atoi_res_ll res = safe_atoi_ll(arg + eq + 1, 17);
+	if(res.status){
+		printf("Invalid value %s for hex flag: %s\n", arg + eq, strerror(res.status)); 
 		return -1;
 	}
+	*(unsigned long long*)opt->data = res.res;
 	return 0;
 }
 int parseStr(char* arg, void* data){
