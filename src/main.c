@@ -535,7 +535,6 @@ int main(int argc, char **argv){
 		{"train", true, .fn.args = parseTrain},
 		{"play", true, .fn.args = parsePlay},
 		{"benchmark", false, .fn.noargs = benchmark},
-		{"ui", false, .fn.noargs = ui},
 	};
 	for(int i = 0; i < argc; i++){
 		for(size_t cm = 0; cm < sizeof(commands)/sizeof(commands[0]); cm++){
