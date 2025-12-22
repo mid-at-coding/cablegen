@@ -4,7 +4,7 @@ A high speed 2048 generator and solver in C
 ## Known issues:
 - libwinpthread missing dll error on windows -- a copy is provided here, just drop it into the same directory or your PATH
 
-## Usage
+## Usage (CLI frontend)
 
 `cablegen [flags] [command]`
 
@@ -16,6 +16,62 @@ Example usage (solving [DPDF](https://wiki.2048verse.com/wiki/index.php/Double_P
 ./cablegen --config=cablegen.conf generate
 ./cablegen --config=cablegen.conf solve
 ```
+
+## Concepts
+
+### Formation
+
+A formation is a set of "unmergeable" tiles wherein neither the player nor the computer really has to consider
+their movement in the general case, simplifying playing and solving. Some common examples: (an x denotes an unmergeable tile,
+and a _ denotes a free space)
+```
+LL /  4422
+_ _ _ _
+_ _ _ _
+x x _ _
+x x _ _
+
+DPDGap /  4111
+_ _ _ _
+x x x _
+x x x _
+x x x _
+
+2x4 / 4400
+_ _ _ _
+_ _ _ _
+x x x x
+x x x x
+
+3x4 / 4440
+_ _ _ _
+_ _ _ _
+x x x x
+x x x x
+```
+
+A variant formation is one where the unmergeable tiles are treated as walls.
+
+### Tile values
+
+A tile is one nybble of a 64 bit hexadecimal, stored as an exponent, E.G. the board
+```
+2   0   2   2
+256 128 32  8
+x   x   x   8
+x   x   x   16
+```
+
+is represented by the hex string `0x18ff07ff15ff1334`. Note that unmergeable tiles are represented by `0xf`, and empty tiles
+by `0x0` (since 2^0 = 1 is not a tile in 2048).
+
+### Pruning / Small tile sum limit
+
+Some boards are so bad that they mustn't be fully solved for the computer to recognize they are such by a heuristic measure.
+The way that cablegen handles this is via the `stsl`, `ltc`, and `smallest_large` variables. `stsl` stands for "Small tile
+sum limit", and it encodes the largest tile sum by all non-large (i.e. small) tiles within a board, above which a board will be pruned.
+`ltc` stands for "Large tile count" and denotes the most large tiles that are allowed on a board. Pruning may or may not increase speed,
+depending on the aggressiveness, but will definitely impact accuracy and file size, given that any generated boards are actually pruned.
 
 ## Commands
 
@@ -108,6 +164,42 @@ delete_boards = false
 ```
 
 If you don't wish to do all the work of configuration, and just want a quick and dirty solution, check out the gen_conf folder
+
+## Building
+
+Cablegen is built using GNU Make. To build the cablegen object only, simply `make`. By default, the build mode is debug,
+which relies on asan and ubsan. If you are not a developer and have no need for these, use one either `make BUILD=bench`,
+or `make BUILD=prod`. 
+
+Debug mode:
+- Enables address sanitizer and ub sanitizer (I am aware that sort.h invokes UB, I'm working on it ;))
+- Enables extra sanity checks on reading and writing
+- Turns on error checking that other build types can live without
+
+Production mode:
+- Disables unnecessary error checks (and some necessary ones too, to be frank)
+- Optimizes more aggressively
+- Strips names
+
+Benchmark mode:
+- Doesn't strip names
+- Writes a DOT file with the benchmark profiling to `bench/`
+
+### Supported platforms
+
+By default, cablegen builds for linux. To build for windows, pass `PLATFORM=windows` to `make`. I will not be adding mac
+support unless a wealthy benefactor with a macintosh becomes interested in this project.
+
+### Targets
+
+`clean`: cleans `gen_conf` and `frontends` (along with cablegen's artifacts)
+
+`all`: builds all of the below
+
+`gen_conf`: builds `gen_conf`
+
+`frontends`: builds all frontends (the frontend artifacts live in frontends/)
+
 
 ## Wishlist
 

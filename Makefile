@@ -51,6 +51,7 @@ gen_conf:
 clean: 
 	@rm -f build/*
 	@make -C gen_conf/ clean
+	@make -C frontends/ clean
 
 build/ini.o: src/external/ini.c 
 	@echo [CC] $@

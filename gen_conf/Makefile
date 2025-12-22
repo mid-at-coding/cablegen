@@ -1,5 +1,5 @@
 CC=clang++
-CCFLAGS= -Wall -g -O2 -pthread -Wpedantic -Wextra -Wno-unused-parameter -std=c++23
+CCFLAGS= -Wall -g -O2 -pthread -Wextra -Wno-unused-parameter -std=c++23
 LDFLAGS= -flto
 EXEC_FILE=gen_conf
 PLATFORM=linux

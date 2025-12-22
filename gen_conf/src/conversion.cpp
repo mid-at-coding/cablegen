@@ -11,7 +11,7 @@ struct Vector3{
 
 HSV RGB2HSV(RGB color)
 {
-    Vector3 hsv = { 0 };
+    Vector3 hsv = { 0, 0, 0 };
     Vector3 rgb = { (float)color.r/255.0f, (float)color.g/255.0f, (float)color.b/255.0f };
     float min, max, delta;
 
