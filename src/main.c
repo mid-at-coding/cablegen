@@ -11,7 +11,6 @@
 #define LOG_H_ENUM_PREFIX_
 #define LOG_H_NAMESPACE_ 
 #include "logging.h"
-#include "ui.h"
 #include "generate.h"
 #include "solve.h"
 #include "board.h"
@@ -45,7 +44,7 @@ static int parseCfg(char *arg, void *data){
 }
 
 static void help(void){
-	log_out("Cablegen "VERSION_STR" by ember/emelia/cattodoameow", LOG_INFO);
+	log_out("Cablegen "VERSION_STR" by ember/emelia/cattodoameow", LOG_INFO); // TODO I would like these to be self-documenting somehow
 	log_out("Usage: [cablegen] [flags] [command]", LOG_INFO);
 	log_out("Flags:", LOG_INFO);
 	log_out("-C=[FILE]   --config             -- specifies a config to read flags from, behaviour if unspecified is specified in the README", LOG_INFO);
@@ -74,7 +73,6 @@ static void help(void){
 	log_out("train [BOARD]                    -- play a game starting with BOARD, optionally specifying CONFIG, with live feedback", LOG_INFO);
 	log_out("play [BOARD]                     -- simulate an optimal game of BOARD with random spawns", LOG_INFO);
 	log_out("benchmark                        -- benchmark cablegen", LOG_INFO);
-	log_out("ui                               -- start cablegen with a ui", LOG_INFO);
 }
 
 #if __has_include(<unistd.h>)
@@ -549,7 +547,7 @@ int main(int argc, char **argv){
 		exit(EXIT_FAILURE);
 	}
 	option_t opts[] = {
-		{ parseCfg , "-C", "--config", get_settings(), 0 },
+		{ parseCfg , "-C", "--config", get_settings(), 0 }, // TODO: this last field shouldn't really be exposed to the frontend
 		{ parseBool, "-f", "--free-formation", &get_settings()->free_formation, 0 },
 		{ parseBool, "-v", "--ignore-unmergeable", &get_settings()->ignore_f, 0 },
 		{ parseLL  , "-c", "--cores", &get_settings()->cores, 0 },
