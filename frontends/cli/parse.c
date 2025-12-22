@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <stdbool.h>
 
 static bool prefix(const char *pre, const char *str){
     return strncmp(pre, str, strlen(pre));

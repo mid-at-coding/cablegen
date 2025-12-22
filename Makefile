@@ -4,13 +4,13 @@ CCFLAGS_SHARED = -Wall -Wpedantic -Wextra -Wuninitialized -O2 -pthread -fno-stri
 CCFLAGS= -g -pg -pthread -fno-strict-aliasing -std=c23 -DDBG -fsanitize=address,undefined
 CCFLAGS_PROD=-DPROD -Wno-format -DNOERRCHECK -march=native -ffast-math -ffp-contract=fast -fprefetch-loop-arrays
 CCFLAGS_BENCH=-DPROD -Wno-format -DNOERRCHECK -DBENCH
-EXEC_FILE=cablegen
+LIB_FILE=cablegen.so
 BUILD=debug
 PLATFORM=linux
 LDFLAGS=-flto
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))
 CCFLAGS_SHARED += -DVERSION=$$(git describe --tags --always --dirty)
-.PHONY: all clean default gen_conf
+.PHONY: all clean default gen_conf frontends
 
 ifeq ($(PLATFORM),windows)
 CC=x86_64-w64-mingw32-gcc
@@ -31,12 +31,18 @@ ifeq (, $(shell which $(CC)))
 $(error "No CC in $(PATH), consider changing CC in the makefile for your operating system")
 endif
 
-default: build/ini.o $(FILES) $(EXEC_FILE)
+# build cablegen.so, which the frontends depend on
+default: build/ini.o $(FILES) $(LIB_FILE)
 	@mkdir -p build/
 
-all: build/ini.o $(FILES) $(EXEC_FILE)
+all: build/ini.o $(FILES) $(LIB_FILE)
 	@mkdir -p build/
 	@make gen_conf
+	@make frontends
+
+frontends:
+	@echo [frontends]
+	@make -C frontends/ all PLATFORM=$(PLATFORM) BUILD=$(BUILD)
 
 gen_conf:
 	@echo [gen_conf]
@@ -58,6 +64,6 @@ build/%.o: src/%.c
 	@echo [CC] $@
 	@$(CC) $< $(CCFLAGS_SHARED) $(CCFLAGS) -c -o $@
 
-$(EXEC_FILE): $(FILES)
-	@echo [CC] $@
-	@$(CC) $(wildcard build/*.o) $(CCFLAGS_SHARED) $(CCFLAGS) -o $(EXEC_FILE) $(LDFLAGS)
+$(LIB_FILE): $(FILES)
+	@echo [LD] $@
+	@ld $(wildcard build/*.o) -r -o $(LIB_FILE)

@@ -11,6 +11,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define STR(x) #x
+#define EXPAND_STR(x) STR(x)
+#define VERSION_STR EXPAND_STR(VERSION)
+
+char *get_version(void){
+	return VERSION_STR;
+}
 
 static bool test_searching(void){
 	const size_t test_size = 100;

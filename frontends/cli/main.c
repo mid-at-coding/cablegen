@@ -5,17 +5,13 @@
 #include <string.h>
 #include <limits.h>
 #include <sys/stat.h>
-#include "test.h"
+#include "cablegen.h"
 #include "parse.h"
 #define LOG_H_IMPLEMENTATION
 #define LOG_H_ENUM_PREFIX_
 #define LOG_H_NAMESPACE_ 
 #include "logging.h"
-#include "generate.h"
-#include "solve.h"
-#include "board.h"
 #include "format.h"
-#include "settings.h"
 #include <string.h>
 #ifndef WIN32
 #include <termios.h>
@@ -25,9 +21,6 @@
 #endif
 #include <errno.h>
 #include <time.h>
-#define STR(x) #x
-#define EXPAND_STR(x) STR(x)
-#define VERSION_STR EXPAND_STR(VERSION)
 
 static int parseCfg(char *arg, void *data){
 	option_t *opt = data;
@@ -44,7 +37,7 @@ static int parseCfg(char *arg, void *data){
 }
 
 static void help(void){
-	log_out("Cablegen "VERSION_STR" by ember/emelia/cattodoameow", LOG_INFO); // TODO I would like these to be self-documenting somehow
+	logf_out("Cablegen %s by ember/emelia/cattodoameow", LOG_INFO, get_version()); // TODO I would like these to be self-documenting somehow
 	log_out("Usage: [cablegen] [flags] [command]", LOG_INFO);
 	log_out("Flags:", LOG_INFO);
 	log_out("-C=[FILE]   --config             -- specifies a config to read flags from, behaviour if unspecified is specified in the README", LOG_INFO);
