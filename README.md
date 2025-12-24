@@ -46,9 +46,11 @@ x x x x
 3x4 / 4440
 _ _ _ _
 _ _ _ _
-x x x x
+_ _ _ _
 x x x x
 ```
+
+For a full list of common formations and notations thereof, see the [2048 formation dictionary](https://cdn.discordapp.com/attachments/1328460117783482399/1409709696549523637/2048_Formation_Dictionary_1.pdf)
 
 A variant formation is one where the unmergeable tiles are treated as walls.
 
