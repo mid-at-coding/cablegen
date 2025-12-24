@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
-#define SETBIT(x, y) (x |= (1 << y))
+#define SETBIT(x, y) (x |= (1 << y)) // doesn't have to be exactly the same
 #define CLEARBIT(x, y) (x &= ~(1 << y))
 #define GETBIT(x, y) (x & (1 << y))
 #define BIT_MASK (0xf000000000000000)
@@ -11,6 +11,7 @@
 #define GET_TILE(b, x) (uint8_t)(((b << OFFSET(x)) & BIT_MASK) >> OFFSET(15))
 #define SET_TILE(b, x, v) ( b = (~(~b | (BIT_MASK >> OFFSET(x))) | ((BIT_MASK & ((uint64_t)v << OFFSET(15))) >> OFFSET(x)) ))
 
+#ifndef REMOVE_STRUCT_DECL
 typedef struct{
 	bool valid;
 	uint64_t* bp;
@@ -35,6 +36,7 @@ typedef enum {
 	up,
 	down
 } dir;
+#endif
 
 bool movedir(uint64_t*, dir);
 void generate_lut(void);
@@ -46,34 +48,19 @@ typedef struct {
 	bool ignore_f;
 	long long cores;
 	long long nox;
-	bool mask;
-	bool compress;
-	long long max_prealloc;
-
-	bool premove;
 	char *bdir;
 	char *initial;
 	long long end_gen;
-	long long stsl;
-	long long ltc;
-	long long smallest_large;
-	bool prune;
-
 	char *tdir;
 	char *winstates;
 	long long end_solve;
-	bool score;
 	bool delete_boards;
-} settings_t;
+} min_settings_t;
 
-settings_t *get_settings(void);
+min_settings_t *get_settings_min(void);
 void init_settings(void);
-void generate(const int start, const int end, const char *fmt, uint64_t *initial, const size_t initial_len, const unsigned core_count, 
-		bool premove, char nox, bool free_formation);
-
-void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *winstates, unsigned cores, char nox, 
-		bool score, bool free_formation);
-
+void generate(const int start, const int end, const char *fmt, const static_arr_info *initial);
+void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, const static_arr_info *winstates);
 void* malloc_errcheck(size_t size); // guaranteed to be non-null
 dynamic_arr_info init_darr(bool zero, size_t size); // error handling is callee's responsibility
 static_arr_info init_sarr(bool zero, size_t size); // error handling is callee's responsibility
@@ -87,5 +74,5 @@ void read_table(table *t, const char *path);
 bool test(void);
 int get_sum(uint64_t board);
 void output_board(uint64_t);
-char *get_version(void);
+char *get_version(void); // full version string (i.e. cablegen v1.4)
 #endif

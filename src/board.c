@@ -69,7 +69,7 @@ static bool shiftable(uint64_t *board, const static_arr_info positions, const in
 static struct _move_res move(uint64_t *board, static_arr_info positions){ // this should not be used directly
 	// [ board[pos[0]], board[pos[1]] board[pos[2]] ... board[pos[n]] ] -(left)>
 	size_t positions_size_new = positions.size;
-	if(get_settings()->ignore_f){
+	if(get_settings()->min.ignore_f){
 		for(int i = positions.size - 1; i >= 0; i--){
 			if(GET_TILE((*board), positions.bp[i]) == 0xf){
 				positions_size_new--;
@@ -121,11 +121,11 @@ void generate_lut(void){
 		premove = tmp_board;
 		_merge_lut [left][i] = move(&tmp_board, a).merged;
 		_move_lut  [left][i] = tmp_board >> 12 * 4;
-		_locked_lut[left][i] = !shifted(premove, tmp_board, get_settings()->free_formation);
+		_locked_lut[left][i] = !shifted(premove, tmp_board, get_settings()->min.free_formation);
 		tmp_board = premove;
 		_merge_lut [right][i] = move(&tmp_board, b).merged;
 		_move_lut  [right][i] = tmp_board >> 12 * 4;
-		_locked_lut[right][i] = !shifted(premove, tmp_board, get_settings()->free_formation);
+		_locked_lut[right][i] = !shifted(premove, tmp_board, get_settings()->min.free_formation);
 		if(i == UINT16_MAX)
 			break;
 	}

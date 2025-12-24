@@ -16,7 +16,7 @@
 #define VERSION_STR EXPAND_STR(VERSION)
 
 char *get_version(void){
-	return VERSION_STR;
+	return "cablegen "VERSION_STR;
 }
 
 static bool test_searching(void){
@@ -136,7 +136,11 @@ void test_generation(void){
 	log_out("Testing generation (correctness not checked).", LOG_INFO);
 	dynamic_arr_info n = init_darr(false, 0);
 	push_back(&n, 0x1000002000000000); // board with a 2 and a 4 in a kinda arbitrary position
-	generate(get_sum(n.bp[0]), get_sum(n.bp[0]) + 16, "/dev/null", n.bp, 1, 1, 0, 0, 0);
+	static_arr_info sarr;
+	sarr.bp = n.bp;
+	sarr.size = n.sp - n.bp;
+	sarr.valid = true;
+	generate(get_sum(n.bp[0]), get_sum(n.bp[0]) + 16, "/dev/null", &sarr);
 	log_out("Done testing generation.", LOG_INFO);
 }
 
@@ -307,22 +311,23 @@ bool test_misc(void){
 }
 
 static bool test_settings(void){
-	log_out("Checking settings (accuracy not checked, verify manually)", LOG_INFO);
+	log_out("Checking settings (accuracy not checked, verify manually)", LOG_INFO); // TODO replace this with an X macro
 	settings_t settings = *get_settings();
-	logf_out(".free_formation %d", LOG_INFO, settings.free_formation);
-	logf_out(".cores %lld", LOG_INFO, settings.cores);
-	logf_out(".nox %lld", LOG_INFO, settings.nox);
+	logf_out(".free_formation %d", LOG_INFO, settings.min.free_formation);
+	logf_out(".ignore_f %d", LOG_INFO, settings.min.ignore_f);
+	logf_out(".cores %lld", LOG_INFO, settings.min.cores);
+	logf_out(".nox %lld", LOG_INFO, settings.min.nox);
 	logf_out(".mask %d", LOG_INFO, settings.mask);
 	logf_out(".premove %d", LOG_INFO, settings.premove);
-	logf_out(".bdir %s", LOG_INFO, settings.bdir);
-	logf_out(".initial %s", LOG_INFO, settings.initial);
-	logf_out(".end_gen %lld", LOG_INFO, settings.end_gen);
+	logf_out(".bdir %s", LOG_INFO, settings.min.bdir);
+	logf_out(".initial %s", LOG_INFO, settings.min.initial);
+	logf_out(".end_gen %lld", LOG_INFO, settings.min.end_gen);
 	logf_out(".stsl %lld", LOG_INFO, settings.stsl);
 	logf_out(".smallest_large %lld", LOG_INFO, settings.smallest_large);
 	logf_out(".prune %d", LOG_INFO, settings.prune);
-	logf_out(".tdir %s", LOG_INFO, settings.tdir);
-	logf_out(".winstates %s", LOG_INFO, settings.winstates);
-	logf_out(".end_solve %lld", LOG_INFO, settings.end_solve);
+	logf_out(".tdir %s", LOG_INFO, settings.min.tdir);
+	logf_out(".winstates %s", LOG_INFO, settings.min.winstates);
+	logf_out(".end_solve %lld", LOG_INFO, settings.min.end_solve);
 	logf_out(".score %d", LOG_INFO, settings.score);
 	return true;
 }

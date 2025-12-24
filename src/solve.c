@@ -169,10 +169,12 @@ void destroy_table(table* t){
 	free(t);
 }
 
-void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, static_arr_info *initial_winstates, unsigned cores, char nox, 
-		bool score, bool free_formation){
+void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, const static_arr_info *initial_winstates){
 	const size_t FILENAME_SIZE = 100;
 	dynamic_arr_info winstates_d = init_darr(0,0);
+	long long cores = get_settings()->min.cores;
+	long long nox = get_settings()->min.nox;
+	bool score = get_settings()->score;
 	generate_lut(); // if we don't gen a lut we can't move
 	// generate all required rotations of the winstates
 //	bool *rots_required = required_symmetries(initial_winstates);

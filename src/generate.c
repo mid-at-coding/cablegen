@@ -364,30 +364,31 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 	end_node(SPAWN);
 #endif
 }
-void generate(const int start, const int end, const char* fmt, uint64_t* initial, const size_t initial_len, 
-		const unsigned core_count, bool prespawn, char nox, bool free_formation){
+void generate(const int start, const int end, const char *fmt, const static_arr_info *initial){
 	// GENERATE: write all sub-boards where it is the computer's move
 #ifdef BENCH
 	open_bench("bench/"VERSION_STR".gv", "generate");
 #endif
 	generate_lut();
 	static const size_t DARR_INITIAL_SIZE = 100;
+	long long core_count = get_settings()->min.cores;
+	long long nox = get_settings()->min.nox;
 	dynamic_arr_info n  = init_darr(false, 0);
 	free(n.bp);
-	n.bp = initial;
-	n.size = initial_len;
+	n.bp = initial->bp;
+	n.size = initial->size;
 	n.sp = n.size + n.bp;
 	dynamic_arr_info n2 = init_darr(false, DARR_INITIAL_SIZE);
 	dynamic_arr_info n4 = init_darr(false, DARR_INITIAL_SIZE);
 	arguments *cores = malloc_errcheck(sizeof(arguments) * core_count);
-	if(prespawn){
-		arguments prespawn_args;
-		prespawn_args.n = (static_arr_info){.valid = n.valid, .bp = n.bp, .size = n.sp - n.bp};
-		prespawn_args.n2 = n2;
-		prespawn_args.n4 = n4;
-		prespawn_args.start = 0;
-		prespawn_args.end = prespawn_args.n.size;
-		generation_thread_spawn(&prespawn_args);
+	if(get_settings()->premove){
+		arguments premove_args;
+		premove_args.n = (static_arr_info){.valid = n.valid, .bp = n.bp, .size = n.sp - n.bp};
+		premove_args.n2 = n2;
+		premove_args.n4 = n4;
+		premove_args.start = 0;
+		premove_args.end = premove_args.n.size;
+		generation_thread_move(&premove_args);
 	}
 	for(int i = start; i <= end; i += 2){
 #ifdef BENCH

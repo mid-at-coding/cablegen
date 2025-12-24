@@ -37,9 +37,10 @@ static int parseCfg(char *arg, void *data){
 }
 
 static void help(void){
-	logf_out("Cablegen %s by ember/emelia/cattodoameow", LOG_INFO, get_version()); // TODO I would like these to be self-documenting somehow
-	log_out("Usage: [cablegen] [flags] [command]", LOG_INFO);
+	logf_out("Tablegen frontend by ember/emelia/cattodoameow running %s", LOG_INFO, get_version());
+	log_out("Usage: [cablegen] [flags] [command]", LOG_INFO); // TODO I would like these to be self-documenting somehow
 	log_out("Flags:", LOG_INFO);
+	log_out("-h          --help               -- this output", LOG_INFO);
 	log_out("-C=[FILE]   --config             -- specifies a config to read flags from, behaviour if unspecified is specified in the README", LOG_INFO);
 	log_out("-f=[bool]   --free-formation     -- specifies whether unmergable (0xf) tiles should be allowed to move", LOG_INFO);
 	log_out("-v=[bool]   --ignore-unmergeable -- treats unmergable tiles as walls", LOG_INFO);
@@ -77,7 +78,7 @@ static void help(void){
 #endif
 static void parseGenerate(){
 	set_log_level(LOG_INFO);
-	settings_t settings = *get_settings();
+	min_settings_t settings = *get_settings_min();
 	char *default_postfix = "%d.boards";
 	char *fmt = format_str("%s%s", settings.bdir, default_postfix);
 
@@ -94,7 +95,7 @@ static void parseGenerate(){
 		return;
 	}
 
-	if(get_sum(boards.bp[0]) < get_settings()->end_solve){
+	if(get_sum(boards.bp[0]) < settings.end_solve){
 		log_out("Solving will continue below initial board, consider changing Solve.end!", LOG_WARN);
 		log_out("Press Ctrl+C to cancel, otherwise beginning generation in 5 seconds...", LOG_WARN);
 		// TODO: platform independent sleep
@@ -108,13 +109,13 @@ static void parseGenerate(){
 #endif
 	}
 	int layer = get_sum(boards.bp[0]);
-	generate(layer, settings.end_gen, fmt, boards.bp, boards.size, settings.cores, settings.premove, settings.nox, settings.free_formation);
+	generate(layer, settings.end_gen, fmt, &boards);
 	free(fmt);
 }
 
 static void parseSolve(){
 	set_log_level(LOG_INFO);
-	settings_t settings = *get_settings();
+	min_settings_t settings = *get_settings_min();
 	char *default_board_postfix = "%d.boards";
 	char* posfmt = format_str("%s%s", settings.bdir, default_board_postfix);
 
@@ -127,12 +128,12 @@ static void parseSolve(){
 		return;
 	}
 	for(size_t i = 0; i < boards.size; i++){
-		if(get_sum(boards.bp[i]) > get_settings()->end_gen){
+		if(get_sum(boards.bp[i]) > get_settings_min()->end_gen){
 			log_out("Winstate will never be generated, consider changing Generate.end!", LOG_WARN);
 			output_board(boards.bp[i]);
 		}
 	}
-	solve(settings.end_gen, settings.end_solve, posfmt, table_fmt, &boards, settings.cores, settings.nox, settings.score, settings.free_formation);
+	solve(settings.end_gen, settings.end_solve, posfmt, table_fmt, &boards);
 	free(posfmt);
 	free(table_fmt);
 }
@@ -189,7 +190,7 @@ static struct dirprob best(uint64_t board, table *n){
 static void parseLookup(int argc, char **argv, bool spawn){ // TODO refactor
 	if(argc < 2){ log_out("Not enough arguments!", LOG_ERROR); help(); exit(EXIT_FAILURE); }
 	char *tabledir;
-	settings_t settings = *get_settings();
+	min_settings_t settings = *get_settings_min();
 	tabledir = settings.tdir;
 	uint64_t board = strtoull(argv[1], NULL, 16); // interpret as hex string
 	uint64_t original = board;
@@ -359,7 +360,7 @@ static void parseTrain(int argc, char **argv){
 	char inp;
 
 	char* default_table_postfix = "%d.tables"; // TODO pull out
-	char* table_fmt = format_str("%s%s", get_settings()->tdir, default_table_postfix);
+	char* table_fmt = format_str("%s%s", get_settings_min()->tdir, default_table_postfix);
 
 	char *table_dir_str;
 	table *t  = malloc_errcheck(sizeof(table));
@@ -434,7 +435,7 @@ static void parseTrain(int argc, char **argv){
 static void parsePlay(int argc, char **argv){
 	if(argc < 1){ log_out("Not enough arguments!", LOG_ERROR); help(); exit(EXIT_FAILURE); }
 	set_log_level(LOG_INFO);
-	settings_t settings = *get_settings();
+	min_settings_t settings = *get_settings_min();
 	srand(time(NULL));
 	char *tdir = settings.tdir;
 	uint64_t board = strtoull(argv[1], NULL, 16); // interpret as hex string
@@ -478,8 +479,12 @@ void benchmark(void){
 	log_out("Benchmarking multi-threaded generation (LL-256)", LOG_INFO);
 	push_back(&initial_arr, 0x1000000021ff12ff);
 	push_back(&initial_arr, 0x1000000012ff21ff);
+	static_arr_info initial_arr_sarr;
+	initial_arr_sarr.bp = initial_arr.bp;
+	initial_arr_sarr.size = initial_arr.sp - initial_arr.bp;
+	initial_arr_sarr.valid = true;
 	set_log_level(LOG_WARN);
-	generate(16, 300, ".benchmark/%d.boards", initial_arr.bp, initial_arr.sp - initial_arr.bp, get_settings()->cores, false, false, false);
+	generate(16, 300, ".benchmark/%d.boards", &initial_arr_sarr);
 	set_log_level(LOG_INFO);
 	printf("Multi-threaded LL-256: %d seconds\n", (unsigned)difftime(time(NULL), curr));
 	static_arr_info winstates = init_sarr(0,1);
@@ -488,7 +493,7 @@ void benchmark(void){
 	log_out("Benchmarking multi-threaded solving (LL-256)", LOG_INFO);
 	curr = time(NULL);
 	set_log_level(LOG_WARN);
-	solve(300, 16, ".benchmark/%d.boards", ".benchmark/%d.tables", &winstates, get_settings()->cores, 0, 0, 0);
+	solve(300, 16, ".benchmark/%d.boards", ".benchmark/%d.tables", &winstates);
 	set_log_level(LOG_INFO);
 	printf("Multi-threaded LL-256: %d seconds\n", (unsigned)difftime(time(NULL), curr));
 }
@@ -540,18 +545,18 @@ int main(int argc, char **argv){
 		exit(EXIT_FAILURE);
 	}
 	option_t opts[] = {
-		{ parseCfg , "-C", "--config", get_settings(), 0 }, // TODO: this last field shouldn't really be exposed to the frontend
-		{ parseBool, "-f", "--free-formation", &get_settings()->free_formation, 0 },
-		{ parseBool, "-v", "--ignore-unmergeable", &get_settings()->ignore_f, 0 },
-		{ parseLL  , "-c", "--cores", &get_settings()->cores, 0 },
-		{ parseLL  , "-n", "--nox", &get_settings()->nox, 0 },
-		{ parseStr , "-t", "--tdir", &get_settings()->tdir, 0 },
-		{ parseStr , "-b", "--bdir", &get_settings()->bdir, 0 },
-		{ parseStr , "-i", "--initial", &get_settings()->initial, 0 },
-		{ parseLL  , "-e", "--end-gen", &get_settings()->end_gen, 0 },
-		{ parseLL  , "-E", "--end-solve", &get_settings()->end_solve, 0 },
-		{ parseStr , "-w", "--winstate", &get_settings()->winstates, 0 },
-		{ parseBool, "-d", "--delete", &get_settings()->delete_boards, 0 }
+		{ parseCfg , "-C", "--config", 0, 0 }, // TODO: this last field shouldn't really be exposed to the frontend of parse.h
+		{ parseBool, "-f", "--free-formation", &get_settings_min()->free_formation, 0 },
+		{ parseBool, "-v", "--ignore-unmergeable", &get_settings_min()->ignore_f, 0 },
+		{ parseLL  , "-c", "--cores", &get_settings_min()->cores, 0 },
+		{ parseLL  , "-n", "--nox", &get_settings_min()->nox, 0 },
+		{ parseStr , "-t", "--tdir", &get_settings_min()->tdir, 0 },
+		{ parseStr , "-b", "--bdir", &get_settings_min()->bdir, 0 },
+		{ parseStr , "-i", "--initial", &get_settings_min()->initial, 0 },
+		{ parseLL  , "-e", "--end-gen", &get_settings_min()->end_gen, 0 },
+		{ parseLL  , "-E", "--end-solve", &get_settings_min()->end_solve, 0 },
+		{ parseStr , "-w", "--winstate", &get_settings_min()->winstates, 0 },
+		{ parseBool, "-d", "--delete", &get_settings_min()->delete_boards, 0 }
 	};
 	parse(opts, sizeof(opts)/sizeof(opts[0]), commandOffset, argv);
 	for(size_t i = 0; i < sizeof(commands)/sizeof(commands[0]); i++){
