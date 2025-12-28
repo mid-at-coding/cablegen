@@ -4,6 +4,7 @@ CCFLAGS_SHARED = -Wall -Wpedantic -Wextra -Wuninitialized -O2 -pthread -fno-stri
 CCFLAGS= -g -pg -pthread -fno-strict-aliasing -std=c23 -DDBG -fsanitize=address,undefined
 CCFLAGS_PROD=-DPROD -Wno-format -DNOERRCHECK -march=native -ffast-math -ffp-contract=fast -fprefetch-loop-arrays
 CCFLAGS_BENCH=-DPROD -Wno-format -DNOERRCHECK -DBENCH
+CCFLAGS_NOSANITIZE = -g -pg -pthread -fno-strict-aliasing -std=c23 -DDBG
 LIB_FILE=cablegen.so
 BUILD=debug
 PLATFORM=linux
@@ -25,6 +26,9 @@ CCFLAGS = $(CCFLAGS_PROD)
 endif
 ifeq ($(BUILD),bench)
 CCFLAGS = $(CCFLAGS_BENCH)
+endif
+ifeq ($(BUILD),nosanitize)
+CCFLAGS = $(CCFLAGS_NOSANITIZE)
 endif
 
 ifeq (, $(shell which $(CC)))
@@ -55,16 +59,16 @@ clean:
 
 build/ini.o: src/external/ini.c 
 	@echo [CC] $@
-	@$(CC) $< $(CCFLAGS_SHARED) $(CCFLAGS) -c -o $@
+	@$(CC) $< $(CCFLAGS_SHARED) $(CCFLAGS) -c -fpic -o $@
 
 build/ui.o: src/ui.c 
 	@echo [CC] $@
-	@$(CC) $< $(CCFLAGS_SHARED) $(CCFLAGS) -Wno-missing-field-initializers -Wno-missing-braces -c -o $@
+	@$(CC) $< $(CCFLAGS_SHARED) $(CCFLAGS) -Wno-missing-field-initializers -Wno-missing-braces -c -fpic -o $@
 
 build/%.o: src/%.c 
 	@echo [CC] $@
-	@$(CC) $< $(CCFLAGS_SHARED) $(CCFLAGS) -c -o $@
+	@$(CC) $< $(CCFLAGS_SHARED) $(CCFLAGS) -c -fpic -o $@
 
 $(LIB_FILE): $(FILES)
 	@echo [LD] $@
-	@ld $(wildcard build/*.o) -r -o $(LIB_FILE)
+	@ld $(wildcard build/*.o) -shared -o $(LIB_FILE)
