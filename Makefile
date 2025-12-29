@@ -5,10 +5,12 @@ CCFLAGS= -g -pg -pthread -fno-strict-aliasing -std=c23 -DDBG -fsanitize=address,
 CCFLAGS_PROD=-DPROD -Wno-format -DNOERRCHECK -march=native -ffast-math -ffp-contract=fast -fprefetch-loop-arrays
 CCFLAGS_BENCH=-DPROD -Wno-format -DNOERRCHECK -DBENCH
 CCFLAGS_NOSANITIZE = -g -pg -pthread -fno-strict-aliasing -std=c23 -DDBG
+
 LIB_FILE=cablegen.so
-BUILD=debug
+BUILD=prod
 PLATFORM=linux
 LDFLAGS=-flto
+LIBTYPE=static
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))
 CCFLAGS_SHARED += -DVERSION=$$(git describe --tags --always --dirty)
 .PHONY: all clean default gen_conf frontends
@@ -19,6 +21,17 @@ LDFLAGS += -lm
 endif
 ifeq ($(PLATFORM),linux)
 LDFLAGS += -lm -lc # I'm not sure why only clang needs an explicit -lc
+endif
+
+ifeq ($(LIBTYPE),dynamic)
+LDFLAGS += -fpic
+CABLEGEN_LDFLAGS = -shared
+endif
+ifeq ($(LIBTYPE),static)
+CABLEGEN_LDFLAGS = -r
+ifeq ($(BUILD),debug)
+$(error Debug mode doesn't work with static linkage! (Asan will complain))
+endif
 endif
 
 ifeq ($(BUILD),prod)
@@ -71,4 +84,4 @@ build/%.o: src/%.c
 
 $(LIB_FILE): $(FILES)
 	@echo [LD] $@
-	@ld $(wildcard build/*.o) -shared -o $(LIB_FILE)
+	@ld $(wildcard build/*.o) $(CABLEGEN_LDFLAGS) -o $(LIB_FILE) # TODO correct file ext

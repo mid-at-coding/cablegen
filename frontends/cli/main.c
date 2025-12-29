@@ -7,7 +7,6 @@
 #include <sys/stat.h>
 #include "cablegen.h"
 #include "parse.h"
-#define LOG_H_IMPLEMENTATION
 #define LOG_H_ENUM_PREFIX_
 #define LOG_H_NAMESPACE_ 
 #include "logging.h"

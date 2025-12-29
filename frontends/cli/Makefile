@@ -24,7 +24,7 @@ endif
 
 all: main.c
 	@echo [CC] CLI
-	@$(CC) main.c parse.c -o cli $(TABLEGEN) $(CCFLAGS)
+	@$(CC) main.c parse.c -static -o cli $(TABLEGEN) $(CCFLAGS)
 
 clean:
 	@rm -f cli

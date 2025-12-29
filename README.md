@@ -202,6 +202,14 @@ support unless a wealthy benefactor with a macintosh becomes interested in this 
 
 `frontends`: builds all frontends (the frontend artifacts live in frontends/)
 
+### Options
+
+`BUILD`: `bench | prod | nosanitize | debug`
+
+`LIBTYPE`: `static | dynamic`
+
+`PLATFORM`: `windows | linux`
+
 
 ## Wishlist
 
