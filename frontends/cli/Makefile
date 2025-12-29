@@ -3,6 +3,7 @@ TABLEGEN=../../cablegen.so
 CCFLAGS=-I../../api/
 FILES=main.c
 CCFLAGS_DBG=-lasan -lubsan
+LIBTYPE=static
 
 ifeq ($(PLATFORM),windows)
 CC=x86_64-w64-mingw32-gcc
@@ -20,11 +21,18 @@ ifeq (, $(shell which $(CC)))
 $(error "No CC in $(PATH), consider changing CC in the makefile for your operating system")
 endif
 
+ifeq ($(LIBTYPE),dynamic)
+CCFLAGS += -DDYNAMIC
+endif
+ifeq ($(LIBTYPE),static)
+CCFLAGS += -static
+endif
+
 .PHONY: all
 
 all: main.c
 	@echo [CC] CLI
-	@$(CC) main.c parse.c -static -o cli $(TABLEGEN) $(CCFLAGS)
+	@$(CC) main.c parse.c -o cli $(TABLEGEN) $(CCFLAGS)
 
 clean:
 	@rm -f cli

@@ -59,7 +59,7 @@ all: build/ini.o $(FILES) $(LIB_FILE)
 
 frontends:
 	@echo [frontends]
-	@make -C frontends/ all PLATFORM=$(PLATFORM) BUILD=$(BUILD)
+	@make -C frontends/ all PLATFORM=$(PLATFORM) BUILD=$(BUILD) LIBTYPE=$(LIBTYPE)
 
 gen_conf:
 	@echo [gen_conf]
