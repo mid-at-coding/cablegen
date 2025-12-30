@@ -1,5 +1,6 @@
 .histzsh
 build/*.o
+ppc/*.c
 tables/*
 tables
 cablegen

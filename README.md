@@ -187,6 +187,10 @@ Benchmark mode:
 - Doesn't strip names
 - Writes a DOT file with the benchmark profiling to `bench/`
 
+e (preprocessing only):
+- Runs only the preprocessor. Useful for seeing what attributes are implicit and not much else
+
+
 ### Supported platforms
 
 By default, cablegen builds for linux. To build for windows, pass `PLATFORM=windows` to `make`. I will not be adding mac
@@ -204,7 +208,7 @@ support unless a wealthy benefactor with a macintosh becomes interested in this 
 
 ### Options
 
-`BUILD`: `bench | prod | nosanitize | debug`
+`BUILD`: `bench | prod | nosanitize | debug | e`
 
 `LIBTYPE`: `static | dynamic`
 

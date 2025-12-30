@@ -5,13 +5,18 @@ CCFLAGS= -g -pg -pthread -fno-strict-aliasing -std=c23 -DDBG -fsanitize=address,
 CCFLAGS_PROD=-DPROD -Wno-format -DNOERRCHECK -march=native -ffast-math -ffp-contract=fast
 CCFLAGS_BENCH=-DPROD -Wno-format -DNOERRCHECK -DBENCH
 CCFLAGS_NOSANITIZE = -g -pg -pthread -fno-strict-aliasing -std=c23 -DDBG
+CCFLAGS_E = $(CCFLAGS_PROD) -E
 
 LIB_FILE=cablegen.so
 BUILD=prod
 PLATFORM=linux
 LDFLAGS=-flto
 LIBTYPE=static
-FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c)))))
+ifeq ($(BUILD),e)
+FILES=$(addsuffix .c,$(addprefix ppc/,$(notdir $(basename $(wildcard src/*.c)))))
+else
+FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c))))) build/ini.o 
+endif
 CCFLAGS_SHARED += -DVERSION=$$(git describe --tags --always --dirty)
 .PHONY: all clean default gen_conf frontends
 
@@ -43,16 +48,19 @@ endif
 ifeq ($(BUILD),nosanitize)
 CCFLAGS = $(CCFLAGS_NOSANITIZE)
 endif
+ifeq ($(BUILD),e)
+CCFLAGS = $(CCFLAGS_E)
+endif
 
 ifeq (, $(shell which $(CC)))
 $(error "No CC in $(PATH), consider changing CC in the makefile for your operating system")
 endif
 
 # build cablegen.so, which the frontends depend on
-default: build/ini.o $(FILES) $(LIB_FILE)
+default: $(FILES) $(LIB_FILE)
 	@mkdir -p build/
 
-all: build/ini.o $(FILES) $(LIB_FILE)
+all: $(FILES) $(LIB_FILE)
 	@mkdir -p build/
 	@make gen_conf
 	@make frontends
@@ -82,6 +90,23 @@ build/%.o: src/%.c
 	@echo [CC] $@
 	@$(CC) $< $(CCFLAGS_SHARED) $(CCFLAGS) -c -fpic -o $@
 
+ppc/ini.c: src/external/ini.c 
+	@echo [PPC] $@
+	@$(CC) $< $(CCFLAGS_SHARED) $(CCFLAGS) -fpic -o $@
+
+ppc/ui.c: src/ui.c 
+	@echo [PPC] $@
+	@$(CC) $< $(CCFLAGS_SHARED) $(CCFLAGS) -Wno-missing-field-initializers -Wno-missing-braces -fpic -o $@
+
+ppc/%.c: src/%.c 
+	@echo [PPC] $@
+	@$(CC) $< $(CCFLAGS_SHARED) $(CCFLAGS) -fpic -o $@
+
+
 $(LIB_FILE): $(FILES)
+ifeq (e,$(BUILD))
+
+else
 	@echo [LD] $@
 	@ld $(wildcard build/*.o) $(CABLEGEN_LDFLAGS) -o $(LIB_FILE) # TODO correct file ext
+endif
