@@ -9,10 +9,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#define SORT_NAME uint64
-#define SORT_TYPE uint64_t
-#include "sort.h"
+#include "fluxsort.h"
 
+static __inline__ int cmp(const void *a, const void *b){
+	return (*(uint64_t*)b) > (*(uint64_t*)a);
+}
 bool push_back(dynamic_arr_info *info, uint64_t v){
 	bool res = false;
 #ifndef NOERRCHECK
@@ -162,26 +163,7 @@ void deduplicate(dynamic_arr_info *s){ // TODO optimize this somehow
 	}
 	size_t size = s->sp - s->bp;
 	dynamic_arr_info res = init_darr(0, 0.7 * size); // assume it's around 30% dupes
-	uint64_tim_sort(s->bp, size);
-	push_back(&res, *s->bp);
-	for(uint64_t *curr = s->bp + 1; curr < s->sp; curr++){
-		if(*curr != *(curr - 1)){
-			push_back(&res, *curr);
-		}
-	}
-	destroy_darr(s);
-	*s = res;
-	return;
-}
-
-void deduplicate_qs(dynamic_arr_info *s){
-    if(s->sp == s->bp || s-> sp == s->bp + 1){
-		log_out("Can't sort one value!\n", LOG_DBG);
-		return;
-	}
-	size_t size = s->sp - s->bp;
-	dynamic_arr_info res = init_darr(0, 0.7 * size); // assume it's around 30% dupes
-	uint64_quick_sort(s->bp, size);
+	qs_sort_h(s->bp, size);
 	push_back(&res, *s->bp);
 	for(uint64_t *curr = s->bp + 1; curr < s->sp; curr++){
 		if(*curr != *(curr - 1)){
@@ -305,5 +287,5 @@ dynamic_arr_info deduplicate_threads(dynamic_arr_info *arrs, size_t core_count){
 }
 
 void qs_sort_h(uint64_t *bp, size_t size){
-	uint64_quick_sort(bp, size);
+	fluxsort_uint64(bp, size, cmp);
 }

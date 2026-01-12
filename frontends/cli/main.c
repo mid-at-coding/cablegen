@@ -491,8 +491,7 @@ void benchmark(void){
 	printf("Multi-threaded LL-256: %d seconds\n", (unsigned)difftime(time(NULL), curr));
 	static_arr_info winstates = init_sarr(0,1);
 	winstates.bp[0] = 0x0000000008ff0ff;
-	exit(0);
-	log_out("Benchmarking multi-threaded solving (LL-256)", LOG_INFO);
+	log_out("Benchmarking multi-threaded solving (LL-256)", LOG_INFO); // TODO add profiling for solving
 	curr = time(NULL);
 	set_log_level(LOG_WARN);
 	solve(300, 16, ".benchmark/%d.boards", ".benchmark/%d.tables", &winstates);

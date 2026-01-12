@@ -1,6 +1,6 @@
 CC=clang
 CCFLAGS_SHARED = -Wall -Wpedantic -Wextra -Wuninitialized -O2 -pthread -fno-strict-aliasing -std=c23 -Wno-unused-parameter\
-		 -I./inc/ -I./inc/external
+		 -I./inc/ -I./inc/external -Wno-bitwise-instead-of-logical
 CCFLAGS= -g -pg -pthread -fno-strict-aliasing -std=c23 -DDBG -fsanitize=address,undefined
 CCFLAGS_PROD=-DPROD -Wno-format -DNOERRCHECK -march=native -ffast-math -ffp-contract=fast
 CCFLAGS_BENCH=-DPROD -Wno-format -DNOERRCHECK -DBENCH
