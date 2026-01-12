@@ -254,7 +254,7 @@ development, and as of right now, is more robust than cablegen.
 
 [cfgpath](https://github.com/Malvineous/cfgpath) -- Unlicense
 
-[sort](https://github.com/swenson/sort) -- MIT License
+[fluxsort](https://github.com/scandum/fluxsort) -- Unlicense
 
 [ini](https://github.com/rxi/ini/) -- MIT License
 
