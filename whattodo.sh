@@ -1,1 +1,1 @@
-cat src/* inc/* | grep TODO | sed "s/^\s*.*\///"
+grep -n "TODO" src/* inc/* 2> /dev/null
