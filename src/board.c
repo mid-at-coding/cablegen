@@ -8,31 +8,24 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
-extern void cb1111111(uint64_t *b);
+
+#if defined(__AVX512VBMI__) && defined(__AVX512VL__)
+#include <smmintrin.h>
+#include <stdalign.h>
+#include <xmmintrin.h>
+#include <immintrin.h>
+__m128i unpack_board2(uint64_t data){ // stolen from stackoverflow: https://stackoverflow.com/a/71947955 
+	__m128i vd = _mm_cvtsi64_si128(data);    // movq
+	__m128i vd_hi = _mm_srli_epi32(vd, 4);   // x86 doesn't have a SIMD byte shift
+	vd = _mm_unpacklo_epi8(vd, vd_hi);       // every nibble at the bottom of a byte, with high garbage
+	return _mm_and_si128(vd, _mm_set1_epi8(0x0f));  // clear high garbage for later merging
+}
+#endif
 
 uint16_t _move_lut[2][UINT16_MAX + 1];
 bool    _merge_lut[2][UINT16_MAX + 1];
 bool   _locked_lut[2][UINT16_MAX + 1];
 
-uint16_t lookup_lut(uint16_t l){
-	static bool init = false;
-	if(!init){
-		set_log_level(LOG_ERROR);
-		generate_lut();
-		init = true;
-	}
-	return _move_lut[left][l];
-}
-uint16_t lookup_lut12(uint16_t l){
-	l = 0xfff0 & l;
-	static bool init = false;
-	if(!init){
-		set_log_level(LOG_ERROR);
-		generate_lut();
-		init = true;
-	}
-	return _move_lut[left][l] & 0xfff0;
-}
 static bool shifted(uint64_t board, uint64_t board2, bool free_formation){
 	if(!free_formation){
 		for(int i = 0; i < 4; i++){
@@ -275,6 +268,50 @@ inline void rotate_180(uint64_t* b){
 }
 
 void canonicalize_b(uint64_t* board){ // turn a board into it's canonical version
+#if defined(__AVX512VBMI__) && defined(__AVX512VL__)
+	__m128i unpacked = unpack_board2(*board);
+	__m512i broadcasted1 = _mm512_broadcast_i64x2(unpacked);
+	__m512i broadcasted2 = _mm512_broadcast_i64x2(unpacked);
+	alignas(64) uint64_t transforms1[8] = {
+		0x08090a0b0c0d0e0f,
+		0x0001020304050607, // e
+		0x0e0a06020f0b0703,
+		0x0c0804000d090501, // a
+		0x0706050403020100,
+		0x0f0e0d0c0b0a0908, // a2
+		0x0105090d0004080c,
+		0x03070b0f02060a0e // a3
+	};
+	broadcasted1 = _mm512_shuffle_epi8(broadcasted1, _mm512_load_epi64(transforms1));
+	alignas(64) uint64_t transforms2[8] = {
+		0x0b0a09080f0e0d0c,
+		0x0302010007060504, // b
+		0x02060a0e03070b0f,
+		0x0004080c0105090d, // ab
+		0x0405060700010203,
+		0x0c0d0e0f08090a0b, // a2b
+		0x0d0905010c080400,
+		0x0f0b07030e0a0602, // a3b
+	};
+	broadcasted2 = _mm512_shuffle_epi8(broadcasted2, _mm512_load_epi64(transforms2));
+
+	broadcasted2 = _mm512_maddubs_epi16(broadcasted2, _mm512_set1_epi16(0x1001));
+	broadcasted2 = _mm512_packus_epi16(broadcasted2, broadcasted2);
+
+	broadcasted1 = _mm512_maddubs_epi16(broadcasted1, _mm512_set1_epi16(0x1001));
+	broadcasted1 = _mm512_packus_epi16(broadcasted1, broadcasted1);
+	__m512i cmp = _mm512_set_epi64(
+		_mm_extract_epi64(_mm512_extracti64x2_epi64(broadcasted1, 0), 0),
+		_mm_extract_epi64(_mm512_extracti64x2_epi64(broadcasted1, 1), 0),
+		_mm_extract_epi64(_mm512_extracti64x2_epi64(broadcasted1, 2), 0),
+		_mm_extract_epi64(_mm512_extracti64x2_epi64(broadcasted1, 3), 0),
+		_mm_extract_epi64(_mm512_extracti64x2_epi64(broadcasted2, 0), 0),
+		_mm_extract_epi64(_mm512_extracti64x2_epi64(broadcasted2, 1), 0),
+		_mm_extract_epi64(_mm512_extracti64x2_epi64(broadcasted2, 2), 0),
+		_mm_extract_epi64(_mm512_extracti64x2_epi64(broadcasted2, 3), 0)
+	);
+	*board = _mm512_reduce_max_epi64(cmp);
+#else
 	uint64_t b = *board;
 	uint64_t max = b;
 	uint64_t cached[3];
@@ -297,6 +334,7 @@ void canonicalize_b(uint64_t* board){ // turn a board into it's canonical versio
 	flip(cached + 2);
 	max = MAX(max, cached[2]);
 	*board = max;
+#endif
 }
 
 int get_sum(uint64_t b){
@@ -380,20 +418,6 @@ void output_board(uint64_t board){
 		printf("\n");
 	}
 }
-[[maybe_unused]] inline static uint64_t log2_(uint64_t x) {
-#ifdef _WIN32
-	x--;
-	x |= x >> 1;
-	x |= x >> 2;
-	x |= x >> 4;
-	x |= x >> 8;
-	x |= x >> 16;
-	x |= x >> 32;
-	return ++x;
-#endif
-	return x == 1 ? 1 : (64-__builtin_clzl(x-1));
-}
-
 bool *required_symmetries(static_arr_info *winstates){ // TODO make JIT optimization w this
 	// required symmetries : generates a bool array of an array of winstates where
 	// required_symmetries[rot] == 1 means that it is possible to reach and therefore should 

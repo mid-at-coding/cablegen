@@ -34,6 +34,7 @@ CABLEGEN_LDFLAGS = -shared
 endif
 ifeq ($(LIBTYPE),static)
 CABLEGEN_LDFLAGS = -r
+LDFLAGS += -fpie
 ifeq ($(BUILD),debug)
 $(error Debug mode doesn't work with static linkage! (Asan will complain))
 endif
