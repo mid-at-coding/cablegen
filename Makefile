@@ -12,11 +12,13 @@ BUILD=prod
 PLATFORM=linux
 LDFLAGS=-flto
 LIBTYPE=static
+
 ifeq ($(BUILD),e)
 FILES=$(addsuffix .c,$(addprefix ppc/,$(notdir $(basename $(wildcard src/*.c)))))
 else
 FILES=$(addsuffix .o,$(addprefix build/,$(notdir $(basename $(wildcard src/*.c))))) build/ini.o 
 endif
+
 CCFLAGS_SHARED += -DVERSION=$$(git describe --tags --always --dirty)
 .PHONY: all clean default gen_conf frontends
 
@@ -31,6 +33,7 @@ endif
 ifeq ($(LIBTYPE),dynamic)
 LDFLAGS += -fpic
 CABLEGEN_LDFLAGS = -shared
+FILES += build/logging.o
 endif
 ifeq ($(LIBTYPE),static)
 CABLEGEN_LDFLAGS = -r
@@ -80,6 +83,10 @@ clean:
 	@make -C frontends/ clean
 
 build/ini.o: src/external/ini.c 
+	@echo [CC] $@
+	@$(CC) $< $(CCFLAGS_SHARED) $(CCFLAGS) -c -fpic -o $@
+
+build/logging.o: src/dynamic/logging.c 
 	@echo [CC] $@
 	@$(CC) $< $(CCFLAGS_SHARED) $(CCFLAGS) -c -fpic -o $@
 

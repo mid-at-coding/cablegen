@@ -375,7 +375,8 @@ void generate(const int start, const int end, const char *fmt, const static_arr_
 	long long nox = get_settings()->min.nox;
 	dynamic_arr_info n  = init_darr(false, 0);
 	free(n.bp);
-	n.bp = initial->bp;
+	n.bp = malloc_errcheck(initial->size * sizeof(uint64_t));
+	memcpy(n.bp, initial->bp, initial->size * sizeof(uint64_t));
 	n.size = initial->size;
 	n.sp = n.size + n.bp;
 	dynamic_arr_info n2 = init_darr(false, DARR_INITIAL_SIZE);
@@ -444,4 +445,12 @@ static_arr_info read_boards(const char *dir){
 fail:
 	logf_out("Couldn't read %s!", LOG_WARN, dir);
 	return (static_arr_info){.valid = false};
+}
+
+void read_boards2(static_arr_info *b, const char *dir){
+	*b = read_boards(dir);
+}
+
+double pun_uint64(uint64_t num){
+	return *(double*)(&num);
 }

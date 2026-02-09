@@ -41,6 +41,7 @@ typedef enum {
 bool movedir(uint64_t*, dir);
 void generate_lut(void);
 static_arr_info read_boards(const char *dir);
+void read_boards2(static_arr_info *b, const char *dir);
 void change_config(char *cfg);
 double lookup(uint64_t key, table *t, bool canonicalize);
 typedef struct {
@@ -71,6 +72,7 @@ void destroy_sarr(static_arr_info* arr); // frees and invalidates array
 bool push_back(dynamic_arr_info*, uint64_t); // returns whether a resize happened
 void write_boards(const static_arr_info n, const char* fmt, const int layer);
 void read_table(table *t, const char *path);
+double pun_uint64(uint64_t);
 bool test(void);
 int get_sum(uint64_t board);
 void output_board(uint64_t);
