@@ -24,20 +24,26 @@ char *get_bench_node_name(const bench_node n){
 	return "";
 }
 void set_layer(int l){
+#ifdef BENCH
 	bench_layer = l;
+#endif
 }
 void open_bench(char *file, char *name){
+#ifdef BENCH
 	bench_file = fopen(file, "w");
 	if(!bench_file){
 		logf_out("Could not open %s for benchmarking! Error: %s", LOG_ERROR, file, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	fprintf(bench_file, "digraph %s{\n", name);
+#endif
 }
 void start_node(const bench_node node){
+#ifdef BENCH
 	clock_gettime(CLOCK_MONOTONIC, &node_times[node].start);
+#endif
 }
-static void connect(const bench_node node){
+[[maybe_unused]] static void connect(const bench_node node){
 	switch(node){
 		case GEN_LAYER:
 			fprintf(bench_file, "\tGEN_LAYER%d -> GEN_LAYER%d // gen_layer\n", bench_layer, bench_layer - 2);
@@ -88,20 +94,26 @@ long getms(const struct timespec start, const struct timespec end){
 	return ((1'000'000'000 * diff.tv_sec) + diff.tv_nsec) / 1000000;
 }
 void end_node(const bench_node node){
+#ifdef BENCH
 	clock_gettime(CLOCK_MONOTONIC, &node_times[node].end);
 	long totalms = getms(node_times[node].start, node_times[node].end);
 	fprintf(bench_file, "\t%s%d [label=\"%s %d t(ms): %ld\"];\n", get_bench_node_name(node), bench_layer, 
 			get_bench_node_name(node), bench_layer, totalms);
 	connect(node);
+#endif
 }
 void end_node_n(const bench_node node, const long long n){
+#ifdef BENCH
 	clock_gettime(CLOCK_MONOTONIC, &node_times[node].end);
 	long totalms = getms(node_times[node].start, node_times[node].end);
 	fprintf(bench_file, "\t%s%d [label=\"%s %d t(ms): %ld\", n: %lld];\n", get_bench_node_name(node), bench_layer, 
 			get_bench_node_name(node), bench_layer, totalms, n);
 	connect(node);
+#endif
 }
 void end_bench(){
+#ifdef BENCH
 	fprintf(bench_file, "}\n");
 	fclose(bench_file);
+#endif
 }

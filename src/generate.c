@@ -1,8 +1,6 @@
 #include "generate.h"
 #include "array.h"
-#ifdef BENCH
 #include "bench.h"
-#endif
 #include <time.h>
 #define LOG_H_ENUM_PREFIX_
 #define LOG_H_NAMESPACE_ 
@@ -292,11 +290,9 @@ dynamic_arr_info *get_darr_arr(const arguments *cores, const size_t core_count){
 
 static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int core_count){
 	wait(cores, core_count);
-#ifdef BENCH
 	end_node(GEN_MOVE);
 	start_node(COMBINE_MOVE);
 	start_node(DEDUPE_MOVE);
-#endif
 	destroy_darr(n);
 	dynamic_arr_info *arrs = get_darr_arr(cores, core_count);
 
@@ -310,38 +306,36 @@ static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int 
 void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, 
 		const unsigned core_count, const char *fmt_dir, const int layer, arguments *cores, char nox){
 	// move
-#ifdef BENCH
 	start_node(MOVE);
 	start_node(GEN_MOVE);
-#endif
+
 	if(get_settings()->prune)
 		init_threads(n, core_count, movep, cores, nox, layer);
 	else
 		init_threads(n, core_count, move, cores, nox, layer);
 	// wait for moves to be done
 	replace_n(n, cores, core_count); // this array currently holds boards where we just spawned -- these are never our responsibility
-#ifdef BENCH
+
 	end_node(COMBINE_MOVE);
 	end_node(DEDUPE_MOVE);
 	end_node(MOVE);
-#endif
+
 	// spawn
-#ifdef BENCH
 	start_node(SPAWN);
 	start_node(GEN_SPAWN);
-#endif
+
 	init_threads(n, core_count, spawn, cores, nox, layer);
 	// write while waiting for spawns
-#ifdef BENCH
+	
 	start_node(WRITE);
-#endif
+
 	write_boards((static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp}, fmt_dir, layer);
-#ifdef BENCH
+	
 	end_node(WRITE);
 	end_node(GEN_SPAWN);
 	start_node(COMBINE_SPAWN);
 	start_node(DEDUPE_SPAWN);
-#endif
+
 	wait(cores,core_count);
 	// concatenate spawns
 	dynamic_arr_info *arrs = get_darr_arr_and(cores, core_count, 1, true);
@@ -358,17 +352,15 @@ void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info*
 		destroy_darr(arrs + i);
 	}
 	free(arrs);
-#ifdef BENCH
+
 	end_node(COMBINE_SPAWN);
 	end_node(DEDUPE_SPAWN);
 	end_node(SPAWN);
-#endif
 }
 void generate(const int start, const int end, const char *fmt, const static_arr_info *initial){
 	// GENERATE: write all sub-boards where it is the computer's move
-#ifdef BENCH
 	open_bench("bench/"VERSION_STR".gv", "generate");
-#endif
+
 	generate_lut();
 	static const size_t DARR_INITIAL_SIZE = 100;
 	long long core_count = get_settings()->min.cores;
@@ -392,14 +384,13 @@ void generate(const int start, const int end, const char *fmt, const static_arr_
 		generation_thread_move(&premove_args);
 	}
 	for(int i = start; i <= end; i += 2){
-#ifdef BENCH
 		set_layer(i);
 		start_node(GEN_LAYER);
-#endif
+
 		generate_layer(&n, &n2, &n4, core_count, fmt, i, cores, nox);
-#ifdef BENCH
+
 		end_node(GEN_LAYER);
-#endif
+
 		destroy_darr(&n);
 		n = n2;
 		n2 = n4;
@@ -409,9 +400,8 @@ void generate(const int start, const int end, const char *fmt, const static_arr_
 	destroy_darr(&n2);
 	destroy_darr(&n4);
 	free(cores);
-#ifdef BENCH
+
 	end_bench();
-#endif
 }
 static_arr_info read_boards(const char *dir){
 	FILE *fp = fopen(dir, "rb");

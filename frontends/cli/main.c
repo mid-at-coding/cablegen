@@ -91,7 +91,7 @@ static void parseGenerate(){
 		}
 	}
 	if(boards.size < 1){
-		printf("No boards in %s!", settings.initial);
+		logf_out("No boards in %s!", LOG_ERROR, settings.initial);
 		return;
 	}
 
