@@ -25,7 +25,7 @@ ifeq ($(LIBTYPE),dynamic)
 CCFLAGS += -DDYNAMIC
 endif
 ifeq ($(LIBTYPE),static)
-CCFLAGS += -static
+#CCFLAGS += -static
 endif
 
 .PHONY: all

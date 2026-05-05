@@ -45,7 +45,7 @@ bool push_back(dynamic_arr_info*, uint64_t); // returns whether a resize happene
 void deduplicate(dynamic_arr_info*);
 void deduplicate_qs(dynamic_arr_info*);
 void deduplicate_masked(dynamic_arr_info*);
-dynamic_arr_info sarrtodarr(static_arr_info*);
+dynamic_arr_info sarrtodarr(static_arr_info);
 void destroy_darr(dynamic_arr_info* arr);
 void destroy_sarr(static_arr_info* arr);
 _BitInt(BUCKETS_DIGITS) get_first_digits(uint64_t tmp);

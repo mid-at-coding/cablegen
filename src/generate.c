@@ -1,5 +1,7 @@
 #include "generate.h"
 #include "array.h"
+#include <bits/pthreadtypes.h>
+#include <stdlib.h>
 #ifdef BENCH
 #include "bench.h"
 #endif
@@ -23,7 +25,6 @@
 
 typedef struct {
 	static_arr_info n; 
-	dynamic_arr_info nret;
 	dynamic_arr_info n2; 
 	dynamic_arr_info n4;
 	size_t start; 
@@ -35,13 +36,8 @@ typedef struct {
 	long layer;
 	pthread_t thread;
 } arguments;
-enum thread_op {
-	move,
-	movep,
-	spawn,
-};
 
-void print_speed(uint64_t size){
+void print_speed(size_t size){
 	static bool init = false;
 	static bool enabled = true;
 	static struct timespec old_time;
@@ -102,89 +98,28 @@ bool checkx(uint64_t board, char x){
 }
 
 bool prune_board(const uint64_t board, const long stsl, const long ltc, const long smallest_large){
-	short tmp = 0; // TODO: masking
-	short large_tiles = 0;
-	int smallest = 0xff;
-	int sts = 0; // small tile sum
-	uint16_t tiles = 0;
-	uint16_t tiles2 = 0;
-	char c64 = 0;
-	for(short i = 0; i < 16; i++){
-		if((tmp = GET_TILE(board, i)) >= smallest_large && tmp < 0xe){
-			smallest = tmp > smallest ? smallest : tmp;
-			large_tiles++;
-			if (tmp == smallest_large && c64 < 3)
-				c64++;
-			else if (tmp == smallest_large && c64 == 2)
-				return true;
-			else if(!GETBIT(tiles, tmp))
-				SETBIT(tiles, tmp);
-			else if(!GETBIT(tiles2, tmp))
-				SETBIT(tiles2, tmp);
-			else
-				return true;
-		}
-		else if(tmp < 0xe){
-			sts += 1 << tmp;
-		}
-	}
-	if(sts > stsl + 64)
-		return true;
-	if(large_tiles > ltc)
-		return true;
-	// condition number three seems impossible??
 	return false;
 }
 
-void *generation_thread_move(void* data){ // n, nret
+void *gen_layer_thread(void *data){
 	arguments *args = data;
-	uint64_t tmp;
-	uint64_t old;
+	dynamic_arr_info ntemp = init_darr(0, args->n.size);
+	// move
+	uint64_t tmp, old;
 	for(size_t i = args->start; i < args->end; i++){
 		old = args->n.bp[i];
 		tmp = old;
 		for(dir d = left; d <= down; d++){
 			if(movedir_unstable(&tmp, d)){
-				canonicalize_b(&tmp); // TODO it's not necessary to gen *all* boards in nox
-				
-				push_back(&args->nret, tmp);
+				push_back(&ntemp, tmp);
 				tmp = old;
 			}
 		}
 	}
-	qs_sort_h(args->nret.bp, args->nret.sp - args->nret.bp);
-	return NULL;
-}
-
-void *generation_thread_movep(void* data){ // n, nret, stsl, ltc, smallest_large
-	arguments *args = data;
-	uint64_t tmp;
-	uint64_t old;
-	for(size_t i = args->start; i < args->end; i++){
-		old = args->n.bp[i];
-		if(prune_board(old, args->stsl, args->ltc, args->smallest_large))
-			continue;
-		tmp = old;
-		for(dir d = left; d <= down; d++){
-			if(movedir_unstable(&tmp, d)){
-				if(prune_board(tmp, args->stsl, args->ltc, args->smallest_large))
-					continue;
-				canonicalize_b(&tmp);
-				push_back(&args->nret, tmp);
-				tmp = old;
-			}
-		}
-	}
-	qs_sort_h(args->nret.bp, args->nret.sp - args->nret.bp);
-	return NULL;
-}
-
-void *generation_thread_spawn(void* data){
-	arguments *args = data;
-	uint64_t tmp;
-	uint64_t old;
-	for(size_t i = args->start; i < args->end; i++){
-		old = args->n.bp[i];
+	// TODO test if it's ever faster to dedupe here
+	// spawn
+	for(long long i = 0; i < ntemp.sp - ntemp.bp; i++){ // perhaps more expressive to iterate with the ptr
+		old = ntemp.bp[i]; // don't read from n
 		for(int tile = 0; tile < 16; tile++){
 			if(GET_TILE(old, tile) == 0){
 				tmp = old;
@@ -198,41 +133,17 @@ void *generation_thread_spawn(void* data){
 			}
 		}
 	}
-	qs_sort_h(args->n2.bp, args->n2.sp - args->n2.bp);
-	qs_sort_h(args->n4.bp, args->n4.sp - args->n4.bp);
+	destroy_darr(&ntemp);
+	logf_out("Core done at %ld", LOG_TRACE, time(NULL));
 	return NULL;
 }
 
-static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, enum thread_op op, arguments *cores, char nox, long layer){ 
-	// TODO make these ops work with solving too?
-	void *(*fn)(void*);
-	switch(op){
-	case movep:
-		fn = generation_thread_movep;
-		break;
-	case move:
-		fn = generation_thread_move;
-		break;
-	case spawn:
-		fn = generation_thread_spawn;
-		break;
-	}
+static void init_threads(const dynamic_arr_info *n, const unsigned int core_count, arguments *cores, char nox, long layer){ 
+	const size_t INITIAL_SPAWN = 512;
 	for(unsigned i = 0; i < core_count; i++){ // initialize worker threads
 		cores[i].n = (static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp};
-		switch(op){
-		case movep:
-			cores[i].stsl = get_settings()->stsl;
-			cores[i].ltc = get_settings()->ltc;
-			__attribute__ ((fallthrough));
-		case move:
-			cores[i].nret = init_darr(0, 3 * (n->sp - n->bp) / core_count);
-			break;
-		case spawn:
-			cores[i].n2 = init_darr(0, 4 * (n->sp - n->bp) / core_count);
-			cores[i].n4 = init_darr(0, 4 * (n->sp - n->bp) / core_count);
-			cores[i].nox = nox;
-			break;
-		}
+		cores[i].n2 = init_darr(0, INITIAL_SPAWN);
+		cores[i].n4 = init_darr(0, INITIAL_SPAWN);
 		// divide up [0,n.size)
 		// cores work in [start,end)
 		int block_size = (n->sp - n->bp) / core_count;
@@ -245,174 +156,280 @@ static void init_threads(const dynamic_arr_info *n, const unsigned int core_coun
 		}
 	}
 	for(unsigned i = 0; i < core_count; i++){
-		[[maybe_unused]] int e;
+		int e;
 		log_out("Creating thread", LOG_TRACE);
-		if((e = pthread_create(&cores[i].thread, NULL, fn, (void*)(cores + i)))){
-#ifndef NOERRCHECK
+		if((e = pthread_create(&cores[i].thread, NULL, gen_layer_thread, (void*)(cores + i)))){
 			log_out("Failed creating thread!", LOG_ERROR);
 			exit(EXIT_FAILURE);
-#endif
 		}
 	}
 }
 
-static void wait(arguments *cores, size_t core_count){
+void wait(arguments *cores, const unsigned core_count){ // TODO: standardize core_count type
 	for(size_t i = 0; i < core_count; i++){
 		pthread_join(cores[i].thread, NULL);
 	}
 }
 
-dynamic_arr_info *get_darr_arr_and(const arguments *cores, const size_t core_count, const size_t extra, const bool n2){
-	dynamic_arr_info *arrs = malloc(sizeof(dynamic_arr_info) * (core_count + extra));
-	if(!arrs){
-		log_out("Couldn't allocate arrays!", LOG_ERROR);
-		exit(EXIT_FAILURE);
-	}
-	for(size_t i = 0; i < core_count; i++){
-		if(n2){
-			arrs[i] = cores[i].n2;
+#define BASE 16
+#define BITS 4
+#define D(v, d) ((v >> (64 - (d * BITS) - BITS)) & 0xf)
+
+typedef struct {
+	int digit;
+	size_t final;
+	uint64_t *arr;
+	arguments *args;
+	unsigned core_count; 
+	bool four_spawn;
+} deduplicate_args;
+
+void *deduplicate_worker_thread(void *data){
+	deduplicate_args *args = data;
+	args->final = 0;
+	// a) copy data from main arrays to static arrs
+	size_t cursor = 0;
+	for(size_t i = 0; i < args->core_count; i++){
+		uint64_t *bp, *sp;
+		if(args->four_spawn){
+			bp = args->args[i].n4.bp;
+			sp = args->args[i].n4.sp;
 		}
 		else{
-			arrs[i] = cores[i].n4;
+			bp = args->args[i].n2.bp;
+			sp = args->args[i].n2.sp;
+		}
+		for(uint64_t *curr = bp; curr < sp; curr++){
+			if(D((*curr), 0) == args->digit){
+				args->arr[cursor++] = *curr;
+			}
 		}
 	}
-	return arrs;
+
+	// b) sort that data
+	if(cursor <= 1){
+		logf_out("Made %lu elements with %02lx", LOG_TRACE, cursor, args->digit);
+		args->final = cursor;
+		return NULL;
+	}
+	uint64_t *copy = malloc(sizeof(uint64_t) * cursor); // make a copy because it's slow to deduplicate in place
+	if(!copy){
+		log_f(stderr, "Could not copy array!", LOG_ERROR);
+		return NULL;
+	}
+	memcpy(copy, args->arr, cursor * sizeof(uint64_t));
+	qs_sort_h(copy, cursor);
+
+	// c) deduplicate
+	size_t cursor_out = 1;
+	args->arr[0] = copy[0];
+	for(size_t i = 1; i < cursor; i++){
+		if(copy[i] > args->arr[cursor_out - 1]){
+			args->arr[cursor_out++] = copy[i];
+		}
+	}
+	free(copy);
+
+	// d) return len of final array (saved in args->final)
+	logf_out("Made %lu elements with %02lx", LOG_TRACE, cursor_out, args->digit);
+	logf_out("Core done at %ld", LOG_TRACE, time(NULL));
+	args->final = cursor_out;
+	return NULL;
 }
-dynamic_arr_info *get_darr_arr(const arguments *cores, const size_t core_count){
-	dynamic_arr_info *arrs = malloc(sizeof(dynamic_arr_info) * core_count);
-	if(!arrs){
-		log_out("Couldn't allocate arrays!", LOG_ERROR);
+
+static_arr_info combine_spawns(arguments *cores, const unsigned core_count, const bool four_spawn){
+	if(four_spawn)
+		logf_out("Starting to combine four spawns at %ld", LOG_DBG, time(NULL));
+	else
+		logf_out("Starting to combine two spawns at %ld", LOG_DBG, time(NULL));
+	size_t histogram[BASE] = {};
+	// build histogram
+	for(size_t core = 0; core < core_count; core++){
+		uint64_t *bp, *sp;
+		if(four_spawn){
+			bp = cores[core].n4.bp;
+			sp = cores[core].n4.sp;
+		}
+		else{
+			bp = cores[core].n2.bp;
+			sp = cores[core].n2.sp;
+		}
+		for(uint64_t *curr = bp; curr < sp; curr++){
+			histogram[D((*curr), 0)]++;
+		}
+	}
+	
+	// make static arrays for each digit
+	uint64_t *arrs[BASE];
+	for(size_t i = 0; i < BASE; i++){
+		arrs[i] = malloc(histogram[i] * sizeof(uint64_t));
+		if(!arrs[i]){
+			log_f(stderr, "Could not allocate array for deduplication!", LOG_ERROR);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	for(size_t i = 0; i < BASE; i++){
+		logf_out("%02lx: %lu members", LOG_TRACE, i, histogram[i]);
+	}
+
+	logf_out("Dispatching %d threads at %ld", LOG_DBG, BASE, time(NULL));
+
+	// create threads to:
+	// a) copy data from main arrays to static arrs
+	// b) sort that data
+	// c) deduplicate
+	// d) return the length of the final array
+	// ASSUMPTION: core_count <= base (for utilization)
+	// ASSUMPTION: the OS will gracefully handle the base where core_count < base 
+	// and keep good utilization
+	deduplicate_args args[BASE];
+	for(size_t i = 0; i < BASE; i++){
+		args[i].digit = i;
+		args[i].final = 0;
+		args[i].arr = arrs[i];
+		args[i].args = cores;
+		args[i].core_count = core_count;
+		args[i].four_spawn = four_spawn;
+	}
+	pthread_t threads[BASE];
+	for(size_t i = 0; i < BASE; i++){
+		int e = 0;
+		if((e = pthread_create(&threads[i], NULL, deduplicate_worker_thread, args + i))){
+			log_out("Failed creating thread!", LOG_ERROR);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	// wait for threads and compute final len
+	log_out("Waiting for cores...", LOG_DBG);
+	size_t len = 0;
+	for(size_t i = 0; i < BASE; i++){
+		pthread_join(threads[i], NULL);
+		len += args[i].final;
+	}
+
+	// free the data
+	if(four_spawn){
+		for(size_t i = 0; i < core_count; i++){
+			destroy_darr(&cores[i].n4);
+		}
+	}
+	else{
+		for(size_t i = 0; i < core_count; i++){
+			destroy_darr(&cores[i].n2);
+		}
+	}
+
+	// make final arr
+	uint64_t *final = malloc(sizeof(uint64_t) * len);
+	if(!final){
+		log_f(stderr, "Could not allocate array for deduplication!", LOG_ERROR);
 		exit(EXIT_FAILURE);
 	}
-	for(size_t i = 0; i < core_count; i++){
-		arrs[i] = cores[i].nret;
+	uint64_t *cursor = final;
+	for(size_t i = 0; i < BASE; i++){
+		memcpy(cursor, args[i].arr, args[i].final * sizeof(uint64_t));
+		cursor += args[i].final;
+		free(args[i].arr);
 	}
-	return arrs;
+
+	logf_out("Done combining spawns %ld", LOG_DBG, time(NULL));
+	return (static_arr_info){.valid = true, .bp = final, .size = len};
 }
 
-static void replace_n(dynamic_arr_info *n, arguments *cores, const unsigned int core_count){
-	wait(cores, core_count);
-#ifdef BENCH
-	end_node(GEN_MOVE);
-	start_node(COMBINE_MOVE);
-	start_node(DEDUPE_MOVE);
-#endif
-	destroy_darr(n);
-	dynamic_arr_info *arrs = get_darr_arr(cores, core_count);
+typedef struct {
+	dynamic_arr_info *curr;
+	arguments *cores;
+	unsigned int core_count;
+	bool spawn;
+} combine_spawns_async_args;
 
-	*n = deduplicate_threads(arrs, core_count);
-	for(size_t i = 0; i < core_count; i++){
-		destroy_darr(arrs + i);
-	}
-	free(arrs);
+void *combine_spawns_async(void *data){
+	combine_spawns_async_args args = *(combine_spawns_async_args*)data;
+	*args.curr = sarrtodarr(combine_spawns(args.cores, args.core_count, args.spawn));
+	return NULL;
 }
 
 void generate_layer(dynamic_arr_info* n, dynamic_arr_info* n2, dynamic_arr_info* n4, 
 		const unsigned core_count, const char *fmt_dir, const int layer, arguments *cores, char nox){
-	// move
-#ifdef BENCH
-	start_node(MOVE);
-	start_node(GEN_MOVE);
-#endif
-	if(get_settings()->prune)
-		init_threads(n, core_count, movep, cores, nox, layer);
-	else
-		init_threads(n, core_count, move, cores, nox, layer);
-	// wait for moves to be done
-	replace_n(n, cores, core_count); // this array currently holds boards where we just spawned -- these are never our responsibility
-#ifdef BENCH
-	end_node(COMBINE_MOVE);
-	end_node(DEDUPE_MOVE);
-	end_node(MOVE);
-#endif
-	// spawn
-#ifdef BENCH
-	start_node(SPAWN);
-	start_node(GEN_SPAWN);
-#endif
-	init_threads(n, core_count, spawn, cores, nox, layer);
-	// write while waiting for spawns
-#ifdef BENCH
-	start_node(WRITE);
-#endif
-	write_boards((static_arr_info){.valid = n->valid, .bp = n->bp, .size = n->sp - n->bp}, fmt_dir, layer);
-#ifdef BENCH
-	end_node(WRITE);
-	end_node(GEN_SPAWN);
-	start_node(COMBINE_SPAWN);
-	start_node(DEDUPE_SPAWN);
-#endif
-	wait(cores,core_count);
-	// concatenate spawns
-	dynamic_arr_info *arrs = get_darr_arr_and(cores, core_count, 1, true);
-	arrs[core_count] = *n2;
-	*n2 = deduplicate_threads(arrs, core_count + 1);
-	for(size_t i = 0; i < core_count + 1; i++){
-		destroy_darr(arrs + i);
-	}
-	free(arrs);
-	arrs = get_darr_arr_and(cores, core_count, 1, false);
-	arrs[core_count] = *n4;
-	*n4 = deduplicate_threads(arrs, core_count + 1);
-	for(size_t i = 0; i < core_count + 1; i++){
-		destroy_darr(arrs + i);
-	}
-	free(arrs);
-#ifdef BENCH
-	end_node(COMBINE_SPAWN);
-	end_node(DEDUPE_SPAWN);
-	end_node(SPAWN);
-#endif
+	log_out("Starting generation", LOG_DBG);
+	init_threads(n, core_count, cores, nox, layer);
+	log_out("Waiting for cores...", LOG_DBG);
+	wait(cores, core_count); // now we have in cores n2 and n4 all of the player's moves
+	
+	// C threading moment
+	pthread_t n2_thread;
+	pthread_t n4_thread;
+	dynamic_arr_info currn2;
+	dynamic_arr_info currn4;
+	combine_spawns_async_args argsn2 = {
+		.curr = &currn2,
+		.cores = cores,
+		.core_count = core_count,
+		.spawn = false
+	};
+	combine_spawns_async_args argsn4 = {
+		.curr = &currn4,
+		.cores = cores,
+		.core_count = core_count,
+		.spawn = true
+	};
+	pthread_create(&n2_thread, NULL, combine_spawns_async, &argsn2);
+	pthread_create(&n4_thread, NULL, combine_spawns_async, &argsn4);
+	pthread_join(n2_thread, NULL);
+	pthread_join(n4_thread, NULL);
+	destroy_darr(n4);
+	*n4 = currn4;
+	*n2 = concat(n2, &currn2);
 }
+
 void generate(const int start, const int end, const char *fmt, const static_arr_info *initial){
-	// GENERATE: write all sub-boards where it is the computer's move
-#ifdef BENCH
-	open_bench("bench/"VERSION_STR".gv", "generate");
-#endif
+	// GENERATE: write all sub-boards where it is the PLAYER's move
 	generate_lut();
-	static const size_t DARR_INITIAL_SIZE = 100;
-	long long core_count = get_settings()->min.cores;
+	static const size_t DARR_INITIAL_SIZE = 512;
+	long long core_count = get_settings()->min.cores; // TODO: perhaps better to send these as settings?
+							  // there's kind of a situation where some parameters
+							  // are passed as args, and some as settings
 	long long nox = get_settings()->min.nox;
-	dynamic_arr_info n  = init_darr(false, 0);
+
+	dynamic_arr_info n  = init_darr(false, 0); // technically can simply not initialize, but if a mtx
+						   // or other things are added, this is more robust
 	free(n.bp);
 	n.bp = malloc_errcheck(initial->size * sizeof(uint64_t));
 	memcpy(n.bp, initial->bp, initial->size * sizeof(uint64_t));
 	n.size = initial->size;
 	n.sp = n.size + n.bp;
+
 	dynamic_arr_info n2 = init_darr(false, DARR_INITIAL_SIZE);
 	dynamic_arr_info n4 = init_darr(false, DARR_INITIAL_SIZE);
-	arguments *cores = malloc_errcheck(sizeof(arguments) * core_count);
+
+	arguments *cores = malloc_errcheck(sizeof(arguments) * core_count); // allocate space for thread args 
+
 	if(get_settings()->premove){
-		arguments premove_args;
-		premove_args.n = (static_arr_info){.valid = n.valid, .bp = n.bp, .size = n.sp - n.bp};
-		premove_args.n2 = n2;
-		premove_args.n4 = n4;
-		premove_args.start = 0;
-		premove_args.end = premove_args.n.size;
-		generation_thread_move(&premove_args);
+		log_f(stderr, "Premove uninplemented!", LOG_ERROR);
+		exit(EXIT_FAILURE);
 	}
+
+	if(get_settings()->prune){
+		log_f(stderr, "Pruning uninplemented!", LOG_ERROR);
+		exit(EXIT_FAILURE);
+	}
+
 	for(int i = start; i <= end; i += 2){
-#ifdef BENCH
-		set_layer(i);
-		start_node(GEN_LAYER);
-#endif
 		generate_layer(&n, &n2, &n4, core_count, fmt, i, cores, nox);
-#ifdef BENCH
-		end_node(GEN_LAYER);
-#endif
 		destroy_darr(&n);
 		n = n2;
 		n2 = n4;
 		n4 = init_darr(false, DARR_INITIAL_SIZE);
 	}
+
 	destroy_darr(&n);
 	destroy_darr(&n2);
 	destroy_darr(&n4);
 	free(cores);
-#ifdef BENCH
-	end_bench();
-#endif
 }
+
 static_arr_info read_boards(const char *dir){
 	FILE *fp = fopen(dir, "rb");
 	if(fp == NULL){

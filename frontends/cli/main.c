@@ -483,7 +483,7 @@ void benchmark(void){
 	initial_arr_sarr.bp = initial_arr.bp;
 	initial_arr_sarr.size = initial_arr.sp - initial_arr.bp;
 	initial_arr_sarr.valid = true;
-	set_log_level(LOG_WARN);
+	set_log_level(LOG_DBG);
 	generate(16, 300, ".benchmark/%d.boards", &initial_arr_sarr);
 	set_log_level(LOG_INFO);
 	printf("Multi-threaded LL-256: %d seconds\n", (unsigned)difftime(time(NULL), curr));

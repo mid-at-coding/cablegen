@@ -1,4 +1,5 @@
 #include "solve.h"
+#include <stdlib.h>
 #define LOG_H_ENUM_PREFIX_
 #define LOG_H_NAMESPACE_ 
 #include "logging.h"
@@ -170,6 +171,8 @@ void destroy_table(table* t){
 }
 
 void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, const static_arr_info *initial_winstates){
+	log_f(stderr, "Solving unimplemented!", LOG_ERROR);
+	exit(EXIT_FAILURE);
 	const size_t FILENAME_SIZE = 100;
 	dynamic_arr_info winstates_d = init_darr(0,0);
 	long long cores = get_settings()->min.cores;
@@ -223,7 +226,7 @@ void solve(unsigned start, unsigned end, char *posfmt, char *tablefmt, const sta
 	free(filename);
 }
 
-bool cmpbrd(uint64_t board, uint64_t board2){
+bool inline cmpbrd(uint64_t board, uint64_t board2){
 	uint64_t board_mask = (board2 >> 2) | board2;
 	board_mask = ((board_mask >> 1) | board_mask) & 0x1111111111111111;
 	board_mask = board_mask * 0xf;
@@ -245,14 +248,15 @@ bool satisfied(const uint64_t *board, const static_arr_info *winstates, const ch
 
 static double maxmove(uint64_t board, table *n, static_arr_info *winstates, char nox, bool score){
 	uint64_t tmp;
-	double prob[4] = {0};
+	double prob[4];
 	for(dir d = left; d <= down; d++){
 		tmp = board;
-		if(movedir_unstable(&tmp, d)){
-			prob[d] = lookup(tmp, n, true);
-		}
+		movedir_unstable(&tmp, d);
+		prob[d] = tmp == board ? 0 : lookup(tmp, n, true);
 	}
-	return fmax(fmax(prob[0], prob[1]), fmax(prob[2], prob[3]));
+	double f = (prob[0] > prob[1] ? prob[0] : prob[1]);
+	double s = (prob[2] > prob[3] ? prob[2] : prob[3]);
+	return (f > s ? f : s);
 }
 double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstates, char nox, bool score){
 	int spaces = 0;
@@ -270,7 +274,7 @@ double expectimax(uint64_t board, table *n2, table *n4, static_arr_info *winstat
 	}
 	double res = 0;
 	if(spaces == 0)
-		log_out("No space!", LOG_TRACE);
+		return 0;
 	else
 		res = (0.9 * n2prob / spaces) + (0.1 * n4prob / spaces);
 	if(score && res == 0){ // if this board is a leaf or otherwise dead, return the score. this is the base case

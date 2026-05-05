@@ -189,12 +189,12 @@ void* malloc_errcheck(size_t size){ // guaranteed to be non-null
 	return malloc(size);
 #endif
 }
-dynamic_arr_info sarrtodarr(static_arr_info *s){
+dynamic_arr_info sarrtodarr(static_arr_info s){
 	dynamic_arr_info tmp;
-	tmp.bp = s->bp;
-	tmp.sp = s->bp + s->size;
-	tmp.valid = s->valid;
-	tmp.size = s->size;
+	tmp.bp = s.bp;
+	tmp.sp = s.bp + s.size;
+	tmp.valid = s.valid;
+	tmp.size = s.size;
 	return tmp;
 }
 void destroy_darr(dynamic_arr_info* arr){
@@ -244,7 +244,7 @@ bool push_back_into_bucket(buckets *b, uint64_t d){
 }
 
 dynamic_arr_info deduplicate_threads(dynamic_arr_info *arrs, size_t core_count){
-	constexpr static size_t max_cores = 128;
+	constexpr static size_t max_cores = 32;
 	if(core_count > max_cores){
 		logf_out("Core count (%ld) > %zu, this won't work!", LOG_ERROR, core_count, max_cores);
 		exit(EXIT_FAILURE);

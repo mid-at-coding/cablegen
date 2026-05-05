@@ -15,6 +15,22 @@
 #define EXPAND_STR(x) STR(x)
 #define VERSION_STR EXPAND_STR(VERSION)
 
+// Source - https://stackoverflow.com/a
+// Posted by chux, modified by community. See post 'Timeline' for change history
+// Retrieved 2026-01-09, License - CC BY-SA 4.0
+#define IMAX_BITS(m) ((m)/((m)%255+1) / 255%255*8 + 7-86/((m)%255+12))
+#define RAND_MAX_WIDTH IMAX_BITS(RAND_MAX)
+_Static_assert((RAND_MAX & (RAND_MAX + 1u)) == 0, "RAND_MAX not a Mersenne number");
+
+uint64_t rand64(void) {
+  uint64_t r = 0;
+  for (int i = 0; i < 64; i += RAND_MAX_WIDTH) {
+    r <<= RAND_MAX_WIDTH;
+    r ^= (unsigned) rand();
+  }
+  return r;
+}
+
 char *get_version(void){
 	return "cablegen "VERSION_STR;
 }
@@ -115,7 +131,7 @@ bool test_dynamic_arr(void){
 	buckets b;
 	init_buckets(&b);
 	for(size_t n = 0; n < 500; n++){
-		uint64_t tmp = rand();
+		uint64_t tmp = rand64();
 		push_back_into_bucket(&b, tmp);
 		_BitInt(BUCKETS_DIGITS) lookup = get_first_digits(tmp);
 		if(b.bucket[lookup].d.sp == b.bucket[lookup].d.bp){
@@ -194,7 +210,7 @@ bool test_rots(void){
 	const size_t iterations = 10000;
 	// test a bunch of "random values"
 	for(size_t i = 0; i < iterations; i++){
-		board = rand();
+		board = rand64();
 		sum = get_sum(board);
 		rots = get_all_rots(board);
 		for(int rot = 0; rot < 8; rot++){
@@ -218,7 +234,7 @@ bool test_rots(void){
 	}
 	log_out("Testing canonicalization", LOG_INFO);
 	for(size_t i = 0; i < iterations; i++){
-		board = rand();
+		board = rand64();
 		rots = get_all_rots(board);
 		for(int rot = 0; rot < 8; rot++)
 			canonicalize_b(rots + rot);
@@ -243,7 +259,7 @@ bool test_misc(void){
 	for(char x = 0; x <= 0xf; x++){
 		for(size_t i = 0; i < iterations; i++){
 			bool flag = false;
-			uint64_t board = rand();
+			uint64_t board = rand64();
 			for(int i = 0; i < 16; i++){
 				if((GET_TILE(board, i)) == x)
 					flag = true;
@@ -339,7 +355,7 @@ static bool test_cmpbrd(){
 	uint64_t ind = 0;
 	size_t iterations = 10000;
 	for(size_t i = 0; i < iterations; i++){
-		curr = rand();
+		curr = rand64();
 		if(!cmpbrd(curr, test)){
 			log_out("Wrong!", LOG_ERROR);
 			output_board(curr);
@@ -348,7 +364,7 @@ static bool test_cmpbrd(){
 			return false;
 		}
 		// choose a random tile to set
-		ind = rand() % 16;
+		ind = rand64() % 16;
 		SET_TILE(test, ind, (GET_TILE(curr, ind)));
 		if(!cmpbrd(curr, test)){
 			log_out("Wrong!", LOG_ERROR);
@@ -363,6 +379,91 @@ static bool test_cmpbrd(){
 	return true;
 }
 
+bool test_combining(){
+	typedef struct {
+		static_arr_info n; 
+		dynamic_arr_info n2; 
+		dynamic_arr_info n4;
+		size_t start; 
+		size_t end; 
+		long stsl; 
+		long smallest_large; 
+		long ltc;
+		char nox;
+		long layer;
+		pthread_t thread;
+	} arguments;
+	
+	size_t num_vals = 16;
+	dynamic_arr_info n2_1 = init_darr(0, num_vals);
+	dynamic_arr_info n2_2 = init_darr(0, num_vals);
+
+	for(size_t i = 0; i < num_vals; i++){
+		uint64_t tmp = rand64();
+		canonicalize_b(&tmp);
+		push_back(&n2_1, tmp);
+		tmp = rand64();
+		canonicalize_b(&tmp);
+		push_back(&n2_2, tmp);
+	}
+
+	dynamic_arr_info validation = init_darr(0, num_vals); // reference known correct dedupe
+	dynamic_arr_info copy = init_darr(0, num_vals);
+	memcpy(validation.bp, n2_1.bp, num_vals * sizeof(uint64_t));
+	memcpy(copy.bp, n2_2.bp, num_vals * sizeof(uint64_t));
+	validation.sp = validation.bp + num_vals;
+	copy.sp = copy.bp + num_vals;
+	validation = concat(&validation, &copy);
+	logf_out("Pre-deduplication:", LOG_TRACE);
+	for(size_t i = 0; i < validation.size; i++){
+		logf_out("\t%02lu: %lx", LOG_TRACE, i, validation.bp[i]);
+	}
+	deduplicate(&validation);
+	logf_out("Post-deduplication:", LOG_TRACE);
+	for(long long i = 0; i < (validation.sp - validation.bp); i++){
+		logf_out("\t%02lu: %lx", LOG_TRACE, i, validation.bp[i]);
+	}
+
+	extern static_arr_info combine_spawns(arguments *cores, const unsigned core_count, const bool four_spawn);
+
+	arguments cores[2] = {
+		{
+			.n2 = n2_1
+		},
+		{
+			.n2 = n2_2
+		},
+	};
+
+	logf_out("N2_1:", LOG_TRACE);
+	for(long long i = 0; i < (n2_1.sp - n2_1.bp); i++){
+		logf_out("\t%lu: %lx", LOG_TRACE, i, n2_1.bp[i]);
+	}
+
+	logf_out("N2_2:", LOG_TRACE);
+	for(long long i = 0; i < (n2_2.sp - n2_2.bp); i++){
+		logf_out("\t%lu: %lx", LOG_TRACE, i, n2_2.bp[i]);
+	}
+	
+	static_arr_info res = combine_spawns(cores, 2, false);
+
+	for(size_t i = 0; i < res.size; i++){
+		if(res.bp[i] != validation.bp[i]){
+			log_out("Failed!", LOG_ERROR);
+			log_out("Loc: Validation vs Actual", LOG_ERROR);
+			for(size_t j = 0; j < res.size; j++){
+				logf_out("\t%02lu: %lx vs %lx", LOG_INFO, j, validation.bp[j], res.bp[j]);
+			}
+			destroy_darr(&validation);
+			free(res.bp);
+			return false;
+		}
+	}
+	free(res.bp);
+	destroy_darr(&validation);
+	return true;
+}
+
 bool test(void){
 	set_log_level(LOG_INFO);
 	bool passed = true;
@@ -374,6 +475,7 @@ bool test(void){
 	passed &= test_misc();
 	passed &= test_settings();
 	passed &= test_cmpbrd();
+	passed &= test_combining();
 	test_generation();
 	if(!passed){
 		log_out("One or more tests failed!", LOG_ERROR);
